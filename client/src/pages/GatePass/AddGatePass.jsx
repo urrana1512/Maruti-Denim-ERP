@@ -17,6 +17,7 @@ const gatePassSchema = z.object({
     description: z.string().min(1, 'Description is required'),
     category: z.string().nonempty('Category is required'),
     quantity: z.coerce.number().min(0.01, 'Quantity must be > 0'),
+    uom: z.string().default('Nos'),
     remarks: z.string().optional(),
   })).min(1, 'At least one item is required').max(50, 'Max 50 items allowed')
 });
@@ -32,7 +33,7 @@ const AddGatePass = () => {
       date: format(new Date(), 'yyyy-MM-dd'),
       companyName: '',
       passType: 'Returnable',
-      items: [{ description: '', category: 'On Cost Repair (OCR)', quantity: 1, remarks: '' }]
+      items: [{ description: '', category: 'On Cost Repair (OCR)', quantity: 1, uom: 'Nos', remarks: '' }]
     }
   });
 
@@ -128,15 +129,16 @@ const AddGatePass = () => {
             </div>
             
             <div className="overflow-x-auto max-w-full">
-              <table className="w-full text-left border-collapse">
+              <table className="w-full text-left border-collapse min-w-[650px]">
                 <thead>
                   <tr className="bg-surface-bg border-y border-border-subtle">
                     <th className="p-3 text-xs font-semibold text-slate-600 w-12 text-center">Sr.</th>
                     <th className="p-3 text-xs font-semibold text-slate-600">Description *</th>
-                    <th className="p-3 text-xs font-semibold text-slate-600 w-56">Category *</th>
-                    <th className="p-3 text-xs font-semibold text-slate-600 w-28">Quantity *</th>
+                    <th className="p-3 text-xs font-semibold text-slate-600 w-48">Category *</th>
+                    <th className="p-3 text-xs font-semibold text-slate-600 w-24">Quantity *</th>
+                    <th className="p-3 text-xs font-semibold text-slate-600 w-24">UM</th>
                     <th className="p-3 text-xs font-semibold text-slate-600 w-1/4">Remarks</th>
-                    <th className="p-3 text-xs font-semibold text-slate-600 w-16 text-center">Act</th>
+                    <th className="p-3 text-xs font-semibold text-slate-600 w-14 text-center">Act</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -174,6 +176,23 @@ const AddGatePass = () => {
                         {errors.items?.[index]?.quantity && <p className="text-danger text-xs mt-1">{errors.items[index].quantity.message}</p>}
                       </td>
                       <td className="p-2">
+                        <select
+                          {...register(`items.${index}.uom`)}
+                          className="w-full px-3 py-2 border border-border-subtle rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-brand-denim bg-white"
+                        >
+                          <option value="Nos">Nos</option>
+                          <option value="Pcs">Pcs</option>
+                          <option value="Kg">Kg</option>
+                          <option value="Mtr">Mtr</option>
+                          <option value="Roll">Roll</option>
+                          <option value="Set">Set</option>
+                          <option value="Box">Box</option>
+                          <option value="Pair">Pair</option>
+                          <option value="Ltr">Ltr</option>
+                          <option value="Other">Other</option>
+                        </select>
+                      </td>
+                      <td className="p-2">
                         <input
                           type="text"
                           {...register(`items.${index}.remarks`)}
@@ -200,7 +219,7 @@ const AddGatePass = () => {
             
             <button
               type="button"
-              onClick={() => append({ description: '', category: 'On Cost Repair (OCR)', quantity: 1, remarks: '' })}
+              onClick={() => append({ description: '', category: 'On Cost Repair (OCR)', quantity: 1, uom: 'Nos', remarks: '' })}
               className="mt-4 flex items-center text-sm font-medium text-brand-denim hover:text-brand-navy"
             >
               <Plus size={16} className="mr-1" /> Add Item

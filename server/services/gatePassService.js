@@ -62,10 +62,10 @@ const createGatePass = async (data) => {
 };
 
 const getGatePasses = async (query = {}) => {
+  const { search, passType, status, startDate, endDate } = query;
+
   if (isDbConnected()) {
-    // simplified find
-    const { search, ...filters } = query;
-    let dbQuery = { ...filters };
+    let dbQuery = {};
     
     if (search) {
       dbQuery.$or = [
@@ -74,18 +74,56 @@ const getGatePasses = async (query = {}) => {
         { 'items.description': { $regex: search, $options: 'i' } }
       ];
     }
+
+    if (passType && passType !== 'All') {
+      dbQuery.passType = passType;
+    }
+
+    if (status && status !== 'All') {
+      dbQuery.status = status;
+    }
+
+    if (startDate || endDate) {
+      dbQuery.date = {};
+      if (startDate) dbQuery.date.$gte = new Date(startDate);
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        dbQuery.date.$lte = end;
+      }
+    }
+
     return await GatePass.find(dbQuery).sort({ createdAt: -1 });
   } else {
-    // mock filtering
     let results = [...mockGatePasses];
-    if (query.search) {
-      const search = query.search.toLowerCase();
+    if (search) {
+      const s = search.toLowerCase();
       results = results.filter(gp => 
-        gp.gatePassNumber.toLowerCase().includes(search) || 
-        gp.companyName.toLowerCase().includes(search) ||
-        gp.items.some(item => item.description.toLowerCase().includes(search))
+        gp.gatePassNumber.toLowerCase().includes(s) || 
+        gp.companyName.toLowerCase().includes(s) ||
+        gp.items.some(item => item.description.toLowerCase().includes(s))
       );
     }
+
+    if (passType && passType !== 'All') {
+      results = results.filter(gp => gp.passType === passType);
+    }
+
+    if (status && status !== 'All') {
+      results = results.filter(gp => gp.status === status);
+    }
+
+    if (startDate) {
+      const start = new Date(startDate);
+      results = results.filter(gp => new Date(gp.date) >= start);
+    }
+
+    if (endDate) {
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      results = results.filter(gp => new Date(gp.date) <= end);
+    }
+
     return results.sort((a, b) => b.createdAt - a.createdAt);
   }
 };

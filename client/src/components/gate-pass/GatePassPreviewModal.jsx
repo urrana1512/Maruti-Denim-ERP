@@ -29,14 +29,6 @@ const GatePassPreviewModal = ({ gatePass, onClose }) => {
         windowWidth: 1200,
         height: element.scrollHeight,
         onclone: (clonedDoc) => {
-          // Force exact A4 210mm width and desktop padding on cloned DOM node for PDF output
-          const targetDoc = clonedDoc.querySelector('.gate-pass-document');
-          if (targetDoc) {
-            targetDoc.style.width = '210mm';
-            targetDoc.style.maxWidth = '210mm';
-            targetDoc.style.padding = '40px';
-          }
-
           // Purge unsupported oklch color functions from all style tags in the cloned document
           const styleTags = clonedDoc.querySelectorAll('style');
           styleTags.forEach((s) => {
@@ -104,9 +96,9 @@ const GatePassPreviewModal = ({ gatePass, onClose }) => {
         </div>
 
         {/* Modal Body / Scrollable Area */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden p-2 sm:p-6 bg-slate-100 print:p-0 print:bg-white flex justify-center w-full">
+        <div className="flex-1 overflow-auto p-2 sm:p-6 bg-slate-100 print:p-0 print:bg-white flex justify-center max-w-full">
           {/* Document Container */}
-          <div className="bg-white shadow-sm print:shadow-none w-full max-w-[210mm] rounded flex justify-center" ref={documentRef}>
+          <div className="bg-white shadow-sm print:shadow-none max-w-full overflow-x-auto rounded" ref={documentRef}>
              <GatePassDocument gatePass={gatePass} />
           </div>
         </div>

@@ -15,6 +15,7 @@ const gatePassSchema = z.object({
     description: z.string().min(1, 'Description is required'),
     category: z.string().nonempty('Category is required'),
     quantity: z.coerce.number().min(0.01, 'Quantity must be > 0'),
+    uom: z.string().default('Nos'),
     remarks: z.string().optional(),
   })).min(1, 'At least one item is required').max(50, 'Max 50 items allowed')
 });
@@ -33,9 +34,10 @@ const EditGatePassModal = ({ gatePass, onClose, onSuccess }) => {
             description: item.description || '',
             category: item.category || 'On Cost Repair (OCR)',
             quantity: item.quantity || 1,
+            uom: item.uom || 'Nos',
             remarks: item.remarks || ''
           }))
-        : [{ description: '', category: 'On Cost Repair (OCR)', quantity: 1, remarks: '' }]
+        : [{ description: '', category: 'On Cost Repair (OCR)', quantity: 1, uom: 'Nos', remarks: '' }]
     }
   });
 
@@ -130,15 +132,16 @@ const EditGatePassModal = ({ gatePass, onClose, onSuccess }) => {
           <div className="bg-white border border-border-subtle rounded-lg p-4">
             <h4 className="text-sm font-semibold text-brand-navy mb-3">Material Items</h4>
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
+              <table className="w-full text-left border-collapse min-w-[550px]">
                 <thead>
                   <tr className="bg-surface-bg border-y border-border-subtle">
-                    <th className="p-2 text-xs font-semibold text-slate-600 w-12 text-center">Sr.</th>
+                    <th className="p-2 text-xs font-semibold text-slate-600 w-10 text-center">Sr.</th>
                     <th className="p-2 text-xs font-semibold text-slate-600">Description *</th>
-                    <th className="p-2 text-xs font-semibold text-slate-600 w-48">Category *</th>
-                    <th className="p-2 text-xs font-semibold text-slate-600 w-24">Quantity *</th>
+                    <th className="p-2 text-xs font-semibold text-slate-600 w-44">Category *</th>
+                    <th className="p-2 text-xs font-semibold text-slate-600 w-20">Quantity *</th>
+                    <th className="p-2 text-xs font-semibold text-slate-600 w-20">UM</th>
                     <th className="p-2 text-xs font-semibold text-slate-600 w-1/4">Remarks</th>
-                    <th className="p-2 text-xs font-semibold text-slate-600 w-12 text-center">Act</th>
+                    <th className="p-2 text-xs font-semibold text-slate-600 w-10 text-center">Act</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -173,6 +176,23 @@ const EditGatePassModal = ({ gatePass, onClose, onSuccess }) => {
                         />
                       </td>
                       <td className="p-2">
+                        <select
+                          {...register(`items.${index}.uom`)}
+                          className="w-full px-2 py-1.5 border border-border-subtle rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-brand-denim bg-white"
+                        >
+                          <option value="Nos">Nos</option>
+                          <option value="Pcs">Pcs</option>
+                          <option value="Kg">Kg</option>
+                          <option value="Mtr">Mtr</option>
+                          <option value="Roll">Roll</option>
+                          <option value="Set">Set</option>
+                          <option value="Box">Box</option>
+                          <option value="Pair">Pair</option>
+                          <option value="Ltr">Ltr</option>
+                          <option value="Other">Other</option>
+                        </select>
+                      </td>
+                      <td className="p-2">
                         <input
                           type="text"
                           {...register(`items.${index}.remarks`)}
@@ -196,7 +216,7 @@ const EditGatePassModal = ({ gatePass, onClose, onSuccess }) => {
             </div>
             <button
               type="button"
-              onClick={() => append({ description: '', category: 'On Cost Repair (OCR)', quantity: 1, remarks: '' })}
+              onClick={() => append({ description: '', category: 'On Cost Repair (OCR)', quantity: 1, uom: 'Nos', remarks: '' })}
               className="mt-3 flex items-center text-xs font-semibold text-brand-denim hover:text-brand-navy"
             >
               <Plus size={14} className="mr-1" /> Add Row

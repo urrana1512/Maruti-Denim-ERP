@@ -10,6 +10,7 @@ const itemSchema = new mongoose.Schema({
     required: true 
   },
   quantity: { type: Number, required: true, min: 0.01 },
+  uom: { type: String, default: 'Nos' },
   remarks: { type: String, default: '' },
 });
 

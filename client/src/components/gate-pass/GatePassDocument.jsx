@@ -28,10 +28,9 @@ const GatePassDocument = ({ gatePass }) => {
 
   return (
     <div 
-      className="gate-pass-document w-full max-w-[210mm] min-h-[297mm] p-4 sm:p-10 bg-white text-black font-sans box-border relative flex flex-col justify-between"
+      className="w-[210mm] min-h-[297mm] p-10 bg-white text-black font-sans box-border relative flex flex-col justify-between"
       style={{ 
-        maxWidth: '210mm',
-        width: '100%', 
+        width: '210mm', 
         minHeight: '297mm', 
         backgroundColor: '#ffffff', 
         color: '#000000', 
@@ -145,11 +144,12 @@ const GatePassDocument = ({ gatePass }) => {
         <table className="w-full border-collapse mb-6" style={{ border: '1px solid #0F2A47' }}>
           <thead>
             <tr style={{ backgroundColor: '#0F2A47', color: '#ffffff' }}>
-              <th style={{ padding: '8px 10px', border: '1px solid #0F2A47', fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', width: '50px', textAlign: 'center' }}>Sr.</th>
+              <th style={{ padding: '8px 10px', border: '1px solid #0F2A47', fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', width: '45px', textAlign: 'center' }}>Sr.</th>
               <th style={{ padding: '8px 10px', border: '1px solid #0F2A47', fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', textAlign: 'left' }}>Description</th>
-              <th style={{ padding: '8px 10px', border: '1px solid #0F2A47', fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', width: '180px', textAlign: 'left' }}>Category</th>
-              <th style={{ padding: '8px 10px', border: '1px solid #0F2A47', fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', width: '90px', textAlign: 'center' }}>Quantity</th>
-              <th style={{ padding: '8px 10px', border: '1px solid #0F2A47', fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', width: '24%', textAlign: 'left' }}>Remarks</th>
+              <th style={{ padding: '8px 10px', border: '1px solid #0F2A47', fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', width: '170px', textAlign: 'left' }}>Category</th>
+              <th style={{ padding: '8px 10px', border: '1px solid #0F2A47', fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', width: '70px', textAlign: 'center' }}>Qty</th>
+              <th style={{ padding: '8px 10px', border: '1px solid #0F2A47', fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', width: '60px', textAlign: 'center' }}>UM</th>
+              <th style={{ padding: '8px 10px', border: '1px solid #0F2A47', fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', width: '22%', textAlign: 'left' }}>Remarks</th>
             </tr>
           </thead>
           <tbody>
@@ -159,6 +159,7 @@ const GatePassDocument = ({ gatePass }) => {
                 <td style={{ padding: '8px 10px', border: '1px solid #cbd5e1', fontSize: '12px', color: '#334155' }}>{item.description}</td>
                 <td style={{ padding: '8px 10px', border: '1px solid #cbd5e1', fontSize: '12px', fontWeight: 600, color: '#334155' }}>{item.category || '-'}</td>
                 <td style={{ padding: '8px 10px', border: '1px solid #cbd5e1', fontSize: '12px', fontWeight: 600, textAlign: 'center', color: '#334155' }}>{item.quantity}</td>
+                <td style={{ padding: '8px 10px', border: '1px solid #cbd5e1', fontSize: '12px', textAlign: 'center', color: '#334155' }}>{item.uom || 'Nos'}</td>
                 <td style={{ padding: '8px 10px', border: '1px solid #cbd5e1', fontSize: '12px', color: '#334155' }}>{item.remarks || '-'}</td>
               </tr>
             ))}
