@@ -28,9 +28,10 @@ const GatePassDocument = ({ gatePass }) => {
 
   return (
     <div 
-      className="w-[210mm] min-h-[297mm] p-10 bg-white text-black font-sans box-border relative flex flex-col justify-between"
+      className="gate-pass-document w-full max-w-[210mm] min-h-[297mm] p-4 sm:p-10 bg-white text-black font-sans box-border relative flex flex-col justify-between"
       style={{ 
-        width: '210mm', 
+        maxWidth: '210mm',
+        width: '100%', 
         minHeight: '297mm', 
         backgroundColor: '#ffffff', 
         color: '#000000', 

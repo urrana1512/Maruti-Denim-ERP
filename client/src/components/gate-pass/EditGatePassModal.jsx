@@ -68,7 +68,7 @@ const EditGatePassModal = ({ gatePass, onClose, onSuccess }) => {
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-2 sm:p-6 overflow-y-auto">
-      <div className="bg-white w-full max-w-4xl rounded-xl shadow-2xl flex flex-col my-4 sm:my-8 max-h-[90vh] min-w-0 max-w-full">
+      <div className="bg-white  max-w-4xl rounded-xl shadow-2xl flex flex-col my-4 sm:my-8 max-h-[90vh] min-w-0 max-w-full">
         {/* Header */}
         <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200">
           <div className="flex items-center min-w-0">

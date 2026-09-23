@@ -8,17 +8,17 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
     { label: 'Manage Gate Pass', icon: FileText, path: '/gate-pass/manage' },
   ];
 
-  const sidebarClass = `fixed inset-y-0 left-0 z-50 w-64 bg-brand-navy text-white transition-transform duration-300 ease-in-out md:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`;
+  const sidebarClass = `fixed inset-y-0 left-0 z-50 w-64 bg-brand-navy text-white transition-transform duration-300 ease-in-out md:translate-x-0 ${isOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'}`;
 
   return (
     <>
-      {/* Mobile backdrop */}
-      {isOpen && (
-        <div 
-          className="fixed inset-0 z-40 bg-black/50 md:hidden" 
-          onClick={() => setIsOpen(false)}
-        />
-      )}
+      {/* Mobile backdrop with smooth opacity transition */}
+      <div 
+        className={`fixed inset-0 z-40 bg-black/50 md:hidden transition-opacity duration-300 ${
+          isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
+        }`} 
+        onClick={() => setIsOpen(false)}
+      />
 
       <aside className={sidebarClass}>
         <div className="flex h-20 items-center justify-between px-4 bg-brand-navy border-b border-white/10 shadow-sm">
@@ -29,7 +29,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
               className="h-20 max-h-20 w-auto object-contain filter drop-shadow" 
             />
           </div>
-          <button className="md:hidden text-gray-300 hover:text-white ml-2" onClick={() => setIsOpen(false)}>
+          <button className="md:hidden text-gray-300 hover:text-white ml-2 p-1" onClick={() => setIsOpen(false)}>
             <X size={24} />
           </button>
         </div>
@@ -45,6 +45,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
                 <NavLink
                   key={item.path}
                   to={item.path}
+                  onClick={() => setIsOpen(false)}
                   className={({ isActive }) =>
                     `flex items-center px-3 py-2.5 text-sm font-medium rounded-md transition-colors ${
                       isActive 

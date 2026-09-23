@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
 
 const Layout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const location = useLocation();
 
   return (
     <div className="min-h-screen bg-surface-bg flex max-w-full overflow-x-hidden">
@@ -15,7 +16,9 @@ const Layout = () => {
         
         <main className="flex-1 py-4 sm:py-6 min-w-0 max-w-full">
           <div className="px-3 sm:px-6 lg:px-8 mx-auto max-w-7xl min-w-0 w-full">
-            <Outlet />
+            <div key={location.pathname} className="animate-fade-in">
+              <Outlet />
+            </div>
           </div>
         </main>
       </div>

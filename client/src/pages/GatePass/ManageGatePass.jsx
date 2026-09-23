@@ -65,23 +65,23 @@ const ManageGatePass = () => {
         </button>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 min-w-0 max-w-full">
+      {/* Summary Cards (2x2 on Mobile, 4x1 on Desktop) */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 min-w-0 max-w-full">
         {[
           { label: 'Total Gate Passes', value: gatePasses.length, icon: FileText },
-          { label: "Today's Gate Passes", value: gatePasses.filter(gp => new Date(gp.date).toDateString() === new Date().toDateString()).length, icon: Calendar },
+          { label: "Today's Passes", value: gatePasses.filter(gp => new Date(gp.date).toDateString() === new Date().toDateString()).length, icon: Calendar },
           { label: 'Active', value: gatePasses.filter(gp => gp.status === 'active').length, icon: Eye },
           { label: 'Cancelled', value: gatePasses.filter(gp => gp.status === 'cancelled').length, icon: Trash2 },
         ].map((stat, idx) => {
           const Icon = stat.icon;
           return (
-            <div key={idx} className="bg-surface-card rounded-lg border border-border-subtle p-4 sm:p-5 shadow-sm flex items-center min-w-0">
-              <div className="p-2.5 sm:p-3 bg-brand-denim-light rounded-full text-brand-denim mr-3 sm:mr-4 flex-shrink-0">
-                <Icon size={18} />
+            <div key={idx} className="bg-surface-card rounded-lg border border-border-subtle p-3 sm:p-5 shadow-sm flex items-center min-w-0">
+              <div className="p-2 sm:p-3 bg-brand-denim-light rounded-full text-brand-denim mr-2.5 sm:mr-4 flex-shrink-0">
+                <Icon size={16} className="sm:w-5 sm:h-5" />
               </div>
               <div className="min-w-0">
-                <p className="text-xs sm:text-sm font-medium text-slate-500 truncate">{stat.label}</p>
-                <h3 className="text-xl sm:text-2xl font-bold text-brand-navy truncate">{stat.value}</h3>
+                <p className="text-[11px] sm:text-sm font-medium text-slate-500 truncate">{stat.label}</p>
+                <h3 className="text-lg sm:text-2xl font-bold text-brand-navy truncate">{stat.value}</h3>
               </div>
             </div>
           );
@@ -102,8 +102,78 @@ const ManageGatePass = () => {
         </div>
       </div>
 
-      {/* Table */}
-      <div className="bg-surface-card rounded-lg border border-border-subtle shadow-sm overflow-hidden min-w-0 max-w-full">
+      {/* Mobile Card List View (< md) */}
+      <div className="md:hidden space-y-3">
+        {loading ? (
+          <div className="bg-surface-card rounded-lg p-6 text-center text-slate-500 border border-border-subtle text-sm">
+            Loading...
+          </div>
+        ) : gatePasses.length === 0 ? (
+          <div className="bg-surface-card rounded-lg p-8 text-center text-slate-500 border border-border-subtle">
+            <FileText size={40} className="text-slate-300 mx-auto mb-2" />
+            <p className="text-base font-medium">No Gate Passes Found</p>
+            <button onClick={() => navigate('/gate-pass/add')} className="mt-3 text-brand-denim font-medium text-sm hover:underline">
+              + Create Gate Pass
+            </button>
+          </div>
+        ) : (
+          gatePasses.map((gp) => (
+            <div key={gp._id} className="bg-white rounded-lg border border-border-subtle p-4 shadow-sm space-y-3">
+              <div className="flex justify-between items-start">
+                <div>
+                  <span className="text-base font-bold text-brand-navy">{gp.gatePassNumber}</span>
+                  <div className="text-xs text-slate-500 mt-0.5">{format(new Date(gp.date), 'dd/MM/yyyy')}</div>
+                </div>
+                <span className={`px-2.5 py-1 text-xs font-semibold rounded-full ${gp.status === 'active' ? 'bg-[#E6F4EA] text-success' : 'bg-[#FCE8E6] text-danger'}`}>
+                  {gp.status.charAt(0).toUpperCase() + gp.status.slice(1)}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 text-xs py-2 border-y border-slate-100">
+                <div>
+                  <span className="text-slate-400 block font-medium">Company</span>
+                  <span className="font-semibold text-slate-700 truncate block">{gp.companyName}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block font-medium">Pass Type</span>
+                  <span className="inline-block px-2 py-0.5 bg-slate-100 rounded text-slate-700 font-medium mt-0.5">
+                    {gp.passType || 'Returnable'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block font-medium">Items</span>
+                  <span className="font-semibold text-slate-700">{gp.items?.length || 0} items</span>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-1">
+                <button
+                  onClick={() => setSelectedGatePass(gp)}
+                  className="flex items-center px-3 py-1.5 text-xs font-medium text-brand-denim bg-brand-denim-light rounded-md hover:bg-blue-100 transition-colors"
+                >
+                  <Download size={14} className="mr-1" /> View PDF
+                </button>
+                <button
+                  onClick={() => setEditingGatePass(gp)}
+                  className="flex items-center px-3 py-1.5 text-xs font-medium text-slate-700 bg-slate-100 rounded-md hover:bg-slate-200 transition-colors"
+                >
+                  <Edit size={14} className="mr-1" /> Edit
+                </button>
+                <button
+                  onClick={() => handleDelete(gp._id)}
+                  className="p-1.5 text-slate-400 hover:text-danger hover:bg-red-50 rounded-md transition-colors"
+                  title="Delete"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Desktop Table View (>= md) */}
+      <div className="hidden md:block bg-surface-card rounded-lg border border-border-subtle shadow-sm overflow-hidden min-w-0 max-w-full">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-border-subtle">
             <thead className="bg-surface-bg">
