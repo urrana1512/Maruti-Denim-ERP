@@ -1,0 +1,21 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand-navy: #0F172A;
+  --color-brand-denim: #1E40AF;
+  --color-brand-denim-light: #EFF6FF;
+  --color-surface-bg: #F8FAFC;
+  --color-surface-card: #FFFFFF;
+  --color-border-subtle: #E2E8F0;
+  --color-success: #16A34A;
+  --color-warning: #D97706;
+  --color-danger: #DC2626;
+}
+
+@layer base {
+  body {
+    background-color: #F5F6F8;
+    color: #1e293b;
+    font-family: "Inter", "Manrope", sans-serif;
+  }
+}

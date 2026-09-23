@@ -1,0 +1,33 @@
+# Gate Pass Management System Tasks
+
+- [x] Scaffold Backend
+  - [x] Initialize Node.js project
+  - [x] Install dependencies (express, mongoose, etc.)
+  - [x] Create server structure (models, controllers, routes)
+- [x] Scaffold Frontend
+  - [x] Initialize React + Vite project
+  - [x] Install dependencies (tailwind, shadcn/ui, lucide, react-hook-form, etc.)
+  - [x] Setup Tailwind CSS config and index.css (corporate light theme)
+- [x] Backend Implementation
+  - [x] `GatePass` Mongoose Model
+  - [x] API Controllers (CRUD + unique number generation)
+  - [x] Routes and Express Setup
+- [x] Frontend Core UI
+  - [x] Layout Component (Sidebar, Header)
+  - [x] Reusable UI components (Inputs, Buttons, Cards)
+- [x] Add Gate Pass Page
+  - [x] Form setup with React Hook Form + Zod
+  - [x] Dynamic items table
+  - [x] API integration
+- [x] Gate Pass Preview & PDF
+  - [x] Document layout component
+  - [x] jsPDF + html2canvas integration
+  - [x] Print CSS styling
+- [x] Manage Gate Pass Page
+  - [x] Summary cards & Filters
+  - [x] Data table (Pagination, sorting, API integration)
+  - [x] View, Edit, Delete actions
+- [x] Polish & Verification
+  - [x] Error handling & Toasts
+  - [x] Responsive design checks
+  - [x] Final testing
