@@ -67,21 +67,21 @@ const EditGatePassModal = ({ gatePass, onClose, onSuccess }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 sm:p-6 overflow-y-auto">
-      <div className="bg-white w-full max-w-4xl rounded-xl shadow-2xl flex flex-col my-8 max-h-[90vh]">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-2 sm:p-6 overflow-y-auto">
+      <div className="bg-white w-full max-w-4xl rounded-xl shadow-2xl flex flex-col my-4 sm:my-8 max-h-[90vh] min-w-0 max-w-full">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-          <div className="flex items-center">
-            <Edit2 className="text-brand-denim mr-2" size={20} />
-            <h3 className="text-lg font-bold text-brand-navy">Edit Gate Pass — {gatePass.gatePassNumber}</h3>
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200">
+          <div className="flex items-center min-w-0">
+            <Edit2 className="text-brand-denim mr-2 flex-shrink-0" size={18} />
+            <h3 className="text-base sm:text-lg font-bold text-brand-navy truncate">Edit Gate Pass — {gatePass.gatePassNumber}</h3>
           </div>
-          <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-slate-600 rounded-md">
+          <button onClick={onClose} className="p-1 text-slate-400 hover:text-slate-600 rounded-md ml-2 flex-shrink-0">
             <X size={20} />
           </button>
         </div>
 
         {/* Body Form */}
-        <form onSubmit={handleSubmit(onSubmit)} className="p-6 overflow-y-auto space-y-6 flex-1">
+        <form onSubmit={handleSubmit(onSubmit)} className="p-3 sm:p-6 overflow-y-auto space-y-4 sm:space-y-6 flex-1 min-w-0 max-w-full">
           {/* Gate Pass Info */}
           <div className="bg-surface-bg rounded-lg border border-border-subtle p-4">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

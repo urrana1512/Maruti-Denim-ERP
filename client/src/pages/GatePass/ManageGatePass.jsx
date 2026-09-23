@@ -49,16 +49,16 @@ const ManageGatePass = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6 min-w-0 max-w-full">
       {/* Header & Actions */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 min-w-0 max-w-full">
         <div>
-          <h1 className="text-2xl font-bold text-brand-navy">Manage Gate Pass</h1>
-          <p className="text-slate-500 text-sm mt-1">View, search and manage all gate passes.</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-brand-navy">Manage Gate Pass</h1>
+          <p className="text-slate-500 text-xs sm:text-sm mt-1">View, search and manage all gate passes.</p>
         </div>
         <button
           onClick={() => navigate('/gate-pass/add')}
-          className="flex items-center px-4 py-2 bg-brand-denim text-white text-sm font-medium rounded-md hover:bg-brand-navy transition-colors focus:ring-2 focus:ring-offset-2 focus:ring-brand-denim"
+          className="flex items-center px-4 py-2 bg-brand-denim text-white text-sm font-medium rounded-md hover:bg-brand-navy transition-colors focus:ring-2 focus:ring-offset-2 focus:ring-brand-denim whitespace-nowrap"
         >
           <Plus size={16} className="mr-2" />
           Create Gate Pass
@@ -66,7 +66,7 @@ const ManageGatePass = () => {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 min-w-0 max-w-full">
         {[
           { label: 'Total Gate Passes', value: gatePasses.length, icon: FileText },
           { label: "Today's Gate Passes", value: gatePasses.filter(gp => new Date(gp.date).toDateString() === new Date().toDateString()).length, icon: Calendar },
@@ -75,13 +75,13 @@ const ManageGatePass = () => {
         ].map((stat, idx) => {
           const Icon = stat.icon;
           return (
-            <div key={idx} className="bg-surface-card rounded-lg border border-border-subtle p-5 shadow-sm flex items-center">
-              <div className="p-3 bg-brand-denim-light rounded-full text-brand-denim mr-4">
-                <Icon size={20} />
+            <div key={idx} className="bg-surface-card rounded-lg border border-border-subtle p-4 sm:p-5 shadow-sm flex items-center min-w-0">
+              <div className="p-2.5 sm:p-3 bg-brand-denim-light rounded-full text-brand-denim mr-3 sm:mr-4 flex-shrink-0">
+                <Icon size={18} />
               </div>
-              <div>
-                <p className="text-sm font-medium text-slate-500">{stat.label}</p>
-                <h3 className="text-2xl font-bold text-brand-navy">{stat.value}</h3>
+              <div className="min-w-0">
+                <p className="text-xs sm:text-sm font-medium text-slate-500 truncate">{stat.label}</p>
+                <h3 className="text-xl sm:text-2xl font-bold text-brand-navy truncate">{stat.value}</h3>
               </div>
             </div>
           );
@@ -89,21 +89,21 @@ const ManageGatePass = () => {
       </div>
 
       {/* Toolbar */}
-      <div className="bg-surface-card rounded-lg border border-border-subtle p-4 shadow-sm">
+      <div className="bg-surface-card rounded-lg border border-border-subtle p-3 sm:p-4 shadow-sm min-w-0 max-w-full">
         <div className="flex items-center bg-surface-bg border border-border-subtle rounded-md px-3 py-2 w-full max-w-md focus-within:ring-1 focus-within:ring-brand-denim">
-          <Search size={18} className="text-slate-400 mr-2" />
+          <Search size={18} className="text-slate-400 mr-2 flex-shrink-0" />
           <input
             type="text"
             placeholder="Search by Gate Pass No, Company..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="bg-transparent border-none outline-none w-full text-sm text-slate-700"
+            className="bg-transparent border-none outline-none w-full text-sm text-slate-700 min-w-0"
           />
         </div>
       </div>
 
       {/* Table */}
-      <div className="bg-surface-card rounded-lg border border-border-subtle shadow-sm overflow-hidden">
+      <div className="bg-surface-card rounded-lg border border-border-subtle shadow-sm overflow-hidden min-w-0 max-w-full">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-border-subtle">
             <thead className="bg-surface-bg">

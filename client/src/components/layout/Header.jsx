@@ -26,9 +26,9 @@ const Header = ({ setIsOpen }) => {
       {/* Separator for mobile */}
       <div className="h-6 w-px bg-gray-200 md:hidden" aria-hidden="true" />
 
-      <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
-        <div className="flex flex-1 items-center">
-          <div className="text-sm font-medium text-slate-500">
+      <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6 min-w-0">
+        <div className="flex flex-1 items-center min-w-0">
+          <div className="text-sm font-medium text-slate-500 truncate">
             {getBreadcrumbs()}
           </div>
         </div>

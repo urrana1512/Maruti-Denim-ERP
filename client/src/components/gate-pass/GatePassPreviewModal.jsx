@@ -71,34 +71,34 @@ const GatePassPreviewModal = ({ gatePass, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 sm:p-6 print:bg-transparent print:p-0">
-      <div className="bg-white w-full max-w-4xl max-h-full rounded-xl shadow-2xl flex flex-col print:rounded-none print:shadow-none">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-2 sm:p-6 print:bg-transparent print:p-0 overflow-y-auto">
+      <div className="bg-white w-full max-w-4xl max-h-[92vh] rounded-xl shadow-2xl flex flex-col print:rounded-none print:shadow-none min-w-0">
         {/* Modal Header (Hidden in print) */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 print:hidden">
-          <h3 className="text-lg font-bold text-brand-navy">Gate Pass Preview</h3>
-          <div className="flex items-center gap-2">
+        <div className="flex flex-wrap sm:flex-nowrap items-center justify-between px-3 sm:px-6 py-3 border-b border-gray-200 print:hidden gap-2">
+          <h3 className="text-sm sm:text-lg font-bold text-brand-navy truncate">Gate Pass Preview</h3>
+          <div className="flex items-center gap-1.5 sm:gap-2">
             <button
               onClick={handlePrint}
-              className="flex items-center px-3 py-1.5 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-md"
+              className="flex items-center px-2 sm:px-3 py-1.5 text-xs sm:text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-md"
             >
-              <Printer size={16} className="mr-2" /> Print
+              <Printer size={15} className="mr-1 sm:mr-2" /> Print
             </button>
             <button
               onClick={handleDownloadPDF}
-              className="flex items-center px-3 py-1.5 text-sm font-medium text-white bg-brand-denim hover:bg-brand-navy rounded-md"
+              className="flex items-center px-2 sm:px-3 py-1.5 text-xs sm:text-sm font-medium text-white bg-brand-denim hover:bg-brand-navy rounded-md whitespace-nowrap"
             >
-              <Download size={16} className="mr-2" /> Download PDF
+              <Download size={15} className="mr-1 sm:mr-2" /> Download PDF
             </button>
-            <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-slate-600 rounded-md ml-2">
-              <X size={20} />
+            <button onClick={onClose} className="p-1 text-slate-400 hover:text-slate-600 rounded-md ml-1">
+              <X size={18} />
             </button>
           </div>
         </div>
 
         {/* Modal Body / Scrollable Area */}
-        <div className="flex-1 overflow-auto p-6 bg-slate-100 print:p-0 print:bg-white flex justify-center">
+        <div className="flex-1 overflow-auto p-2 sm:p-6 bg-slate-100 print:p-0 print:bg-white flex justify-center max-w-full">
           {/* Document Container */}
-          <div className="bg-white shadow-sm print:shadow-none" ref={documentRef}>
+          <div className="bg-white shadow-sm print:shadow-none max-w-full overflow-x-auto rounded" ref={documentRef}>
              <GatePassDocument gatePass={gatePass} />
           </div>
         </div>

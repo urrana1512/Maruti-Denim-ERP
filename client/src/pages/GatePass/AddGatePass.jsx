@@ -64,21 +64,21 @@ const AddGatePass = () => {
 
   return (
     <>
-      <div className="max-w-5xl mx-auto space-y-6">
+      <div className="max-w-5xl mx-auto space-y-4 sm:space-y-6 min-w-0 max-w-full">
         <div>
-          <h1 className="text-2xl font-bold text-brand-navy">Create Gate Pass</h1>
-          <p className="text-slate-500 text-sm mt-1">Create and issue a new material gate pass.</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-brand-navy">Create Gate Pass</h1>
+          <p className="text-slate-500 text-xs sm:text-sm mt-1">Create and issue a new material gate pass.</p>
         </div>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 sm:space-y-6 min-w-0 max-w-full">
           {/* Gate Pass Info */}
-          <div className="bg-surface-card rounded-lg border border-border-subtle p-6 shadow-sm">
-            <h2 className="text-base font-semibold text-brand-navy mb-4 border-b border-border-subtle pb-2 flex items-center">
-              <FileText size={18} className="mr-2 text-brand-denim" />
+          <div className="bg-surface-card rounded-lg border border-border-subtle p-4 sm:p-6 shadow-sm min-w-0 max-w-full">
+            <h2 className="text-sm sm:text-base font-semibold text-brand-navy mb-4 border-b border-border-subtle pb-2 flex items-center">
+              <FileText size={18} className="mr-2 text-brand-denim flex-shrink-0" />
               Gate Pass Information
             </h2>
             
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Gate Pass Number</label>
                 <input
@@ -122,12 +122,12 @@ const AddGatePass = () => {
           </div>
 
           {/* Items Section */}
-          <div className="bg-surface-card rounded-lg border border-border-subtle p-6 shadow-sm">
+          <div className="bg-surface-card rounded-lg border border-border-subtle p-3 sm:p-6 shadow-sm min-w-0 max-w-full">
             <div className="flex justify-between items-center mb-4 border-b border-border-subtle pb-2">
-              <h2 className="text-base font-semibold text-brand-navy">Material Items</h2>
+              <h2 className="text-sm sm:text-base font-semibold text-brand-navy">Material Items</h2>
             </div>
             
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto max-w-full">
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-surface-bg border-y border-border-subtle">
