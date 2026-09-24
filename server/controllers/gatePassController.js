@@ -47,3 +47,25 @@ exports.deleteGatePass = async (req, res) => {
     res.status(500).json({ success: false, message: 'Unable to delete gate pass', error: error.message });
   }
 };
+
+const { generatePdfFromUrl } = require('../services/pdfService');
+
+exports.downloadGatePassPdf = async (req, res) => {
+  try {
+    const gatePass = await gatePassService.getGatePassById(req.params.id);
+    if (!gatePass) return res.status(404).json({ success: false, message: 'Gate pass not found' });
+
+    const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+    const printUrl = `${clientUrl}/documents/gate-pass/${gatePass._id}/print`;
+
+    const pdfBuffer = await generatePdfFromUrl(printUrl);
+
+    const filename = `MarutiDenim_GatePass_${gatePass.gatePassNumber || 'GP'}.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(pdfBuffer);
+  } catch (error) {
+    console.error('Download Gate Pass PDF Error:', error);
+    res.status(500).json({ success: false, message: 'Failed to generate Gate Pass PDF', error: error.message });
+  }
+};

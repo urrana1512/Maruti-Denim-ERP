@@ -13,11 +13,16 @@ const gatePassSchema = z.object({
   date: z.string().nonempty('Date is required'),
   companyName: z.string().min(2, 'Company name is required'),
   passType: z.enum(['Returnable', 'Non-Returnable']),
+  purpose: z.string().optional(),
+  vehicleNumber: z.string().optional(),
+  driverName: z.string().optional(),
+  department: z.string().optional(),
   items: z.array(z.object({
     description: z.string().min(1, 'Description is required'),
     category: z.string().nonempty('Category is required'),
     quantity: z.coerce.number().min(0.01, 'Quantity must be > 0'),
     uom: z.string().default('Nos'),
+    returnable: z.boolean().default(true),
     remarks: z.string().optional(),
   })).min(1, 'At least one item is required').max(50, 'Max 50 items allowed')
 });
@@ -27,15 +32,21 @@ const AddGatePass = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [createdData, setCreatedData] = useState(null);
   
-  const { register, control, handleSubmit, formState: { errors } } = useForm({
+  const { register, control, handleSubmit, watch, formState: { errors } } = useForm({
     resolver: zodResolver(gatePassSchema),
     defaultValues: {
       date: format(new Date(), 'yyyy-MM-dd'),
       companyName: '',
       passType: 'Returnable',
-      items: [{ description: '', category: 'On Cost Repair (OCR)', quantity: 1, uom: 'Nos', remarks: '' }]
+      purpose: '',
+      vehicleNumber: '',
+      driverName: '',
+      department: '',
+      items: [{ description: '', category: 'On Cost Repair (OCR)', quantity: 1, uom: 'Nos', returnable: true, remarks: '' }]
     }
   });
+
+  const passType = watch('passType');
 
   const { fields, append, remove } = useFieldArray({
     control,
@@ -45,9 +56,14 @@ const AddGatePass = () => {
   const onSubmit = async (data) => {
     try {
       setIsSubmitting(true);
+      const isReturnablePass = data.passType === 'Returnable';
       const payload = {
         ...data,
-        items: data.items.map((item, index) => ({ ...item, serialNumber: index + 1 }))
+        items: data.items.map((item, index) => ({ 
+          ...item, 
+          serialNumber: index + 1,
+          returnable: isReturnablePass ? item.returnable : false
+        }))
       };
       
       const res = await gatePassService.create(payload);
@@ -119,26 +135,69 @@ const AddGatePass = () => {
                 </select>
                 {errors.passType && <p className="text-danger text-xs mt-1">{errors.passType.message}</p>}
               </div>
+
+              {/* Extended fields */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Purpose</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Repair / Testing"
+                  {...register('purpose')}
+                  className="w-full px-3 py-2 bg-white border border-border-subtle rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-brand-denim"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Vehicle No.</label>
+                <input
+                  type="text"
+                  placeholder="e.g. GJ-01-AB-1234"
+                  {...register('vehicleNumber')}
+                  className="w-full px-3 py-2 bg-white border border-border-subtle rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-brand-denim"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Driver Name</label>
+                <input
+                  type="text"
+                  placeholder="Driver name"
+                  {...register('driverName')}
+                  className="w-full px-3 py-2 bg-white border border-border-subtle rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-brand-denim"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Department</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Maintenance / Spinning"
+                  {...register('department')}
+                  className="w-full px-3 py-2 bg-white border border-border-subtle rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-brand-denim"
+                />
+              </div>
             </div>
           </div>
 
           {/* Items Section */}
-          <div className="bg-surface-card rounded-lg border border-border-subtle p-3 sm:p-6 shadow-sm min-w-0 max-w-full">
-            <div className="flex justify-between items-center mb-4 border-b border-border-subtle pb-2">
+          <div className="bg-surface-card rounded-lg border border-border-subtle p-3 sm:p-6 shadow-sm min-w-0 max-w-full space-y-4">
+            <div className="flex justify-between items-center border-b border-border-subtle pb-2">
               <h2 className="text-sm sm:text-base font-semibold text-brand-navy">Material Items</h2>
+              <span className="text-xs text-slate-500 font-medium">Add all items being sent out</span>
             </div>
-            
-            <div className="overflow-x-auto max-w-full">
-              <table className="w-full text-left border-collapse min-w-[650px]">
+
+            {/* --- DESKTOP TABLE VIEW (hidden on mobile) --- */}
+            <div className="hidden md:block overflow-x-auto max-w-full">
+              <table className="w-full text-left border-collapse min-w-[700px]">
                 <thead>
                   <tr className="bg-surface-bg border-y border-border-subtle">
-                    <th className="p-3 text-xs font-semibold text-slate-600 w-12 text-center">Sr.</th>
+                    <th className="p-3 text-xs font-semibold text-slate-600 w-10 text-center">Sr.</th>
                     <th className="p-3 text-xs font-semibold text-slate-600">Description *</th>
-                    <th className="p-3 text-xs font-semibold text-slate-600 w-48">Category *</th>
+                    <th className="p-3 text-xs font-semibold text-slate-600 w-44">Category *</th>
                     <th className="p-3 text-xs font-semibold text-slate-600 w-24">Quantity *</th>
                     <th className="p-3 text-xs font-semibold text-slate-600 w-24">UM</th>
+                    {passType === 'Returnable' && (
+                      <th className="p-3 text-xs font-semibold text-slate-600 w-24 text-center">Returnable?</th>
+                    )}
                     <th className="p-3 text-xs font-semibold text-slate-600 w-1/4">Remarks</th>
-                    <th className="p-3 text-xs font-semibold text-slate-600 w-14 text-center">Act</th>
+                    <th className="p-3 text-xs font-semibold text-slate-600 w-12 text-center">Act</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -192,6 +251,15 @@ const AddGatePass = () => {
                           <option value="Other">Other</option>
                         </select>
                       </td>
+                      {passType === 'Returnable' && (
+                        <td className="p-2 text-center">
+                          <input
+                            type="checkbox"
+                            {...register(`items.${index}.returnable`)}
+                            className="w-4 h-4 text-brand-denim rounded border-slate-300 focus:ring-brand-denim cursor-pointer"
+                          />
+                        </td>
+                      )}
                       <td className="p-2">
                         <input
                           type="text"
@@ -214,15 +282,126 @@ const AddGatePass = () => {
                   ))}
                 </tbody>
               </table>
-              {errors.items?.root && <p className="text-danger text-sm mt-2">{errors.items.root.message}</p>}
             </div>
+
+            {/* --- MOBILE CARD VIEW (visible on mobile < 768px, NO HORIZONTAL SCROLL) --- */}
+            <div className="block md:hidden space-y-4">
+              {fields.map((item, index) => (
+                <div key={item.id} className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-3 relative">
+                  <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                    <span className="font-bold text-brand-navy text-xs uppercase tracking-wider">
+                      Item #{index + 1}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => remove(index)}
+                      disabled={fields.length === 1}
+                      className="p-1 text-slate-400 hover:text-danger hover:bg-red-50 rounded disabled:opacity-30"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+
+                  {/* Item Description */}
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">Item Description *</label>
+                    <input
+                      type="text"
+                      {...register(`items.${index}.description`)}
+                      placeholder="Enter description"
+                      className="w-full px-3 py-2 bg-white border border-border-subtle rounded-md text-xs font-medium focus:outline-none focus:ring-2 focus:ring-brand-denim"
+                    />
+                    {errors.items?.[index]?.description && (
+                      <p className="text-danger text-[10px] mt-1">{errors.items[index].description.message}</p>
+                    )}
+                  </div>
+
+                  {/* Category & UM Grid */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-600 mb-1">Category *</label>
+                      <select
+                        {...register(`items.${index}.category`)}
+                        className="w-full px-2 py-1.5 bg-white border border-border-subtle rounded-md text-xs font-medium focus:outline-none focus:ring-2 focus:ring-brand-denim"
+                      >
+                        <option value="On Cost Repair (OCR)">OCR (On Cost)</option>
+                        <option value="Free Of Cost Repair (FOC)">FOC (Free Repair)</option>
+                        <option value="Sample">Sample</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-600 mb-1">Unit (UM)</label>
+                      <select
+                        {...register(`items.${index}.uom`)}
+                        className="w-full px-2 py-1.5 bg-white border border-border-subtle rounded-md text-xs font-medium focus:outline-none focus:ring-2 focus:ring-brand-denim"
+                      >
+                        <option value="Nos">Nos</option>
+                        <option value="Pcs">Pcs</option>
+                        <option value="Kg">Kg</option>
+                        <option value="Mtr">Mtr</option>
+                        <option value="Roll">Roll</option>
+                        <option value="Set">Set</option>
+                        <option value="Box">Box</option>
+                        <option value="Pair">Pair</option>
+                        <option value="Ltr">Ltr</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Quantity & Returnable Toggle */}
+                  <div className="grid grid-cols-2 gap-2 items-center">
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-600 mb-1">Quantity *</label>
+                      <input
+                        type="number"
+                        step="any"
+                        {...register(`items.${index}.quantity`)}
+                        className="w-full px-3 py-1.5 bg-white border border-border-subtle rounded-md text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand-denim"
+                      />
+                      {errors.items?.[index]?.quantity && (
+                        <p className="text-danger text-[10px] mt-1">{errors.items[index].quantity.message}</p>
+                      )}
+                    </div>
+
+                    {passType === 'Returnable' && (
+                      <div className="pt-4">
+                        <label className="flex items-center gap-2 cursor-pointer bg-white px-3 py-1.5 border border-slate-200 rounded-md">
+                          <input
+                            type="checkbox"
+                            {...register(`items.${index}.returnable`)}
+                            className="w-4 h-4 text-brand-denim rounded border-slate-300 focus:ring-brand-denim"
+                          />
+                          <span className="text-xs font-semibold text-slate-700">Returnable?</span>
+                        </label>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Remarks */}
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">Remarks</label>
+                    <input
+                      type="text"
+                      {...register(`items.${index}.remarks`)}
+                      placeholder="Optional remarks"
+                      className="w-full px-3 py-1.5 bg-white border border-border-subtle rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-brand-denim"
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {errors.items?.root && <p className="text-danger text-xs mt-2">{errors.items.root.message}</p>}
             
             <button
               type="button"
-              onClick={() => append({ description: '', category: 'On Cost Repair (OCR)', quantity: 1, uom: 'Nos', remarks: '' })}
-              className="mt-4 flex items-center text-sm font-medium text-brand-denim hover:text-brand-navy"
+              onClick={() => append({ description: '', category: 'On Cost Repair (OCR)', quantity: 1, uom: 'Nos', returnable: true, remarks: '' })}
+              className="mt-4 flex items-center justify-center w-full sm:w-auto px-4 py-2 bg-slate-100 hover:bg-slate-200 text-brand-denim rounded-lg text-xs font-bold transition-colors"
             >
-              <Plus size={16} className="mr-1" /> Add Item
+              <Plus size={16} className="mr-1.5" /> Add Material Item
             </button>
           </div>
 

@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { FileText, PlusSquare, LayoutDashboard, Settings, X, Menu } from 'lucide-react';
+import { FileText, PlusSquare, ArrowRightLeft, Settings, X } from 'lucide-react';
 
 const Sidebar = ({ isOpen, setIsOpen }) => {
   const navItems = [
     { label: 'Add Gate Pass', icon: PlusSquare, path: '/gate-pass/add' },
     { label: 'Manage Gate Pass', icon: FileText, path: '/gate-pass/manage' },
+    { label: 'Material Inward', icon: ArrowRightLeft, path: '/material-inward' },
   ];
 
   const sidebarClass = `fixed inset-y-0 left-0 z-50 w-64 bg-brand-navy text-white transition-transform duration-300 ease-in-out md:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`;
@@ -45,10 +46,11 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
                 <NavLink
                   key={item.path}
                   to={item.path}
+                  onClick={() => setIsOpen(false)}
                   className={({ isActive }) =>
-                    `flex items-center px-3 py-2.5 text-sm font-medium rounded-md transition-colors ${
+                    `flex items-center px-3 py-2.5 text-sm font-medium rounded-md transition-all duration-200 ${
                       isActive 
-                        ? 'bg-brand-denim text-white' 
+                        ? 'bg-brand-denim text-white shadow' 
                         : 'text-gray-300 hover:bg-white/10 hover:text-white'
                     }`
                   }

@@ -129,11 +129,16 @@ const getGatePasses = async (query = {}) => {
 };
 
 const getGatePassById = async (id) => {
+  if (!id) return null;
   if (isDbConnected()) {
-    return await GatePass.findById(id);
-  } else {
-    return mockGatePasses.find(gp => gp._id === id || gp.gatePassNumber === id);
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      const found = await GatePass.findById(id);
+      if (found) return found;
+    }
+    const foundByNum = await GatePass.findOne({ gatePassNumber: id });
+    if (foundByNum) return foundByNum;
   }
+  return mockGatePasses.find(gp => gp._id === id || gp.gatePassNumber === id);
 };
 
 const updateGatePass = async (id, data) => {

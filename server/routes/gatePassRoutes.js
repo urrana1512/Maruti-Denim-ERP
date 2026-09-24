@@ -4,6 +4,7 @@ const gatePassController = require('../controllers/gatePassController');
 
 router.post('/', gatePassController.createGatePass);
 router.get('/', gatePassController.getGatePasses);
+router.get('/:id/pdf', gatePassController.downloadGatePassPdf);
 router.get('/:id', gatePassController.getGatePassById);
 router.put('/:id', gatePassController.updateGatePass);
 router.delete('/:id', gatePassController.deleteGatePass);

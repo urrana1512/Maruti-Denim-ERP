@@ -3,6 +3,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const gatePassRoutes = require('./routes/gatePassRoutes');
+const materialInwardRoutes = require('./routes/materialInwardRoutes');
 
 const app = express();
 
@@ -33,6 +34,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // Routes
 app.use('/api/gate-passes', gatePassRoutes);
+app.use('/api/material-inward', materialInwardRoutes);
 
 // Base route
 app.get('/', (req, res) => {

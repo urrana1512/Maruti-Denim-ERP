@@ -1,18 +1,17 @@
 import React, { useRef } from 'react';
 import { X, Printer, Download } from 'lucide-react';
-import { format } from 'date-fns';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import { toast } from 'sonner';
-import GatePassDocument from './GatePassDocument';
+import MaterialInwardDocument from './MaterialInwardDocument';
 import api from '../../services/api';
 
-const GatePassPreviewModal = ({ gatePass, onClose }) => {
+const MaterialInwardPreviewModal = ({ materialInward, onClose }) => {
   const documentRef = useRef(null);
 
   const handlePrint = () => {
-    if (gatePass?._id) {
-      window.open(`/documents/gate-pass/${gatePass._id}/print?autoprint=true`, '_blank');
+    if (materialInward?._id) {
+      window.open(`/documents/material-inward/${materialInward._id}/print?autoprint=true`, '_blank');
     } else {
       window.print();
     }
@@ -20,11 +19,11 @@ const GatePassPreviewModal = ({ gatePass, onClose }) => {
 
   const handleDownloadPDF = async () => {
     try {
-      toast.loading('Generating Gate Pass PDF...', { id: 'pdf-toast' });
+      toast.loading('Generating Material Inward PDF...', { id: 'inward-pdf-toast' });
       
-      if (gatePass?._id) {
-        // Fetch server-side Puppeteer generated PDF from Express API backend
-        const response = await api.get(`/gate-passes/${gatePass._id}/pdf`, {
+      if (materialInward?._id) {
+        // Fetch server-side Puppeteer generated PDF from Express backend
+        const response = await api.get(`/material-inward/${materialInward._id}/pdf`, {
           responseType: 'blob'
         });
 
@@ -33,17 +32,17 @@ const GatePassPreviewModal = ({ gatePass, onClose }) => {
           const url = window.URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.href = url;
-          a.download = `MarutiDenim_GatePass_${gatePass.gatePassNumber || 'GP'}.pdf`;
+          a.download = `MarutiDenim_MaterialInwardReceipt_${materialInward.inwardNumber || 'MI'}.pdf`;
           document.body.appendChild(a);
           a.click();
           document.body.removeChild(a);
           window.URL.revokeObjectURL(url);
-          toast.success('PDF downloaded successfully.', { id: 'pdf-toast' });
+          toast.success('Material Inward PDF downloaded.', { id: 'inward-pdf-toast' });
           return;
         }
       }
 
-      // Seamless fallback if ID is absent or backend timeout
+      // Fallback to client rendering if ID is absent or backend timeout
       const element = documentRef.current;
       const canvas = await html2canvas(element, {
         scale: 2,
@@ -76,20 +75,22 @@ const GatePassPreviewModal = ({ gatePass, onClose }) => {
         pdf.addImage(imgData, 'PNG', xOffset, 0, fitWidth, pdfPageHeight);
       }
 
-      pdf.save(`MarutiDenim_GatePass_${gatePass.gatePassNumber || 'Document'}.pdf`);
-      toast.success('PDF downloaded successfully.', { id: 'pdf-toast' });
+      pdf.save(`MarutiDenim_MaterialInwardReceipt_${materialInward.inwardNumber || 'Voucher'}.pdf`);
+      toast.success('Material Inward PDF downloaded.', { id: 'inward-pdf-toast' });
     } catch (error) {
       console.error('PDF Generation Error:', error);
-      toast.error(`Failed to generate PDF: ${error.message || 'Unknown error'}`, { id: 'pdf-toast' });
+      toast.error(`Failed to generate PDF: ${error.message || 'Unknown error'}`, { id: 'inward-pdf-toast' });
     }
   };
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-2 sm:p-6 print:bg-transparent print:p-0 overflow-y-auto">
       <div className="bg-white w-full max-w-4xl max-h-[92vh] rounded-xl shadow-2xl flex flex-col print:rounded-none print:shadow-none min-w-0">
-        {/* Modal Header (Hidden in print) */}
+        {/* Modal Header */}
         <div className="flex flex-wrap sm:flex-nowrap items-center justify-between px-3 sm:px-6 py-3 border-b border-gray-200 print:hidden gap-2">
-          <h3 className="text-sm sm:text-lg font-bold text-brand-navy truncate">Gate Pass Preview</h3>
+          <h3 className="text-sm sm:text-lg font-bold text-brand-navy truncate">
+            Material Inward Preview ({materialInward?.inwardNumber})
+          </h3>
           <div className="flex items-center gap-1.5 sm:gap-2">
             <button
               onClick={handlePrint}
@@ -109,16 +110,14 @@ const GatePassPreviewModal = ({ gatePass, onClose }) => {
           </div>
         </div>
 
-        {/* Modal Body / Scrollable Area */}
+        {/* Modal Body */}
         <div className="flex-1 overflow-auto p-2 sm:p-6 bg-slate-100 print:p-0 print:bg-white flex justify-center max-w-full">
-          {/* Document Container */}
           <div className="bg-white shadow-sm print:shadow-none max-w-full overflow-x-auto rounded" ref={documentRef}>
-             <GatePassDocument gatePass={gatePass} />
+            <MaterialInwardDocument materialInward={materialInward} />
           </div>
         </div>
       </div>
-      
-      {/* Global Print Styles to isolate the document */}
+
       <style>{`
         @media print {
           body * {
@@ -142,7 +141,6 @@ const GatePassPreviewModal = ({ gatePass, onClose }) => {
           div[ref] *, div[ref] {
              visibility: visible;
           }
-          /* Specific targeting */
           .bg-white.shadow-sm.print\\:shadow-none {
             position: absolute;
             left: 0;
@@ -158,4 +156,4 @@ const GatePassPreviewModal = ({ gatePass, onClose }) => {
   );
 };
 
-export default GatePassPreviewModal;
+export default MaterialInwardPreviewModal;
