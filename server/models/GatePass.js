@@ -54,4 +54,11 @@ const gatePassSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+gatePassSchema.index({ date: -1 });
+gatePassSchema.index({ companyName: 1 });
+gatePassSchema.index({ gatePassStatus: 1 });
+gatePassSchema.index({ returnStatus: 1 });
+gatePassSchema.index({ passType: 1 });
+gatePassSchema.index({ 'items.description': 1 });
+
 module.exports = mongoose.model('GatePass', gatePassSchema);

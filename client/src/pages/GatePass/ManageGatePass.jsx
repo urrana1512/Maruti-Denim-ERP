@@ -36,7 +36,8 @@ const ManageGatePass = () => {
       const res = await gatePassService.getAll(params);
       if (res.success) setGatePasses(res.data);
     } catch (error) {
-      toast.error('Failed to fetch gate passes');
+      console.error('Fetch Gate Passes Error:', error);
+      toast.error(error.response?.data?.message || error.message || 'Failed to fetch gate passes');
     } finally {
       setLoading(false);
     }

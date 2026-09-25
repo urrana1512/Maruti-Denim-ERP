@@ -1,12 +1,13 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { FileText, PlusSquare, ArrowRightLeft, Settings, X } from 'lucide-react';
+import { FileText, PlusSquare, ArrowRightLeft, BarChart3, Settings, X } from 'lucide-react';
 
 const Sidebar = ({ isOpen, setIsOpen }) => {
   const navItems = [
     { label: 'Add Gate Pass', icon: PlusSquare, path: '/gate-pass/add' },
     { label: 'Manage Gate Pass', icon: FileText, path: '/gate-pass/manage' },
     { label: 'Material Inward', icon: ArrowRightLeft, path: '/material-inward' },
+    { label: 'Reports & MIS', icon: BarChart3, path: '/reports' },
   ];
 
   const sidebarClass = `fixed inset-y-0 left-0 z-50 w-64 bg-brand-navy text-white transition-transform duration-300 ease-in-out md:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`;

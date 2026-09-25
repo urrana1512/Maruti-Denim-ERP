@@ -51,4 +51,10 @@ const materialInwardSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+materialInwardSchema.index({ inwardDate: -1 });
+materialInwardSchema.index({ gatePassId: 1 });
+materialInwardSchema.index({ gatePassNumber: 1 });
+materialInwardSchema.index({ partyName: 1 });
+materialInwardSchema.index({ 'items.description': 1 });
+
 module.exports = mongoose.model('MaterialInward', materialInwardSchema);
