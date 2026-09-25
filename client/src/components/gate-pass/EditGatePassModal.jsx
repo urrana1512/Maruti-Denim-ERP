@@ -195,9 +195,6 @@ const EditGatePassModal = ({ gatePass, onClose, onSuccess }) => {
                     <th className="p-2 text-xs font-semibold text-slate-600 w-44">Category *</th>
                     <th className="p-2 text-xs font-semibold text-slate-600 w-20">Quantity *</th>
                     <th className="p-2 text-xs font-semibold text-slate-600 w-20">UM</th>
-                    {passType === 'Returnable' && (
-                      <th className="p-2 text-xs font-semibold text-slate-600 w-20 text-center">Returnable</th>
-                    )}
                     <th className="p-2 text-xs font-semibold text-slate-600 w-1/4">Remarks</th>
                     <th className="p-2 text-xs font-semibold text-slate-600 w-10 text-center">Act</th>
                   </tr>
@@ -250,15 +247,6 @@ const EditGatePassModal = ({ gatePass, onClose, onSuccess }) => {
                           <option value="Other">Other</option>
                         </select>
                       </td>
-                      {passType === 'Returnable' && (
-                        <td className="p-2 text-center">
-                          <input
-                            type="checkbox"
-                            {...register(`items.${index}.returnable`)}
-                            className="w-4 h-4 text-brand-denim rounded border-slate-300 focus:ring-brand-denim cursor-pointer"
-                          />
-                        </td>
-                      )}
                       <td className="p-2">
                         <input
                           type="text"

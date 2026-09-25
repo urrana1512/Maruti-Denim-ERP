@@ -37,9 +37,13 @@ const ReturnableItemsTable = ({ items = [], onItemChange, taxType = 'CGST_SGST' 
               const receiveQty = Number(item.receiveQty ?? item.receivedQuantity) || 0;
               const isOverLimit = receiveQty > pending;
 
+              const categoryStr = String(item.category || '');
+              const isOnCostRepair = categoryStr.includes('On Cost Repair') || categoryStr.includes('OCR');
+              const effectiveRate = isOnCostRepair ? (item.rate || 0) : 0;
+
               const gstCalc = calculateLineItemGST({
                 receivedQuantity: receiveQty,
-                rate: item.rate || 0,
+                rate: effectiveRate,
                 gstType: item.gstType || taxType || 'CGST_SGST',
                 gstPercentage: item.gstPercentage ?? 18
               });
@@ -91,13 +95,19 @@ const ReturnableItemsTable = ({ items = [], onItemChange, taxType = 'CGST_SGST' 
                       type="number"
                       step="any"
                       min="0"
-                      value={item.rate === 0 || !item.rate ? '' : item.rate}
+                      disabled={!isOnCostRepair}
+                      value={!isOnCostRepair ? '0.00' : (item.rate === 0 || !item.rate ? '' : item.rate)}
                       onChange={(e) => {
+                        if (!isOnCostRepair) return;
                         const val = e.target.value === '' ? 0 : Math.max(0, Number(e.target.value));
                         onItemChange(index, 'rate', val);
                       }}
                       placeholder="0.00"
-                      className="w-full px-2.5 py-1.5 border border-border-subtle rounded-md text-slate-800 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-brand-denim bg-white"
+                      className={`w-full px-2.5 py-1.5 border rounded-md text-xs font-semibold focus:outline-none focus:ring-2 ${
+                        !isOnCostRepair 
+                          ? 'border-border-subtle bg-slate-100 text-slate-400 cursor-not-allowed' 
+                          : 'border-border-subtle bg-white text-slate-800 focus:ring-brand-denim'
+                      }`}
                     />
                   </td>
 

@@ -9,6 +9,15 @@ exports.createGatePass = async (req, res) => {
   }
 };
 
+exports.getNextGatePassNumber = async (req, res) => {
+  try {
+    const gatePassNumber = await gatePassService.getNextGatePassNumber();
+    res.status(200).json({ success: true, gatePassNumber });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Unable to generate next gate pass number', error: error.message });
+  }
+};
+
 exports.getGatePasses = async (req, res) => {
   try {
     const gatePasses = await gatePassService.getGatePasses(req.query);

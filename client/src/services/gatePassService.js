@@ -9,6 +9,10 @@ export const gatePassService = {
     const response = await api.get('/gate-passes', { params });
     return response.data;
   },
+  getNextNumber: async () => {
+    const response = await api.get('/gate-passes/next-number');
+    return response.data;
+  },
   getById: async (id) => {
     const response = await api.get(`/gate-passes/${id}`);
     return response.data;

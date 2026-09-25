@@ -6,57 +6,27 @@ const { calculateGatePassReturnStatus, calculateItemReturnStatus } = require('..
 const { calculateLineItemGST, calculateDocumentTotals } = require('../utils/gstCalculator');
 
 // Mock data store for offline/demo fallback mode
-let mockInwards = [
-  {
-    _id: 'mock-inward-1',
-    inwardNumber: 'MI-2026-0001',
-    gatePassId: 'mock-1',
-    gatePassNumber: 'GP-2026-0001',
-    gateEntryNumber: 'GE-001',
-    inwardDate: new Date('2026-09-22T00:00:00.000Z'),
-    documentType: 'Challan',
-    challanInvoiceNumber: 'CH-8839',
-    partyName: 'Parv Electronics',
-    items: [
-      {
-        gatePassItemId: 'gp-item-1',
-        serialNumber: 1,
-        description: 'ETU Motor - 9200M',
-        originalQuantity: 1,
-        previouslyReceivedQuantity: 0,
-        pendingQuantityBefore: 1,
-        receivedQuantity: 1,
-        unit: 'Nos',
-        rate: 1500,
-        taxableAmount: 1500,
-        gstType: 'CGST_SGST',
-        gstPercentage: 18,
-        cgstPercentage: 9,
-        sgstPercentage: 9,
-        igstPercentage: 0,
-        cgstAmount: 135,
-        sgstAmount: 135,
-        igstAmount: 0,
-        gstAmount: 270,
-        totalAmount: 1770,
-        remarks: 'Received in good condition'
-      }
-    ],
-    subtotal: 1500,
-    totalCgst: 135,
-    totalSgst: 135,
-    totalIgst: 0,
-    totalGst: 270,
-    grandTotal: 1770,
-    remarks: 'Material inward complete',
-    createdBy: 'Admin',
-    createdAt: new Date(),
-    updatedAt: new Date()
-  }
-];
-let mockInwardCounter = 1;
+let mockInwards = [];
+let mockInwardCounter = 0;
 
 const isDbConnected = () => mongoose.connection.readyState === 1;
+
+const combineDateWithCurrentTime = (dateInput) => {
+  const now = new Date();
+  if (!dateInput) return now;
+  if (typeof dateInput === 'string' && dateInput.includes('-')) {
+    const parts = dateInput.split('T')[0].split('-').map(Number);
+    if (parts.length === 3 && parts[0] && parts[1] && parts[2]) {
+      const d = new Date();
+      d.setFullYear(parts[0], parts[1] - 1, parts[2]);
+      return d;
+    }
+  }
+  const d = new Date(dateInput);
+  if (isNaN(d.getTime())) return now;
+  d.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
+  return d;
+};
 
 const generateInwardNumber = async () => {
   const year = new Date().getFullYear();
@@ -187,6 +157,8 @@ const createMaterialInward = async (data) => {
     throw new Error('Gate Pass is already closed.');
   }
 
+  const inwardNumber = await generateInwardNumber();
+  const finalInwardDate = combineDateWithCurrentTime(inwardDate);
   const processedInwardItems = [];
   let atLeastOneValidItem = false;
 
@@ -208,10 +180,14 @@ const createMaterialInward = async (data) => {
 
     atLeastOneValidItem = true;
 
+    const catStr = String(gpItem.category || inputItem.category || '');
+    const isOnCost = catStr.includes('On Cost Repair') || catStr.includes('OCR');
+    const effectiveRate = isOnCost ? (Number(inputItem.rate) || 0) : 0;
+
     // Calculate GST & Amounts
     const gstCalc = calculateLineItemGST({
       receivedQuantity: receiveQty,
-      rate: inputItem.rate,
+      rate: effectiveRate,
       gstType: inputItem.gstType || 'CGST_SGST',
       gstPercentage: inputItem.gstPercentage || 18
     });
@@ -225,7 +201,7 @@ const createMaterialInward = async (data) => {
       pendingQuantityBefore: pendingBefore,
       receivedQuantity: receiveQty,
       unit: gpItem.uom || inputItem.unit || 'Nos',
-      rate: Number(inputItem.rate) || 0,
+      rate: effectiveRate,
       taxableAmount: gstCalc.taxableAmount,
       gstType: gstCalc.gstType,
       gstPercentage: gstCalc.gstPercentage,
@@ -237,7 +213,7 @@ const createMaterialInward = async (data) => {
       igstAmount: gstCalc.igstAmount,
       gstAmount: gstCalc.gstAmount,
       totalAmount: gstCalc.totalAmount,
-      inwardDate: new Date(inwardDate),
+      inwardDate: finalInwardDate,
       inwardNumber,
       challanInvoiceNumber,
       gateEntryNumber,
@@ -264,14 +240,12 @@ const createMaterialInward = async (data) => {
     gatePass.status = 'closed';
   }
 
-  const inwardNumber = await generateInwardNumber();
-
   const inwardPayload = {
     inwardNumber,
     gatePassId: gatePass._id,
     gatePassNumber: gatePass.gatePassNumber,
     gateEntryNumber,
-    inwardDate: new Date(inwardDate),
+    inwardDate: finalInwardDate,
     documentType: documentType || 'Challan',
     challanInvoiceNumber,
     partyName: gatePass.companyName,

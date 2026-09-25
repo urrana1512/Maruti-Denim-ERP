@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -31,6 +31,21 @@ const AddGatePass = () => {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [createdData, setCreatedData] = useState(null);
+  const [autoGatePassNumber, setAutoGatePassNumber] = useState('');
+
+  useEffect(() => {
+    const fetchNextNumber = async () => {
+      try {
+        const res = await gatePassService.getNextNumber();
+        if (res.success && res.gatePassNumber) {
+          setAutoGatePassNumber(res.gatePassNumber);
+        }
+      } catch (err) {
+        console.warn('Failed to fetch next gate pass number:', err);
+      }
+    };
+    fetchNextNumber();
+  }, []);
   
   const { register, control, handleSubmit, watch, formState: { errors } } = useForm({
     resolver: zodResolver(gatePassSchema),
@@ -59,6 +74,7 @@ const AddGatePass = () => {
       const isReturnablePass = data.passType === 'Returnable';
       const payload = {
         ...data,
+        gatePassNumber: autoGatePassNumber,
         items: data.items.map((item, index) => ({ 
           ...item, 
           serialNumber: index + 1,
@@ -101,8 +117,8 @@ const AddGatePass = () => {
                 <input
                   type="text"
                   disabled
-                  placeholder="Auto-generated"
-                  className="w-full px-3 py-2 bg-slate-100 border border-border-subtle rounded-md text-slate-500 text-sm cursor-not-allowed"
+                  value={autoGatePassNumber || 'Loading...'}
+                  className="w-full px-3 py-2 bg-slate-100 border border-border-subtle rounded-md text-brand-navy font-bold text-sm cursor-not-allowed"
                 />
               </div>
               <div>
@@ -183,35 +199,34 @@ const AddGatePass = () => {
               <span className="text-xs text-slate-500 font-medium">Add all items being sent out</span>
             </div>
 
-            {/* --- DESKTOP TABLE VIEW (hidden on mobile) --- */}
-            <div className="hidden md:block overflow-x-auto max-w-full">
-              <table className="w-full text-left border-collapse min-w-[700px]">
+            {/* --- RESPONSIVE MATERIAL ITEMS TABLE --- */}
+            <div className="overflow-x-auto max-w-full rounded-lg border border-border-subtle">
+              <table className="w-full text-left border-collapse min-w-[650px]">
                 <thead>
-                  <tr className="bg-surface-bg border-y border-border-subtle">
+                  <tr className="bg-surface-bg border-b border-border-subtle">
                     <th className="p-3 text-xs font-semibold text-slate-600 w-10 text-center">Sr.</th>
                     <th className="p-3 text-xs font-semibold text-slate-600">Description *</th>
                     <th className="p-3 text-xs font-semibold text-slate-600 w-44">Category *</th>
                     <th className="p-3 text-xs font-semibold text-slate-600 w-24">Quantity *</th>
                     <th className="p-3 text-xs font-semibold text-slate-600 w-24">UM</th>
-                    {passType === 'Returnable' && (
-                      <th className="p-3 text-xs font-semibold text-slate-600 w-24 text-center">Returnable?</th>
-                    )}
                     <th className="p-3 text-xs font-semibold text-slate-600 w-1/4">Remarks</th>
                     <th className="p-3 text-xs font-semibold text-slate-600 w-12 text-center">Act</th>
                   </tr>
                 </thead>
                 <tbody>
                   {fields.map((item, index) => (
-                    <tr key={item.id} className="border-b border-border-subtle">
-                      <td className="p-2 text-sm text-center text-slate-500">{index + 1}</td>
+                    <tr key={item.id} className="border-b border-border-subtle hover:bg-slate-50/50">
+                      <td className="p-2 text-sm text-center text-slate-500 font-medium">{index + 1}</td>
                       <td className="p-2">
                         <input
                           type="text"
                           {...register(`items.${index}.description`)}
                           placeholder="Item description"
-                          className="w-full px-3 py-2 border border-border-subtle rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-brand-denim"
+                          className="w-full px-3 py-2 bg-white border border-border-subtle rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-brand-denim"
                         />
-                        {errors.items?.[index]?.description && <p className="text-danger text-xs mt-1">{errors.items[index].description.message}</p>}
+                        {errors.items?.[index]?.description && (
+                          <p className="text-danger text-xs mt-1">{errors.items[index].description.message}</p>
+                        )}
                       </td>
                       <td className="p-2">
                         <select
@@ -223,16 +238,20 @@ const AddGatePass = () => {
                           <option value="Sample">Sample</option>
                           <option value="Other">Other</option>
                         </select>
-                        {errors.items?.[index]?.category && <p className="text-danger text-xs mt-1">{errors.items[index].category.message}</p>}
+                        {errors.items?.[index]?.category && (
+                          <p className="text-danger text-xs mt-1">{errors.items[index].category.message}</p>
+                        )}
                       </td>
                       <td className="p-2">
                         <input
                           type="number"
                           step="any"
                           {...register(`items.${index}.quantity`)}
-                          className="w-full px-3 py-2 border border-border-subtle rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-brand-denim"
+                          className="w-full px-3 py-2 bg-white border border-border-subtle rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-brand-denim"
                         />
-                        {errors.items?.[index]?.quantity && <p className="text-danger text-xs mt-1">{errors.items[index].quantity.message}</p>}
+                        {errors.items?.[index]?.quantity && (
+                          <p className="text-danger text-xs mt-1">{errors.items[index].quantity.message}</p>
+                        )}
                       </td>
                       <td className="p-2">
                         <select
@@ -251,21 +270,12 @@ const AddGatePass = () => {
                           <option value="Other">Other</option>
                         </select>
                       </td>
-                      {passType === 'Returnable' && (
-                        <td className="p-2 text-center">
-                          <input
-                            type="checkbox"
-                            {...register(`items.${index}.returnable`)}
-                            className="w-4 h-4 text-brand-denim rounded border-slate-300 focus:ring-brand-denim cursor-pointer"
-                          />
-                        </td>
-                      )}
                       <td className="p-2">
                         <input
                           type="text"
                           {...register(`items.${index}.remarks`)}
                           placeholder="Optional remarks"
-                          className="w-full px-3 py-2 border border-border-subtle rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-brand-denim"
+                          className="w-full px-3 py-2 bg-white border border-border-subtle rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-brand-denim"
                         />
                       </td>
                       <td className="p-2 text-center">
@@ -273,7 +283,7 @@ const AddGatePass = () => {
                           type="button"
                           onClick={() => remove(index)}
                           disabled={fields.length === 1}
-                          className="p-1.5 text-slate-400 hover:text-danger hover:bg-red-50 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="p-1.5 text-slate-400 hover:text-danger hover:bg-red-50 rounded disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                         >
                           <Trash2 size={18} />
                         </button>
@@ -282,116 +292,6 @@ const AddGatePass = () => {
                   ))}
                 </tbody>
               </table>
-            </div>
-
-            {/* --- MOBILE CARD VIEW (visible on mobile < 768px, NO HORIZONTAL SCROLL) --- */}
-            <div className="block md:hidden space-y-4">
-              {fields.map((item, index) => (
-                <div key={item.id} className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-3 relative">
-                  <div className="flex items-center justify-between border-b border-slate-200 pb-2">
-                    <span className="font-bold text-brand-navy text-xs uppercase tracking-wider">
-                      Item #{index + 1}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => remove(index)}
-                      disabled={fields.length === 1}
-                      className="p-1 text-slate-400 hover:text-danger hover:bg-red-50 rounded disabled:opacity-30"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-
-                  {/* Item Description */}
-                  <div>
-                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">Item Description *</label>
-                    <input
-                      type="text"
-                      {...register(`items.${index}.description`)}
-                      placeholder="Enter description"
-                      className="w-full px-3 py-2 bg-white border border-border-subtle rounded-md text-xs font-medium focus:outline-none focus:ring-2 focus:ring-brand-denim"
-                    />
-                    {errors.items?.[index]?.description && (
-                      <p className="text-danger text-[10px] mt-1">{errors.items[index].description.message}</p>
-                    )}
-                  </div>
-
-                  {/* Category & UM Grid */}
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="block text-[11px] font-semibold text-slate-600 mb-1">Category *</label>
-                      <select
-                        {...register(`items.${index}.category`)}
-                        className="w-full px-2 py-1.5 bg-white border border-border-subtle rounded-md text-xs font-medium focus:outline-none focus:ring-2 focus:ring-brand-denim"
-                      >
-                        <option value="On Cost Repair (OCR)">OCR (On Cost)</option>
-                        <option value="Free Of Cost Repair (FOC)">FOC (Free Repair)</option>
-                        <option value="Sample">Sample</option>
-                        <option value="Other">Other</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-[11px] font-semibold text-slate-600 mb-1">Unit (UM)</label>
-                      <select
-                        {...register(`items.${index}.uom`)}
-                        className="w-full px-2 py-1.5 bg-white border border-border-subtle rounded-md text-xs font-medium focus:outline-none focus:ring-2 focus:ring-brand-denim"
-                      >
-                        <option value="Nos">Nos</option>
-                        <option value="Pcs">Pcs</option>
-                        <option value="Kg">Kg</option>
-                        <option value="Mtr">Mtr</option>
-                        <option value="Roll">Roll</option>
-                        <option value="Set">Set</option>
-                        <option value="Box">Box</option>
-                        <option value="Pair">Pair</option>
-                        <option value="Ltr">Ltr</option>
-                        <option value="Other">Other</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Quantity & Returnable Toggle */}
-                  <div className="grid grid-cols-2 gap-2 items-center">
-                    <div>
-                      <label className="block text-[11px] font-semibold text-slate-600 mb-1">Quantity *</label>
-                      <input
-                        type="number"
-                        step="any"
-                        {...register(`items.${index}.quantity`)}
-                        className="w-full px-3 py-1.5 bg-white border border-border-subtle rounded-md text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand-denim"
-                      />
-                      {errors.items?.[index]?.quantity && (
-                        <p className="text-danger text-[10px] mt-1">{errors.items[index].quantity.message}</p>
-                      )}
-                    </div>
-
-                    {passType === 'Returnable' && (
-                      <div className="pt-4">
-                        <label className="flex items-center gap-2 cursor-pointer bg-white px-3 py-1.5 border border-slate-200 rounded-md">
-                          <input
-                            type="checkbox"
-                            {...register(`items.${index}.returnable`)}
-                            className="w-4 h-4 text-brand-denim rounded border-slate-300 focus:ring-brand-denim"
-                          />
-                          <span className="text-xs font-semibold text-slate-700">Returnable?</span>
-                        </label>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Remarks */}
-                  <div>
-                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">Remarks</label>
-                    <input
-                      type="text"
-                      {...register(`items.${index}.remarks`)}
-                      placeholder="Optional remarks"
-                      className="w-full px-3 py-1.5 bg-white border border-border-subtle rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-brand-denim"
-                    />
-                  </div>
-                </div>
-              ))}
             </div>
 
             {errors.items?.root && <p className="text-danger text-xs mt-2">{errors.items.root.message}</p>}

@@ -81,6 +81,8 @@ const MaterialInward = () => {
       const origQty = item.originalQuantity ?? item.quantity ?? 0;
       const prevRec = item.previouslyReceivedQuantity ?? item.receivedQuantitySoFar ?? item.receivedQuantity ?? 0;
       const pending = item.pendingQuantity ?? Math.max(0, origQty - prevRec);
+      const catStr = String(item.category || '');
+      const isOnCost = catStr.includes('On Cost Repair') || catStr.includes('OCR');
 
       return {
         originalItemId: item._id || `item-${idx}`,
@@ -92,7 +94,7 @@ const MaterialInward = () => {
         pendingQuantity: pending,
         unit: item.uom || item.unit || 'Nos',
         receiveQty: 0,
-        rate: item.rate || 0,
+        rate: isOnCost ? (item.rate || 0) : 0,
         gstPercentage: 18,
         gstType: taxType || 'CGST_SGST'
       };
@@ -182,16 +184,20 @@ const MaterialInward = () => {
 
       const activeItems = itemRows
         .filter(r => Number(r.receiveQty) > 0)
-        .map(r => ({
-          originalItemId: r.originalItemId,
-          serialNumber: r.serialNumber,
-          description: r.description,
-          originalQuantity: r.originalQuantity,
-          receivedQuantity: Number(r.receiveQty),
-          unit: r.unit,
-          rate: Number(r.rate) || 0,
-          gstPercentage: Number(r.gstPercentage) || 0
-        }));
+        .map(r => {
+          const catStr = String(r.category || '');
+          const isOnCost = catStr.includes('On Cost Repair') || catStr.includes('OCR');
+          return {
+            originalItemId: r.originalItemId,
+            serialNumber: r.serialNumber,
+            description: r.description,
+            originalQuantity: r.originalQuantity,
+            receivedQuantity: Number(r.receiveQty),
+            unit: r.unit,
+            rate: isOnCost ? (Number(r.rate) || 0) : 0,
+            gstPercentage: Number(r.gstPercentage) || 0
+          };
+        });
 
       const payload = {
         gatePassId: selectedGatePass._id,

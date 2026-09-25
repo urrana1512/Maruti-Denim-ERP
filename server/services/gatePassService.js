@@ -2,28 +2,12 @@ const mongoose = require('mongoose');
 const GatePass = require('../models/GatePass');
 
 // Mock data store
-let mockGatePasses = [
-  {
-    _id: 'mock-1',
-    gatePassNumber: 'GP-2026-0001',
-    date: new Date('2026-09-22T00:00:00.000Z'),
-    companyName: 'Parv Electronics',
-    passType: 'Returnable',
-    items: [
-      { serialNumber: 1, description: 'ETU Motor - 9200M', category: 'On Cost Repair (OCR)', quantity: 1, remarks: 'Repair' },
-      { serialNumber: 2, description: 'WBS Card', category: 'Free Of Cost Repair (FOC)', quantity: 1, remarks: 'Repair' }
-    ],
-    status: 'active',
-    createdBy: 'Admin',
-    createdAt: new Date(),
-    updatedAt: new Date()
-  }
-];
-let mockCounter = 1;
+let mockGatePasses = [];
+let mockCounter = 0;
 
 const isDbConnected = () => mongoose.connection.readyState === 1;
 
-const generateGatePassNumber = async () => {
+const generateGatePassNumber = async (peekOnly = false) => {
   const year = new Date().getFullYear();
   const prefix = `GP-${year}-`;
   
@@ -38,18 +22,40 @@ const generateGatePassNumber = async () => {
     }
     return `${prefix}0001`;
   } else {
-    mockCounter++;
-    return `${prefix}${mockCounter.toString().padStart(4, '0')}`;
+    const nextNum = peekOnly ? mockCounter + 1 : ++mockCounter;
+    return `${prefix}${nextNum.toString().padStart(4, '0')}`;
   }
 };
 
+const getNextGatePassNumber = async () => {
+  return await generateGatePassNumber(true);
+};
+
+const combineDateWithCurrentTime = (dateInput) => {
+  const now = new Date();
+  if (!dateInput) return now;
+  if (typeof dateInput === 'string' && dateInput.includes('-')) {
+    const parts = dateInput.split('T')[0].split('-').map(Number);
+    if (parts.length === 3 && parts[0] && parts[1] && parts[2]) {
+      const d = new Date();
+      d.setFullYear(parts[0], parts[1] - 1, parts[2]);
+      return d;
+    }
+  }
+  const d = new Date(dateInput);
+  if (isNaN(d.getTime())) return now;
+  d.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
+  return d;
+};
+
 const createGatePass = async (data) => {
-  const gatePassNumber = await generateGatePassNumber();
+  const gatePassNumber = data.gatePassNumber || await generateGatePassNumber();
+  const finalDate = combineDateWithCurrentTime(data.date);
   const items = (data.items || []).map((item, idx) => ({
     ...item,
     serialNumber: item.serialNumber || idx + 1
   }));
-  const payload = { ...data, gatePassNumber, items };
+  const payload = { ...data, date: finalDate, gatePassNumber, items };
 
   if (isDbConnected()) {
     const newGatePass = new GatePass(payload);
@@ -176,5 +182,6 @@ module.exports = {
   getGatePasses,
   getGatePassById,
   updateGatePass,
-  deleteGatePass
+  deleteGatePass,
+  getNextGatePassNumber
 };
