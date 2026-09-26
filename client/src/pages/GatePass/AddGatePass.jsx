@@ -8,6 +8,7 @@ import { Trash2, Plus, FileText, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { gatePassService } from '../../services/gatePassService';
 import GatePassPreviewModal from '../../components/gate-pass/GatePassPreviewModal';
+import ItemDescriptionSelect from '../../components/common/ItemDescriptionSelect';
 
 const gatePassSchema = z.object({
   date: z.string().nonempty('Date is required'),
@@ -47,7 +48,7 @@ const AddGatePass = () => {
     fetchNextNumber();
   }, []);
   
-  const { register, control, handleSubmit, watch, formState: { errors } } = useForm({
+  const { register, control, handleSubmit, watch, setValue, formState: { errors } } = useForm({
     resolver: zodResolver(gatePassSchema),
     defaultValues: {
       date: format(new Date(), 'yyyy-MM-dd'),
@@ -199,36 +200,33 @@ const AddGatePass = () => {
               <span className="text-xs text-slate-500 font-medium">Add all items being sent out</span>
             </div>
 
-            {/* --- RESPONSIVE MATERIAL ITEMS TABLE --- */}
-            <div className="overflow-x-auto max-w-full rounded-lg border border-border-subtle">
-              <table className="w-full text-left border-collapse min-w-[650px]">
+            {/* --- DESKTOP TABLE VIEW (md:block) --- */}
+            <div className="hidden md:block overflow-x-auto max-w-full rounded-lg border border-border-subtle min-h-[360px] pb-32">
+              <table className="w-full text-left border-collapse min-w-[800px]">
                 <thead>
                   <tr className="bg-surface-bg border-b border-border-subtle">
-                    <th className="p-3 text-xs font-semibold text-slate-600 w-10 text-center">Sr.</th>
-                    <th className="p-3 text-xs font-semibold text-slate-600">Description *</th>
-                    <th className="p-3 text-xs font-semibold text-slate-600 w-44">Category *</th>
-                    <th className="p-3 text-xs font-semibold text-slate-600 w-24">Quantity *</th>
-                    <th className="p-3 text-xs font-semibold text-slate-600 w-24">UM</th>
-                    <th className="p-3 text-xs font-semibold text-slate-600 w-1/4">Remarks</th>
+                    <th className="p-3 text-xs font-semibold text-slate-600 w-12 text-center">Sr.</th>
+                    <th className="p-3 text-xs font-semibold text-slate-600 min-w-[280px]">Description *</th>
+                    <th className="p-3 text-xs font-semibold text-slate-600 w-48 min-w-[190px]">Category *</th>
+                    <th className="p-3 text-xs font-semibold text-slate-600 w-28 min-w-[100px]">Quantity *</th>
+                    <th className="p-3 text-xs font-semibold text-slate-600 w-28 min-w-[100px]">UM</th>
+                    <th className="p-3 text-xs font-semibold text-slate-600 min-w-[180px]">Remarks</th>
                     <th className="p-3 text-xs font-semibold text-slate-600 w-12 text-center">Act</th>
                   </tr>
                 </thead>
                 <tbody>
                   {fields.map((item, index) => (
                     <tr key={item.id} className="border-b border-border-subtle hover:bg-slate-50/50">
-                      <td className="p-2 text-sm text-center text-slate-500 font-medium">{index + 1}</td>
-                      <td className="p-2">
-                        <input
-                          type="text"
-                          {...register(`items.${index}.description`)}
-                          placeholder="Item description"
-                          className="w-full px-3 py-2 bg-white border border-border-subtle rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-brand-denim"
+                      <td className="p-3 text-sm text-center text-slate-500 font-medium">{index + 1}</td>
+                      <td className="p-2 min-w-[280px]">
+                        <ItemDescriptionSelect
+                          value={watch(`items.${index}.description`)}
+                          onChange={(newDesc) => setValue(`items.${index}.description`, newDesc, { shouldValidate: true })}
+                          onSelectUom={(newUom) => setValue(`items.${index}.uom`, newUom, { shouldValidate: true })}
+                          error={errors.items?.[index]?.description?.message}
                         />
-                        {errors.items?.[index]?.description && (
-                          <p className="text-danger text-xs mt-1">{errors.items[index].description.message}</p>
-                        )}
                       </td>
-                      <td className="p-2">
+                      <td className="p-2 w-48">
                         <select
                           {...register(`items.${index}.category`)}
                           className="w-full px-3 py-2 border border-border-subtle rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-brand-denim bg-white"
@@ -242,7 +240,7 @@ const AddGatePass = () => {
                           <p className="text-danger text-xs mt-1">{errors.items[index].category.message}</p>
                         )}
                       </td>
-                      <td className="p-2">
+                      <td className="p-2 w-28">
                         <input
                           type="number"
                           step="any"
@@ -253,7 +251,7 @@ const AddGatePass = () => {
                           <p className="text-danger text-xs mt-1">{errors.items[index].quantity.message}</p>
                         )}
                       </td>
-                      <td className="p-2">
+                      <td className="p-2 w-28">
                         <select
                           {...register(`items.${index}.uom`)}
                           className="w-full px-3 py-2 border border-border-subtle rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-brand-denim bg-white"
@@ -292,6 +290,102 @@ const AddGatePass = () => {
                   ))}
                 </tbody>
               </table>
+            </div>
+
+            {/* --- MOBILE CARDS VIEW (md:hidden) --- */}
+            <div className="space-y-4 md:hidden">
+              {fields.map((item, index) => (
+                <div key={item.id} className="p-4 bg-slate-50 rounded-lg border border-slate-200 relative shadow-xs">
+                  <div className="flex items-center justify-between border-b border-slate-200 pb-2 mb-3">
+                    <span className="text-xs font-bold text-brand-navy flex items-center">
+                      <span className="w-5 h-5 rounded-full bg-brand-navy text-white text-[10px] flex items-center justify-center mr-2">
+                        {index + 1}
+                      </span>
+                      Item #{index + 1}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => remove(index)}
+                      disabled={fields.length === 1}
+                      className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md disabled:opacity-40 transition-colors"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">Item Description *</label>
+                      <ItemDescriptionSelect
+                        value={watch(`items.${index}.description`)}
+                        onChange={(newDesc) => setValue(`items.${index}.description`, newDesc, { shouldValidate: true })}
+                        onSelectUom={(newUom) => setValue(`items.${index}.uom`, newUom, { shouldValidate: true })}
+                        error={errors.items?.[index]?.description?.message}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">Category *</label>
+                      <select
+                        {...register(`items.${index}.category`)}
+                        className="w-full px-3 py-2 border border-border-subtle rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-brand-denim bg-white"
+                      >
+                        <option value="On Cost Repair (OCR)">On Cost Repair (OCR)</option>
+                        <option value="Free Of Cost Repair (FOC)">Free Of Cost Repair (FOC)</option>
+                        <option value="Sample">Sample</option>
+                        <option value="Other">Other</option>
+                      </select>
+                      {errors.items?.[index]?.category && (
+                        <p className="text-danger text-xs mt-1">{errors.items[index].category.message}</p>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 mb-1">Quantity *</label>
+                        <input
+                          type="number"
+                          step="any"
+                          {...register(`items.${index}.quantity`)}
+                          className="w-full px-3 py-2 bg-white border border-border-subtle rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-brand-denim"
+                        />
+                        {errors.items?.[index]?.quantity && (
+                          <p className="text-danger text-xs mt-1">{errors.items[index].quantity.message}</p>
+                        )}
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 mb-1">UM (Unit) *</label>
+                        <select
+                          {...register(`items.${index}.uom`)}
+                          className="w-full px-3 py-2 border border-border-subtle rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-brand-denim bg-white"
+                        >
+                          <option value="Nos">Nos</option>
+                          <option value="Pcs">Pcs</option>
+                          <option value="Kg">Kg</option>
+                          <option value="Mtr">Mtr</option>
+                          <option value="Roll">Roll</option>
+                          <option value="Set">Set</option>
+                          <option value="Box">Box</option>
+                          <option value="Pair">Pair</option>
+                          <option value="Ltr">Ltr</option>
+                          <option value="Other">Other</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">Remarks (Optional)</label>
+                      <input
+                        type="text"
+                        {...register(`items.${index}.remarks`)}
+                        placeholder="Optional remarks"
+                        className="w-full px-3 py-2 bg-white border border-border-subtle rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-brand-denim"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
 
             {errors.items?.root && <p className="text-danger text-xs mt-2">{errors.items.root.message}</p>}

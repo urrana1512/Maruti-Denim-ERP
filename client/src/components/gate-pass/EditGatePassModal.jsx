@@ -6,6 +6,7 @@ import { format } from 'date-fns';
 import { X, Trash2, Plus, Edit2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { gatePassService } from '../../services/gatePassService';
+import ItemDescriptionSelect from '../common/ItemDescriptionSelect';
 
 const gatePassSchema = z.object({
   date: z.string().nonempty('Date is required'),
@@ -28,7 +29,7 @@ const gatePassSchema = z.object({
 const EditGatePassModal = ({ gatePass, onClose, onSuccess }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { register, control, handleSubmit, watch, formState: { errors } } = useForm({
+  const { register, control, handleSubmit, watch, setValue, formState: { errors } } = useForm({
     resolver: zodResolver(gatePassSchema),
     defaultValues: {
       date: gatePass?.date ? format(new Date(gatePass.date), 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'),
@@ -89,7 +90,7 @@ const EditGatePassModal = ({ gatePass, onClose, onSuccess }) => {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-3 sm:p-4 overflow-y-auto" onClick={(e) => {
       if (e.target === e.currentTarget) onClose();
     }}>
-      <div className="bg-white rounded-xl shadow-2xl border border-slate-200 w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden my-auto">
+      <div className="bg-white rounded-xl shadow-2xl border border-slate-200 w-full max-w-6xl max-h-[94vh] flex flex-col overflow-hidden my-auto">
         {/* Header */}
         <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-gray-200 bg-slate-50">
           <div className="flex items-center min-w-0">
@@ -105,7 +106,7 @@ const EditGatePassModal = ({ gatePass, onClose, onSuccess }) => {
         <form onSubmit={handleSubmit(onSubmit)} className="p-4 sm:p-6 overflow-y-auto space-y-5 flex-1 min-w-0">
           {/* Gate Pass Info */}
           <div className="bg-surface-bg rounded-lg border border-border-subtle p-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1">Gate Pass Number (Immutable)</label>
                 <input
@@ -185,36 +186,41 @@ const EditGatePassModal = ({ gatePass, onClose, onSuccess }) => {
 
           {/* Items Section */}
           <div className="bg-white border border-border-subtle rounded-lg p-4">
-            <h4 className="text-sm font-semibold text-brand-navy mb-3">Material Items</h4>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse min-w-[600px]">
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="text-sm font-semibold text-brand-navy">Material Items</h4>
+              <span className="text-xs text-slate-500 font-medium hidden sm:inline">Add all items being updated</span>
+            </div>
+
+            {/* --- DESKTOP TABLE VIEW (md:block) --- */}
+            <div className="hidden md:block overflow-x-auto min-h-[360px] pb-32">
+              <table className="w-full text-left border-collapse min-w-[800px]">
                 <thead>
                   <tr className="bg-surface-bg border-y border-border-subtle">
-                    <th className="p-2 text-xs font-semibold text-slate-600 w-10 text-center">Sr.</th>
-                    <th className="p-2 text-xs font-semibold text-slate-600">Description *</th>
-                    <th className="p-2 text-xs font-semibold text-slate-600 w-44">Category *</th>
-                    <th className="p-2 text-xs font-semibold text-slate-600 w-20">Quantity *</th>
-                    <th className="p-2 text-xs font-semibold text-slate-600 w-20">UM</th>
-                    <th className="p-2 text-xs font-semibold text-slate-600 w-1/4">Remarks</th>
-                    <th className="p-2 text-xs font-semibold text-slate-600 w-10 text-center">Act</th>
+                    <th className="p-3 text-xs font-semibold text-slate-600 w-12 text-center">Sr.</th>
+                    <th className="p-3 text-xs font-semibold text-slate-600 min-w-[280px]">Description *</th>
+                    <th className="p-3 text-xs font-semibold text-slate-600 w-48 min-w-[190px]">Category *</th>
+                    <th className="p-3 text-xs font-semibold text-slate-600 w-28 min-w-[100px]">Quantity *</th>
+                    <th className="p-3 text-xs font-semibold text-slate-600 w-28 min-w-[100px]">UM</th>
+                    <th className="p-3 text-xs font-semibold text-slate-600 min-w-[180px]">Remarks</th>
+                    <th className="p-3 text-xs font-semibold text-slate-600 w-12 text-center">Act</th>
                   </tr>
                 </thead>
                 <tbody>
                   {fields.map((item, index) => (
-                    <tr key={item.id} className="border-b border-border-subtle">
-                      <td className="p-2 text-xs text-center text-slate-500">{index + 1}</td>
-                      <td className="p-2">
-                        <input
-                          type="text"
-                          {...register(`items.${index}.description`)}
-                          className="w-full px-2.5 py-1.5 border border-border-subtle rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-brand-denim"
+                    <tr key={item.id} className="border-b border-border-subtle hover:bg-slate-50/50">
+                      <td className="p-3 text-sm text-center text-slate-500 font-medium">{index + 1}</td>
+                      <td className="p-2 min-w-[280px]">
+                        <ItemDescriptionSelect
+                          value={watch(`items.${index}.description`)}
+                          onChange={(newDesc) => setValue(`items.${index}.description`, newDesc, { shouldValidate: true })}
+                          onSelectUom={(newUom) => setValue(`items.${index}.uom`, newUom, { shouldValidate: true })}
+                          error={errors.items?.[index]?.description?.message}
                         />
-                        {errors.items?.[index]?.description && <p className="text-danger text-xs mt-1">{errors.items[index].description.message}</p>}
                       </td>
-                      <td className="p-2">
+                      <td className="p-2 w-48">
                         <select
                           {...register(`items.${index}.category`)}
-                          className="w-full px-2.5 py-1.5 border border-border-subtle rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-brand-denim bg-white"
+                          className="w-full px-3 py-2 border border-border-subtle rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-brand-denim bg-white"
                         >
                           <option value="On Cost Repair (OCR)">On Cost Repair (OCR)</option>
                           <option value="Free Of Cost Repair (FOC)">Free Of Cost Repair (FOC)</option>
@@ -222,18 +228,18 @@ const EditGatePassModal = ({ gatePass, onClose, onSuccess }) => {
                           <option value="Other">Other</option>
                         </select>
                       </td>
-                      <td className="p-2">
+                      <td className="p-2 w-28">
                         <input
                           type="number"
                           step="any"
                           {...register(`items.${index}.quantity`)}
-                          className="w-full px-2.5 py-1.5 border border-border-subtle rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-brand-denim"
+                          className="w-full px-3 py-2 border border-border-subtle rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-brand-denim"
                         />
                       </td>
-                      <td className="p-2">
+                      <td className="p-2 w-28">
                         <select
                           {...register(`items.${index}.uom`)}
-                          className="w-full px-2 py-1.5 border border-border-subtle rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-brand-denim bg-white"
+                          className="w-full px-3 py-2 border border-border-subtle rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-brand-denim bg-white"
                         >
                           <option value="Nos">Nos</option>
                           <option value="Pcs">Pcs</option>
@@ -251,7 +257,8 @@ const EditGatePassModal = ({ gatePass, onClose, onSuccess }) => {
                         <input
                           type="text"
                           {...register(`items.${index}.remarks`)}
-                          className="w-full px-2.5 py-1.5 border border-border-subtle rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-brand-denim"
+                          placeholder="Optional remarks"
+                          className="w-full px-3 py-2 border border-border-subtle rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-brand-denim"
                         />
                       </td>
                       <td className="p-2 text-center">
@@ -259,9 +266,9 @@ const EditGatePassModal = ({ gatePass, onClose, onSuccess }) => {
                           type="button"
                           onClick={() => remove(index)}
                           disabled={fields.length === 1}
-                          className="p-1 text-slate-400 hover:text-danger rounded disabled:opacity-50"
+                          className="p-1.5 text-slate-400 hover:text-danger hover:bg-red-50 rounded disabled:opacity-50 transition-colors"
                         >
-                          <Trash2 size={16} />
+                          <Trash2 size={18} />
                         </button>
                       </td>
                     </tr>
@@ -269,12 +276,103 @@ const EditGatePassModal = ({ gatePass, onClose, onSuccess }) => {
                 </tbody>
               </table>
             </div>
+
+            {/* --- MOBILE CARDS VIEW (md:hidden) --- */}
+            <div className="space-y-4 md:hidden">
+              {fields.map((item, index) => (
+                <div key={item.id} className="p-4 bg-slate-50 rounded-lg border border-slate-200 relative shadow-xs">
+                  <div className="flex items-center justify-between border-b border-slate-200 pb-2 mb-3">
+                    <span className="text-xs font-bold text-brand-navy flex items-center">
+                      <span className="w-5 h-5 rounded-full bg-brand-navy text-white text-[10px] flex items-center justify-center mr-2">
+                        {index + 1}
+                      </span>
+                      Item #{index + 1}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => remove(index)}
+                      disabled={fields.length === 1}
+                      className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md disabled:opacity-40 transition-colors"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">Item Description *</label>
+                      <ItemDescriptionSelect
+                        value={watch(`items.${index}.description`)}
+                        onChange={(newDesc) => setValue(`items.${index}.description`, newDesc, { shouldValidate: true })}
+                        onSelectUom={(newUom) => setValue(`items.${index}.uom`, newUom, { shouldValidate: true })}
+                        error={errors.items?.[index]?.description?.message}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">Category *</label>
+                      <select
+                        {...register(`items.${index}.category`)}
+                        className="w-full px-3 py-2 border border-border-subtle rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-brand-denim bg-white"
+                      >
+                        <option value="On Cost Repair (OCR)">On Cost Repair (OCR)</option>
+                        <option value="Free Of Cost Repair (FOC)">Free Of Cost Repair (FOC)</option>
+                        <option value="Sample">Sample</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 mb-1">Quantity *</label>
+                        <input
+                          type="number"
+                          step="any"
+                          {...register(`items.${index}.quantity`)}
+                          className="w-full px-3 py-2 bg-white border border-border-subtle rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-brand-denim"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 mb-1">UM (Unit) *</label>
+                        <select
+                          {...register(`items.${index}.uom`)}
+                          className="w-full px-3 py-2 border border-border-subtle rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-brand-denim bg-white"
+                        >
+                          <option value="Nos">Nos</option>
+                          <option value="Pcs">Pcs</option>
+                          <option value="Kg">Kg</option>
+                          <option value="Mtr">Mtr</option>
+                          <option value="Roll">Roll</option>
+                          <option value="Set">Set</option>
+                          <option value="Box">Box</option>
+                          <option value="Pair">Pair</option>
+                          <option value="Ltr">Ltr</option>
+                          <option value="Other">Other</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">Remarks (Optional)</label>
+                      <input
+                        type="text"
+                        {...register(`items.${index}.remarks`)}
+                        placeholder="Optional remarks"
+                        className="w-full px-3 py-2 bg-white border border-border-subtle rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-brand-denim"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
             <button
               type="button"
               onClick={() => append({ description: '', category: 'On Cost Repair (OCR)', quantity: 1, uom: 'Nos', returnable: true, remarks: '' })}
-              className="mt-3 flex items-center text-xs font-semibold text-brand-denim hover:text-brand-navy"
+              className="mt-4 flex items-center justify-center w-full sm:w-auto px-4 py-2 bg-slate-100 hover:bg-slate-200 text-brand-denim rounded-lg text-xs font-bold transition-colors"
             >
-              <Plus size={14} className="mr-1" /> Add Row
+              <Plus size={16} className="mr-1.5" /> Add Material Item
             </button>
           </div>
 
