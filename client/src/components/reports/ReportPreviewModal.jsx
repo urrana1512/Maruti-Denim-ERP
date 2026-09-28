@@ -1,9 +1,10 @@
 import React, { useRef } from 'react';
 import { X, Printer, Download } from 'lucide-react';
-import html2canvas from 'html2canvas';
+import { safeHtml2Canvas } from '../../utils/html2canvasUtil';
 import { jsPDF } from 'jspdf';
 import { toast } from 'sonner';
 import CorporateReportDocument from '../documents/CorporateReportDocument';
+import api from '../../services/api';
 
 const ReportPreviewModal = ({
   reportType = 'gate-pass',
@@ -36,10 +37,48 @@ const ReportPreviewModal = ({
     try {
       toast.loading('Generating Corporate Report PDF...', { id: 'report-pdf-toast' });
 
+      const queryParams = new URLSearchParams({
+        reportType,
+        fromDate: filters.fromDate || '',
+        toDate: filters.toDate || '',
+        gatePassStatus: filters.gatePassStatus || 'All',
+        returnStatus: filters.returnStatus || 'All',
+        materialType: filters.materialType || 'All',
+        party: filters.party || 'All',
+        gatePassNumber: filters.gatePassNumber || '',
+        materialInwardNumber: filters.materialInwardNumber || '',
+        item: filters.item || ''
+      });
+
+      // Try server-side Puppeteer PDF generation first for pixel-perfect multi-page report
+      try {
+        const response = await api.get(`/reports/pdf?${queryParams.toString()}`, {
+          responseType: 'blob'
+        });
+
+        if (response.data) {
+          const blob = new Blob([response.data], { type: 'application/pdf' });
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          const cleanTitle = reportTitle.replace(/[^a-zA-Z0-9]/g, '_');
+          a.download = `MarutiDenim_${cleanTitle}_Report.pdf`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          window.URL.revokeObjectURL(url);
+          toast.success('Report PDF downloaded successfully.', { id: 'report-pdf-toast' });
+          return;
+        }
+      } catch (backendErr) {
+        console.warn('Backend Puppeteer PDF service unavailable, falling back to enhanced client rendering:', backendErr);
+      }
+
+      // Enhanced Client-side rendering fallback
       const element = documentRef.current;
       if (!element) return;
 
-      const canvas = await html2canvas(element, {
+      const canvas = await safeHtml2Canvas(element, {
         scale: 2,
         useCORS: true,
         allowTaint: true,
@@ -62,21 +101,17 @@ const ReportPreviewModal = ({
       const pdfPageHeight = pdf.internal.pageSize.getHeight();
       const imgHeight = (canvas.height * pdfWidth) / canvas.width;
 
-      if (imgHeight <= pdfPageHeight) {
-        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, imgHeight);
-      } else {
-        let heightLeft = imgHeight;
-        let position = 0;
+      let heightLeft = imgHeight;
+      let position = 0;
 
+      pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight);
+      heightLeft -= pdfPageHeight;
+
+      while (heightLeft > 0) {
+        position -= pdfPageHeight;
+        pdf.addPage();
         pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight);
         heightLeft -= pdfPageHeight;
-
-        while (heightLeft > 0) {
-          position = heightLeft - imgHeight;
-          pdf.addPage();
-          pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight);
-          heightLeft -= pdfPageHeight;
-        }
       }
 
       const cleanTitle = reportTitle.replace(/[^a-zA-Z0-9]/g, '_');

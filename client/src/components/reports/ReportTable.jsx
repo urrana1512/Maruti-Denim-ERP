@@ -64,15 +64,9 @@ const ReportTable = ({
                   <th className="p-3 border-b border-brand-navy text-center">Date</th>
                   <th className="p-3 border-b border-brand-navy">Party / Company</th>
                   <th className="p-3 border-b border-brand-navy">Purpose</th>
-                  <th className="p-3 border-b border-brand-navy text-center">Type</th>
-                  <th className="p-3 border-b border-brand-navy text-center">Items</th>
                   <th className="p-3 border-b border-brand-navy text-right">Total Qty</th>
-                  <th className="p-3 border-b border-brand-navy text-right">Ret. Qty</th>
-                  <th className="p-3 border-b border-brand-navy text-right">Rec. Qty</th>
-                  <th className="p-3 border-b border-brand-navy text-right">Bal. Qty</th>
                   <th className="p-3 border-b border-brand-navy text-center">GP Status</th>
                   <th className="p-3 border-b border-brand-navy text-center">Return Status</th>
-                  <th className="p-3 border-b border-brand-navy">Remarks</th>
                 </>
               )}
 
@@ -81,11 +75,8 @@ const ReportTable = ({
                   <th className="p-3 border-b border-brand-navy">Inward No.</th>
                   <th className="p-3 border-b border-brand-navy text-center">Inward Date & Time</th>
                   <th className="p-3 border-b border-brand-navy">Gate Pass No.</th>
-                  <th className="p-3 border-b border-brand-navy">Gate Entry No.</th>
-                  <th className="p-3 border-b border-brand-navy">Challan / Invoice No.</th>
                   <th className="p-3 border-b border-brand-navy">Party / Company</th>
                   <th className="p-3 border-b border-brand-navy text-right">Rec. Qty</th>
-                  <th className="p-3 border-b border-brand-navy text-right">Taxable (₹)</th>
                   <th className="p-3 border-b border-brand-navy text-right">GST (₹)</th>
                   <th className="p-3 border-b border-brand-navy text-right">Grand Total (₹)</th>
                   <th className="p-3 border-b border-brand-navy">Remarks</th>
@@ -98,12 +89,9 @@ const ReportTable = ({
                   <th className="p-3 border-b border-brand-navy text-center">GP Date</th>
                   <th className="p-3 border-b border-brand-navy">Party / Company</th>
                   <th className="p-3 border-b border-brand-navy">Item Description</th>
-                  <th className="p-3 border-b border-brand-navy text-right">Orig. Qty</th>
-                  <th className="p-3 border-b border-brand-navy text-right">Ret. Qty</th>
-                  <th className="p-3 border-b border-brand-navy text-right">Rec. Qty</th>
-                  <th className="p-3 border-b border-brand-navy text-right">Pend. Qty</th>
+                  <th className="p-3 border-b border-brand-navy text-right">GP Qty</th>
+                  <th className="p-3 border-b border-brand-navy text-right">Pending Qty</th>
                   {activeTab === 'pending-returns' && <th className="p-3 border-b border-brand-navy text-center">Days Pending</th>}
-                  <th className="p-3 border-b border-brand-navy text-center">Last Inward Date</th>
                   <th className="p-3 border-b border-brand-navy text-center">Status</th>
                 </>
               )}
@@ -114,10 +102,7 @@ const ReportTable = ({
                   <th className="p-3 border-b border-brand-navy text-center">GP Date</th>
                   <th className="p-3 border-b border-brand-navy">Party / Company</th>
                   <th className="p-3 border-b border-brand-navy text-right">Ret. Qty</th>
-                  <th className="p-3 border-b border-brand-navy text-right">Rec. Qty</th>
                   <th className="p-3 border-b border-brand-navy">Final Inward No.</th>
-                  <th className="p-3 border-b border-brand-navy text-center">Final Inward Date</th>
-                  <th className="p-3 border-b border-brand-navy text-center">Closure Date</th>
                   <th className="p-3 border-b border-brand-navy text-center">Days to Close</th>
                   <th className="p-3 border-b border-brand-navy text-center">Status</th>
                 </>
@@ -129,11 +114,7 @@ const ReportTable = ({
                   <th className="p-3 border-b border-brand-navy text-right">Total Passes</th>
                   <th className="p-3 border-b border-brand-navy text-right">Open</th>
                   <th className="p-3 border-b border-brand-navy text-right">Closed</th>
-                  <th className="p-3 border-b border-brand-navy text-right">Ret. Qty</th>
-                  <th className="p-3 border-b border-brand-navy text-right">Rec. Qty</th>
                   <th className="p-3 border-b border-brand-navy text-right">Pend. Qty</th>
-                  <th className="p-3 border-b border-brand-navy text-center">Oldest Pending Date</th>
-                  <th className="p-3 border-b border-brand-navy text-right">Grand Value (₹)</th>
                 </>
               )}
 
@@ -143,12 +124,13 @@ const ReportTable = ({
                   <th className="p-3 border-b border-brand-navy text-center">GP Date</th>
                   <th className="p-3 border-b border-brand-navy">Party / Company</th>
                   <th className="p-3 border-b border-brand-navy">Item Description</th>
-                  <th className="p-3 border-b border-brand-navy text-right">Orig. Qty</th>
-                  <th className="p-3 border-b border-brand-navy text-right">Ret. Qty</th>
                   <th className="p-3 border-b border-brand-navy">Inward No.</th>
-                  <th className="p-3 border-b border-brand-navy text-center">Inward Date</th>
                   <th className="p-3 border-b border-brand-navy text-right">Rec. Qty</th>
-                  <th className="p-3 border-b border-brand-navy text-right">Bal. Qty</th>
+                  <th className="p-3 border-b border-brand-navy text-right">Rate (₹)</th>
+                  <th className="p-3 border-b border-brand-navy text-right">Taxable (₹)</th>
+                  <th className="p-3 border-b border-brand-navy text-center">GST %</th>
+                  <th className="p-3 border-b border-brand-navy text-right">GST (₹)</th>
+                  <th className="p-3 border-b border-brand-navy text-right">Grand Total (₹)</th>
                   <th className="p-3 border-b border-brand-navy text-center">Status</th>
                 </>
               )}
@@ -165,15 +147,9 @@ const ReportTable = ({
                     <td className="p-3 text-center">{safeFormatDate(r.date)}</td>
                     <td className="p-3 font-semibold text-slate-800">{r.companyName}</td>
                     <td className="p-3 text-slate-600">{r.purpose}</td>
-                    <td className="p-3 text-center font-medium">{r.materialType}</td>
-                    <td className="p-3 text-center font-semibold">{r.itemCount}</td>
                     <td className="p-3 text-right font-medium">{r.totalQuantity}</td>
-                    <td className="p-3 text-right font-medium text-blue-700">{r.returnableQuantity}</td>
-                    <td className="p-3 text-right font-medium text-emerald-700">{r.returnedQuantity}</td>
-                    <td className="p-3 text-right font-bold text-amber-700">{r.balanceReturnableQuantity}</td>
                     <td className="p-3 text-center">{renderStatusBadge(r.gatePassStatus)}</td>
                     <td className="p-3 text-center">{renderStatusBadge(r.returnStatus)}</td>
-                    <td className="p-3 text-slate-500 max-w-xs truncate">{r.remarks}</td>
                   </>
                 )}
 
@@ -182,12 +158,9 @@ const ReportTable = ({
                     <td className="p-3 font-bold text-brand-navy">{r.inwardNumber}</td>
                     <td className="p-3 text-center">{safeFormatDate(r.inwardDate, 'dd/MM/yyyy, hh:mm a')}</td>
                     <td className="p-3 font-semibold text-slate-700">{r.gatePassNumber}</td>
-                    <td className="p-3 text-slate-600">{r.gateEntryNumber}</td>
-                    <td className="p-3 font-medium text-slate-700">{r.challanInvoiceNumber}</td>
                     <td className="p-3 font-semibold text-slate-800">{r.partyName}</td>
                     <td className="p-3 text-right font-bold text-blue-700">{r.receivedQuantity}</td>
-                    <td className="p-3 text-right font-medium">{formatINR(r.subtotal)}</td>
-                    <td className="p-3 text-right font-medium text-amber-700">{formatINR(r.totalGst)}</td>
+                    <td className="p-3 text-right font-medium text-amber-700">{formatINR(r.totalGst || r.gstAmount)}</td>
                     <td className="p-3 text-right font-bold text-emerald-700">{formatINR(r.grandTotal)}</td>
                     <td className="p-3 text-slate-500 max-w-xs truncate">{r.remarks}</td>
                   </>
@@ -199,14 +172,11 @@ const ReportTable = ({
                     <td className="p-3 text-center">{safeFormatDate(r.date)}</td>
                     <td className="p-3 font-semibold text-slate-800">{r.companyName}</td>
                     <td className="p-3 font-medium text-slate-700">{r.itemName}</td>
-                    <td className="p-3 text-right font-medium">{r.originalQuantity}</td>
-                    <td className="p-3 text-right font-medium text-blue-700">{r.returnableQuantity}</td>
-                    <td className="p-3 text-right font-medium text-emerald-700">{r.returnedQuantity}</td>
-                    <td className="p-3 text-right font-bold text-amber-700">{r.pendingQuantity}</td>
+                    <td className="p-3 text-right font-semibold text-blue-700">{r.returnableQuantity || r.originalQuantity}</td>
+                    <td className="p-3 text-right font-bold text-red-600">{r.pendingQuantity}</td>
                     {activeTab === 'pending-returns' && (
                       <td className="p-3 text-center font-bold text-red-600">{r.daysPending} Days</td>
                     )}
-                    <td className="p-3 text-center text-slate-500">{safeFormatDate(r.lastInwardDate, 'dd/MM/yyyy, hh:mm a')}</td>
                     <td className="p-3 text-center">{renderStatusBadge(r.returnStatus)}</td>
                   </>
                 )}
@@ -216,11 +186,8 @@ const ReportTable = ({
                     <td className="p-3 font-bold text-brand-navy">{r.gatePassNumber}</td>
                     <td className="p-3 text-center">{safeFormatDate(r.date)}</td>
                     <td className="p-3 font-semibold text-slate-800">{r.companyName}</td>
-                    <td className="p-3 text-right font-medium text-blue-700">{r.originalReturnableQuantity}</td>
                     <td className="p-3 text-right font-medium text-emerald-700">{r.totalReturnedQuantity}</td>
                     <td className="p-3 font-semibold text-slate-700">{r.finalInwardNumber}</td>
-                    <td className="p-3 text-center">{safeFormatDate(r.finalInwardDate, 'dd/MM/yyyy, hh:mm a')}</td>
-                    <td className="p-3 text-center">{safeFormatDate(r.closureDate, 'dd/MM/yyyy, hh:mm a')}</td>
                     <td className="p-3 text-center font-bold text-emerald-700">{r.totalDaysToClose} Days</td>
                     <td className="p-3 text-center">{renderStatusBadge(r.returnStatus)}</td>
                   </>
@@ -232,11 +199,7 @@ const ReportTable = ({
                     <td className="p-3 text-right font-semibold">{r.totalGatePasses}</td>
                     <td className="p-3 text-right font-semibold text-amber-700">{r.openGatePasses}</td>
                     <td className="p-3 text-right font-semibold text-emerald-700">{r.closedGatePasses}</td>
-                    <td className="p-3 text-right font-medium text-blue-700">{r.totalReturnableQuantity}</td>
-                    <td className="p-3 text-right font-medium text-emerald-700">{r.totalReturnedQuantity}</td>
                     <td className="p-3 text-right font-bold text-red-700">{r.totalPendingQuantity}</td>
-                    <td className="p-3 text-center text-slate-600">{safeFormatDate(r.oldestPendingDate)}</td>
-                    <td className="p-3 text-right font-bold text-emerald-800">{formatINR(r.totalGrandTotal)}</td>
                   </>
                 )}
 
@@ -246,12 +209,13 @@ const ReportTable = ({
                     <td className="p-3 text-center">{safeFormatDate(r.date)}</td>
                     <td className="p-3 font-semibold text-slate-800">{r.partyName}</td>
                     <td className="p-3 font-medium text-slate-700">{r.itemDescription}</td>
-                    <td className="p-3 text-right font-medium">{r.originalQuantity}</td>
-                    <td className="p-3 text-right font-medium text-blue-700">{r.returnableQuantity}</td>
                     <td className="p-3 font-semibold text-slate-700">{r.inwardNumber}</td>
-                    <td className="p-3 text-center">{safeFormatDate(r.inwardDate, 'dd/MM/yyyy, hh:mm a')}</td>
                     <td className="p-3 text-right font-bold text-emerald-700">{r.receivedQuantity}</td>
-                    <td className="p-3 text-right font-bold text-amber-700">{r.balanceQuantity}</td>
+                    <td className="p-3 text-right font-medium">{formatINR(r.rate)}</td>
+                    <td className="p-3 text-right font-medium">{formatINR(r.taxableAmount)}</td>
+                    <td className="p-3 text-center font-medium">{r.gstPercentage || 18}%</td>
+                    <td className="p-3 text-right font-medium text-amber-700">{formatINR(r.gstAmount || r.totalGst)}</td>
+                    <td className="p-3 text-right font-bold text-emerald-700">{formatINR(r.grandTotal)}</td>
                     <td className="p-3 text-center">{renderStatusBadge(r.returnStatus)}</td>
                   </>
                 )}

@@ -4,6 +4,7 @@ const reportController = require('../controllers/reportController');
 
 router.get('/parties', reportController.getParties);
 router.get('/export/excel', reportController.exportExcel);
+router.get('/pdf', reportController.downloadReportPdf);
 
 router.get('/gate-pass', reportController.getGatePassRegister);
 router.get('/material-inward', reportController.getMaterialInwardRegister);

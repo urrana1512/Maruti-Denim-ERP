@@ -5,6 +5,7 @@ const rateLimit = require('express-rate-limit');
 const gatePassRoutes = require('./routes/gatePassRoutes');
 const materialInwardRoutes = require('./routes/materialInwardRoutes');
 const reportRoutes = require('./routes/reportRoutes');
+const masterDataRoutes = require('./routes/masterDataRoutes');
 
 const app = express();
 
@@ -37,6 +38,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/api/gate-passes', gatePassRoutes);
 app.use('/api/material-inward', materialInwardRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/master-data', masterDataRoutes);
 
 // Base route
 app.get('/', (req, res) => {

@@ -1,7 +1,7 @@
 import React, { useRef } from 'react';
 import { X, Printer, Download } from 'lucide-react';
 import { format } from 'date-fns';
-import html2canvas from 'html2canvas';
+import { safeHtml2Canvas } from '../../utils/html2canvasUtil';
 import { jsPDF } from 'jspdf';
 import { toast } from 'sonner';
 import GatePassDocument from './GatePassDocument';
@@ -45,7 +45,7 @@ const GatePassPreviewModal = ({ gatePass, onClose }) => {
 
       // Seamless fallback if ID is absent or backend timeout
       const element = documentRef.current;
-      const canvas = await html2canvas(element, {
+      const canvas = await safeHtml2Canvas(element, {
         scale: 2,
         useCORS: true,
         allowTaint: true,

@@ -1,6 +1,24 @@
-/**
- * Helper utility to calculate return status for individual items and overall Gate Pass.
- */
+const isCategoryReturnable = (category) => {
+  if (!category) return true;
+  const cat = String(category).trim().toLowerCase();
+  if (
+    cat.includes('ocr') || 
+    cat.includes('on cost') || 
+    cat.includes('foc') || 
+    cat.includes('free of cost') || 
+    cat.includes('sample')
+  ) {
+    return true;
+  }
+  return false;
+};
+
+const isItemReturnable = (item, passType = 'Returnable') => {
+  if (!item) return false;
+  if (passType === 'Returnable') return true;
+  if (isCategoryReturnable(item.category)) return true;
+  return item.returnable !== false;
+};
 
 const calculateItemReturnStatus = (originalQty, receivedQty) => {
   const received = Math.max(0, Number(receivedQty) || 0);
@@ -11,8 +29,14 @@ const calculateItemReturnStatus = (originalQty, receivedQty) => {
   return 'FULLY_RETURNED';
 };
 
-const calculateGatePassReturnStatus = (items = []) => {
-  const returnableItems = items.filter(item => item.returnable !== false);
+const calculateGatePassReturnStatus = (items = [], passType = 'Returnable') => {
+  // Ensure returnable boolean on each item matches reality
+  items.forEach(item => {
+    item.returnable = isItemReturnable(item, passType);
+    item.itemReturnStatus = calculateItemReturnStatus(item.quantity, item.receivedQuantity);
+  });
+
+  const returnableItems = items.filter(item => item.returnable);
 
   if (returnableItems.length === 0) {
     return {
@@ -62,6 +86,8 @@ const calculateGatePassReturnStatus = (items = []) => {
 };
 
 module.exports = {
+  isCategoryReturnable,
+  isItemReturnable,
   calculateItemReturnStatus,
   calculateGatePassReturnStatus
 };

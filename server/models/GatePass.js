@@ -5,7 +5,6 @@ const itemSchema = new mongoose.Schema({
   description: { type: String, required: true },
   category: { 
     type: String, 
-    enum: ['On Cost Repair (OCR)', 'Free Of Cost Repair (FOC)', 'Sample', 'Other'],
     default: 'On Cost Repair (OCR)',
     required: true 
   },
@@ -18,6 +17,8 @@ const itemSchema = new mongoose.Schema({
     enum: ['PENDING', 'PARTIALLY_RETURNED', 'FULLY_RETURNED'], 
     default: 'PENDING' 
   },
+  costCentre: { type: String, default: '' },
+  itemId: { type: mongoose.Schema.Types.ObjectId, ref: 'ItemMaster', default: null },
   remarks: { type: String, default: '' },
 });
 
@@ -25,6 +26,7 @@ const gatePassSchema = new mongoose.Schema(
   {
     gatePassNumber: { type: String, required: true, unique: true },
     date: { type: Date, required: true },
+    vendorId: { type: mongoose.Schema.Types.ObjectId, ref: 'VendorMaster', default: null },
     companyName: { type: String, required: true },
     passType: { 
       type: String, 
@@ -41,6 +43,7 @@ const gatePassSchema = new mongoose.Schema(
     vehicleNumber: { type: String, default: '' },
     driverName: { type: String, default: '' },
     department: { type: String, default: '' },
+    costCentre: { type: String, default: '' },
     items: [itemSchema],
     status: { type: String, enum: ['active', 'cancelled', 'closed'], default: 'active' },
     gatePassStatus: { type: String, enum: ['OPEN', 'CLOSED', 'CANCELLED'], default: 'OPEN' },

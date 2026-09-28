@@ -102,7 +102,7 @@ const CorporateReportPrintView = () => {
   }
 
   return (
-    <div className="min-h-screen bg-white flex justify-center p-0 print:p-0 print:bg-white">
+    <div className="min-h-screen bg-white flex justify-center p-0 print:p-0 print:bg-white" data-ready={!loading ? 'true' : 'false'}>
       <CorporateReportDocument
         reportType={reportType}
         reportTitle={getReportTitle(reportType)}

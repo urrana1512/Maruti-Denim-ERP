@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { FileText, PlusSquare, ArrowRightLeft, BarChart3, Settings, X } from 'lucide-react';
+import { FileText, PlusSquare, ArrowRightLeft, BarChart3, Settings, X, Database, Building2, Layers } from 'lucide-react';
 
 const Sidebar = ({ isOpen, setIsOpen }) => {
   const navItems = [
@@ -8,6 +8,11 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
     { label: 'Manage Gate Pass', icon: FileText, path: '/gate-pass/manage' },
     { label: 'Material Inward', icon: ArrowRightLeft, path: '/material-inward' },
     { label: 'Reports & MIS', icon: BarChart3, path: '/reports' },
+  ];
+
+  const masterNavItems = [
+    { label: 'Item Description', icon: Layers, path: '/master-data/items' },
+    { label: 'Vendor Name', icon: Building2, path: '/master-data/vendors' },
   ];
 
   const sidebarClass = `fixed inset-y-0 left-0 z-50 w-64 bg-brand-navy text-white transition-transform duration-300 ease-in-out md:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`;
@@ -36,42 +41,74 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
           </button>
         </div>
 
-        <div className="py-4 px-3">
-          <div className="px-3 mb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
-            Gate Pass Management
-          </div>
-          <nav className="space-y-1">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <NavLink
-                  key={item.path}
-                  to={item.path}
-                  onClick={() => setIsOpen(false)}
-                  className={({ isActive }) =>
-                    `flex items-center px-3 py-2.5 text-sm font-medium rounded-md transition-all duration-200 ${
-                      isActive 
-                        ? 'bg-brand-denim text-white shadow' 
-                        : 'text-gray-300 hover:bg-white/10 hover:text-white'
-                    }`
-                  }
-                >
-                  <Icon className="mr-3 h-5 w-5 flex-shrink-0" />
-                  {item.label}
-                </NavLink>
-              );
-            })}
-          </nav>
-
-          <div className="mt-8 px-3 mb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
-            System
-          </div>
-          <nav className="space-y-1 opacity-50 cursor-not-allowed">
-            <div className="flex items-center px-3 py-2.5 text-sm font-medium rounded-md text-gray-300">
-              <Settings className="mr-3 h-5 w-5 flex-shrink-0" />
-              Settings
+        <div className="py-4 px-3 space-y-6">
+          <div>
+            <div className="px-3 mb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+              Gate Pass Management
             </div>
-          </nav>
+            <nav className="space-y-1">
+              {navItems.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <NavLink
+                    key={item.path}
+                    to={item.path}
+                    onClick={() => setIsOpen(false)}
+                    className={({ isActive }) =>
+                      `flex items-center px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
+                        isActive 
+                          ? 'bg-brand-denim text-white shadow' 
+                          : 'text-gray-300 hover:bg-white/10 hover:text-white'
+                      }`
+                    }
+                  >
+                    <Icon className="mr-3 h-4 w-4 flex-shrink-0" />
+                    {item.label}
+                  </NavLink>
+                );
+              })}
+            </nav>
+          </div>
+
+          <div>
+            <div className="px-3 mb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center">
+              <Database size={12} className="mr-1.5 text-slate-400" /> Master Data
+            </div>
+            <nav className="space-y-1">
+              {masterNavItems.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <NavLink
+                    key={item.path}
+                    to={item.path}
+                    onClick={() => setIsOpen(false)}
+                    className={({ isActive }) =>
+                      `flex items-center px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
+                        isActive 
+                          ? 'bg-brand-denim text-white shadow' 
+                          : 'text-gray-300 hover:bg-white/10 hover:text-white'
+                      }`
+                    }
+                  >
+                    <Icon className="mr-3 h-4 w-4 flex-shrink-0 text-slate-300" />
+                    {item.label}
+                  </NavLink>
+                );
+              })}
+            </nav>
+          </div>
+
+          <div>
+            <div className="px-3 mb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+              System
+            </div>
+            <nav className="space-y-1 opacity-50 cursor-not-allowed">
+              <div className="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-300">
+                <Settings className="mr-3 h-4 w-4 flex-shrink-0" />
+                Settings
+              </div>
+            </nav>
+          </div>
         </div>
       </aside>
     </>

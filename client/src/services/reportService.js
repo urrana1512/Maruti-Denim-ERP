@@ -77,6 +77,37 @@ const paginate = (records, page = 1, pageSize = 25) => {
     }
   };
 };
+const buildInwardRateMapClient = (inwards = []) => {
+  const rateMap = {};
+  for (const mi of inwards) {
+    for (const it of (mi.items || [])) {
+      const rateVal = Number(it.rate) || 0;
+      if (rateVal > 0) {
+        if (it.gatePassItemId) rateMap[it.gatePassItemId.toString()] = rateVal;
+        if (it.description) {
+          const descKey = it.description.toLowerCase().trim();
+          if (!rateMap[descKey]) rateMap[descKey] = rateVal;
+        }
+      }
+    }
+  }
+  return rateMap;
+};
+
+const resolveItemRateClient = (itemRow, rateMap = {}) => {
+  if (itemRow && Number(itemRow.rate) > 0) {
+    return Number(itemRow.rate);
+  }
+  const idKey = itemRow && itemRow._id ? itemRow._id.toString() : '';
+  if (idKey && rateMap[idKey]) {
+    return rateMap[idKey];
+  }
+  const descKey = itemRow && itemRow.description ? itemRow.description.toLowerCase().trim() : '';
+  if (descKey && rateMap[descKey]) {
+    return rateMap[descKey];
+  }
+  return 500;
+};
 
 /**
  * Client-side Fallback Processor
@@ -101,6 +132,12 @@ const fallbackReport = async (reportType, params) => {
         const returnedQuantity = items.reduce((acc, it) => acc + (Number(it.receivedQuantity) || 0), 0);
         const balanceReturnableQuantity = Math.max(0, returnableQuantity - returnedQuantity);
 
+        const taxableAmount = items.reduce((acc, it) => acc + ((Number(it.quantity) || 0) * (Number(it.rate) || 0)), 0);
+        const avgRate = items.length > 0 && totalQuantity > 0 ? (taxableAmount / totalQuantity) : 0;
+        const gstPercentage = 18;
+        const gstAmount = Math.round(taxableAmount * (gstPercentage / 100) * 100) / 100;
+        const grandTotal = Math.round((taxableAmount + gstAmount) * 100) / 100;
+
         return {
           _id: gp._id,
           gatePassNumber: gp.gatePassNumber,
@@ -113,6 +150,12 @@ const fallbackReport = async (reportType, params) => {
           returnableQuantity,
           returnedQuantity,
           balanceReturnableQuantity,
+          rate: Math.round(avgRate * 100) / 100,
+          taxableAmount: Math.round(taxableAmount * 100) / 100,
+          gstPercentage,
+          gstAmount,
+          totalGst: gstAmount,
+          grandTotal,
           gatePassStatus: gp.gatePassStatus || 'OPEN',
           returnStatus: gp.returnStatus || 'PENDING',
           createdBy: gp.createdBy || 'Admin',
@@ -127,7 +170,10 @@ const fallbackReport = async (reportType, params) => {
         openCount: records.filter(r => r.gatePassStatus === 'OPEN').length,
         closedCount: records.filter(r => r.gatePassStatus === 'CLOSED').length,
         pendingReturnCount: records.filter(r => r.returnStatus === 'PENDING' || r.returnStatus === 'PARTIALLY_RETURNED').length,
-        totalQuantity: records.reduce((acc, r) => acc + r.totalQuantity, 0)
+        totalQuantity: records.reduce((acc, r) => acc + r.totalQuantity, 0),
+        totalTaxableAmount: records.reduce((acc, r) => acc + r.taxableAmount, 0),
+        totalGst: records.reduce((acc, r) => acc + r.gstAmount, 0),
+        grandTotal: records.reduce((acc, r) => acc + r.grandTotal, 0)
       };
       return { success: true, data: paginated.items, pagination: paginated.pagination, kpis };
     }
@@ -141,6 +187,10 @@ const fallbackReport = async (reportType, params) => {
         const items = mi.items || [];
         const totalRecQty = items.reduce((acc, it) => acc + (Number(it.receivedQuantity) || 0), 0);
         const avgRate = items.length > 0 ? (items.reduce((acc, it) => acc + (Number(it.rate) || 0), 0) / items.length) : 0;
+        const subtotal = mi.subtotal || items.reduce((acc, it) => acc + (Number(it.taxableAmount) || 0), 0);
+        const totalGst = mi.totalGst || items.reduce((acc, it) => acc + (Number(it.gstAmount) || 0), 0);
+        const grandTotal = mi.grandTotal || (subtotal + totalGst);
+        const gstPercentage = subtotal > 0 ? Math.round((totalGst / subtotal) * 100) : 18;
 
         return {
           _id: mi._id,
@@ -152,13 +202,16 @@ const fallbackReport = async (reportType, params) => {
           partyName: mi.partyName,
           itemCount: items.length,
           receivedQuantity: totalRecQty,
-          rate: avgRate,
-          subtotal: mi.subtotal || 0,
+          rate: Math.round(avgRate * 100) / 100,
+          subtotal: Math.round(subtotal * 100) / 100,
+          taxableAmount: Math.round(subtotal * 100) / 100,
+          gstPercentage,
           totalCgst: mi.totalCgst || 0,
           totalSgst: mi.totalSgst || 0,
           totalIgst: mi.totalIgst || 0,
-          totalGst: mi.totalGst || 0,
-          grandTotal: mi.grandTotal || 0,
+          totalGst: Math.round(totalGst * 100) / 100,
+          gstAmount: Math.round(totalGst * 100) / 100,
+          grandTotal: Math.round(grandTotal * 100) / 100,
           createdBy: mi.createdBy || 'Admin',
           createdAt: mi.createdAt,
           remarks: mi.remarks || '-'
@@ -198,6 +251,12 @@ const fallbackReport = async (reportType, params) => {
           const returnedQty = Number(itemRow.receivedQuantity) || 0;
           const pendingQty = Math.max(0, returnableQty - returnedQty);
 
+          const itemRate = Number(itemRow.rate) || 0;
+          const gstPercentage = Number(itemRow.gstPercentage) || 18;
+          const taxableAmount = Math.round(returnableQty * itemRate * 100) / 100;
+          const gstAmount = Math.round(taxableAmount * (gstPercentage / 100) * 100) / 100;
+          const grandTotal = Math.round((taxableAmount + gstAmount) * 100) / 100;
+
           const gpDate = new Date(gp.date || gp.createdAt);
           const daysPending = Math.max(0, Math.floor((now.getTime() - gpDate.getTime()) / (1000 * 60 * 60 * 24)));
 
@@ -213,6 +272,12 @@ const fallbackReport = async (reportType, params) => {
             returnedQuantity: returnedQty,
             pendingQuantity: pendingQty,
             daysPending,
+            rate: itemRate,
+            taxableAmount,
+            gstPercentage,
+            gstAmount,
+            totalGst: gstAmount,
+            grandTotal,
             lastInwardDate: lastInward ? lastInward.inwardDate : null,
             gatePassStatus: gp.gatePassStatus || 'OPEN',
             returnStatus: gp.returnStatus || 'PENDING',
@@ -359,6 +424,7 @@ const fallbackReport = async (reportType, params) => {
       filteredGps = filterCommon(filteredGps, params);
       filteredGps.sort((a, b) => new Date(a.date || a.createdAt) - new Date(b.date || b.createdAt));
 
+      const rateMap = buildInwardRateMapClient(rawMis);
       const records = [];
 
       for (const gp of filteredGps) {
@@ -367,8 +433,26 @@ const fallbackReport = async (reportType, params) => {
         for (const gpItem of (gp.items || [])) {
           const origQty = Number(gpItem.quantity) || 0;
           const retQty = gpItem.returnable !== false ? origQty : 0;
+          const itemRate = resolveItemRateClient(gpItem, rateMap);
+          const gstPercentage = Number(gpItem.gstPercentage) || 18;
 
-          if (gpInwards.length === 0) {
+          const gpItemInwards = [];
+          for (const inv of gpInwards) {
+            const matchedInwardItem = (inv.items || []).find(it => 
+              (it.gatePassItemId && gpItem._id && it.gatePassItemId.toString() === gpItem._id.toString()) ||
+              (it.serialNumber && gpItem.serialNumber && Number(it.serialNumber) === Number(gpItem.serialNumber)) ||
+              (it.description && gpItem.description && it.description.toLowerCase().trim() === gpItem.description.toLowerCase().trim())
+            );
+            if (matchedInwardItem && Number(matchedInwardItem.receivedQuantity) > 0) {
+              gpItemInwards.push({ inv, matchedInwardItem });
+            }
+          }
+
+          if (gpItemInwards.length === 0) {
+            const taxableAmount = Math.round(retQty * itemRate * 100) / 100;
+            const gstAmount = Math.round(taxableAmount * (gstPercentage / 100) * 100) / 100;
+            const grandTotal = Math.round((taxableAmount + gstAmount) * 100) / 100;
+
             records.push({
               gatePassNumber: gp.gatePassNumber,
               date: gp.date || gp.createdAt,
@@ -380,19 +464,33 @@ const fallbackReport = async (reportType, params) => {
               inwardDate: null,
               receivedQuantity: 0,
               balanceQuantity: retQty,
+              rate: itemRate,
+              taxableAmount,
+              gstPercentage,
+              gstAmount,
+              totalGst: gstAmount,
+              grandTotal,
               returnStatus: gp.returnStatus || 'PENDING'
             });
           } else {
             let runningReceived = 0;
-            for (const inv of gpInwards) {
-              const matchedInwardItem = (inv.items || []).find(it => it.gatePassItemId?.toString() === gpItem._id?.toString() || it.serialNumber === gpItem.serialNumber);
-              const thisRecQty = matchedInwardItem ? (Number(matchedInwardItem.receivedQuantity) || 0) : 0;
+            for (let i = 0; i < gpItemInwards.length; i++) {
+              const { inv, matchedInwardItem } = gpItemInwards[i];
+              const thisRecQty = Number(matchedInwardItem.receivedQuantity) || 0;
+              const thisRate = matchedInwardItem && Number(matchedInwardItem.rate) > 0 ? Number(matchedInwardItem.rate) : itemRate;
+              const thisGstPct = matchedInwardItem && Number(matchedInwardItem.gstPercentage) > 0 ? Number(matchedInwardItem.gstPercentage) : gstPercentage;
+
               runningReceived += thisRecQty;
               const balanceQty = Math.max(0, retQty - runningReceived);
 
               const thisStatus = balanceQty === 0 
                 ? 'FULLY_RETURNED' 
                 : (runningReceived > 0 ? 'PARTIALLY_RETURNED' : 'PENDING');
+
+              const qtyForValuation = thisRecQty > 0 ? thisRecQty : (retQty || origQty);
+              const taxableAmount = Math.round(qtyForValuation * thisRate * 100) / 100;
+              const gstAmount = Math.round(taxableAmount * (thisGstPct / 100) * 100) / 100;
+              const grandTotal = Math.round((taxableAmount + gstAmount) * 100) / 100;
 
               records.push({
                 gatePassNumber: gp.gatePassNumber,
@@ -405,6 +503,12 @@ const fallbackReport = async (reportType, params) => {
                 inwardDate: inv.inwardDate || inv.createdAt,
                 receivedQuantity: thisRecQty,
                 balanceQuantity: balanceQty,
+                rate: thisRate,
+                taxableAmount,
+                gstPercentage: thisGstPct,
+                gstAmount,
+                totalGst: gstAmount,
+                grandTotal,
                 returnStatus: thisStatus
               });
             }
@@ -417,7 +521,10 @@ const fallbackReport = async (reportType, params) => {
         totalRows: records.length,
         totalGatePasses: new Set(records.map(r => r.gatePassNumber)).size,
         totalReceivedQuantity: records.reduce((acc, r) => acc + r.receivedQuantity, 0),
-        totalBalanceQuantity: records.reduce((acc, r) => acc + r.balanceQuantity, 0)
+        totalBalanceQuantity: records.reduce((acc, r) => acc + r.balanceQuantity, 0),
+        totalTaxableAmount: records.reduce((acc, r) => acc + r.taxableAmount, 0),
+        totalGst: records.reduce((acc, r) => acc + r.gstAmount, 0),
+        grandTotal: records.reduce((acc, r) => acc + r.grandTotal, 0)
       };
       return { success: true, data: paginated.items, pagination: paginated.pagination, kpis };
     }
@@ -617,15 +724,17 @@ const generateClientExcel = async ({ reportType, reportTitle, filters = {}, reco
         { header: 'Party / Company Name', key: 'companyName', width: 28, align: 'left' },
         { header: 'Purpose', key: 'purpose', width: 22, align: 'left' },
         { header: 'Material Type', key: 'materialType', width: 14, align: 'center' },
-        { header: 'Item Count', key: 'itemCount', width: 12, align: 'right', numFmt: '#,##0' },
         { header: 'Total Qty', key: 'totalQuantity', width: 12, align: 'right', numFmt: '#,##0.00', isSum: true },
-        { header: 'Returnable Qty', key: 'returnableQuantity', width: 14, align: 'right', numFmt: '#,##0.00', isSum: true },
-        { header: 'Returned Qty', key: 'returnedQuantity', width: 14, align: 'right', numFmt: '#,##0.00', isSum: true },
-        { header: 'Balance Qty', key: 'balanceReturnableQuantity', width: 14, align: 'right', numFmt: '#,##0.00', isSum: true },
-        { header: 'Gate Pass Status', key: 'gatePassStatus', width: 14, align: 'center' },
+        { header: 'Ret. Qty', key: 'returnableQuantity', width: 12, align: 'right', numFmt: '#,##0.00', isSum: true },
+        { header: 'Rec. Qty', key: 'returnedQuantity', width: 12, align: 'right', numFmt: '#,##0.00', isSum: true },
+        { header: 'Bal. Qty', key: 'balanceReturnableQuantity', width: 12, align: 'right', numFmt: '#,##0.00', isSum: true },
+        { header: 'Rate (₹)', key: 'rate', width: 12, align: 'right', numFmt: '"₹" #,##0.00' },
+        { header: 'Taxable Amt (₹)', key: 'taxableAmount', width: 15, align: 'right', numFmt: '"₹" #,##0.00', isSum: true },
+        { header: 'GST %', key: 'gstPercentage', width: 10, align: 'center', numFmt: '0.0"%"' },
+        { header: 'GST Amt (₹)', key: 'gstAmount', width: 14, align: 'right', numFmt: '"₹" #,##0.00', isSum: true },
+        { header: 'Grand Total (₹)', key: 'grandTotal', width: 16, align: 'right', numFmt: '"₹" #,##0.00', isSum: true },
+        { header: 'GP Status', key: 'gatePassStatus', width: 14, align: 'center' },
         { header: 'Return Status', key: 'returnStatus', width: 18, align: 'center' },
-        { header: 'Created By', key: 'createdBy', width: 14, align: 'left' },
-        { header: 'Created Date', key: 'createdAt', width: 16, align: 'center', isDate: true, withTime: true },
         { header: 'Remarks', key: 'remarks', width: 25, align: 'left' }
       ];
       break;
@@ -637,17 +746,13 @@ const generateClientExcel = async ({ reportType, reportTitle, filters = {}, reco
         { header: 'Inward Date & Time', key: 'inwardDate', width: 18, align: 'center', isDate: true, withTime: true },
         { header: 'Gate Pass No.', key: 'gatePassNumber', width: 16, align: 'center' },
         { header: 'Gate Entry No.', key: 'gateEntryNumber', width: 16, align: 'center' },
-        { header: 'Challan / Invoice No.', key: 'challanInvoiceNumber', width: 20, align: 'left' },
         { header: 'Party / Company Name', key: 'partyName', width: 26, align: 'left' },
-        { header: 'Item Count', key: 'itemCount', width: 12, align: 'right', numFmt: '#,##0' },
         { header: 'Rec. Qty', key: 'receivedQuantity', width: 12, align: 'right', numFmt: '#,##0.00', isSum: true },
-        { header: 'Subtotal (₹)', key: 'subtotal', width: 15, align: 'right', numFmt: '"₹" #,##0.00', isSum: true },
-        { header: 'CGST (₹)', key: 'totalCgst', width: 14, align: 'right', numFmt: '"₹" #,##0.00', isSum: true },
-        { header: 'SGST (₹)', key: 'totalSgst', width: 14, align: 'right', numFmt: '"₹" #,##0.00', isSum: true },
-        { header: 'IGST (₹)', key: 'totalIgst', width: 14, align: 'right', numFmt: '"₹" #,##0.00', isSum: true },
+        { header: 'Rate (₹)', key: 'rate', width: 12, align: 'right', numFmt: '"₹" #,##0.00' },
+        { header: 'Taxable Amt (₹)', key: 'subtotal', width: 15, align: 'right', numFmt: '"₹" #,##0.00', isSum: true },
+        { header: 'GST %', key: 'gstPercentage', width: 10, align: 'center', numFmt: '0.0"%"' },
         { header: 'Total GST (₹)', key: 'totalGst', width: 15, align: 'right', numFmt: '"₹" #,##0.00', isSum: true },
         { header: 'Grand Total (₹)', key: 'grandTotal', width: 16, align: 'right', numFmt: '"₹" #,##0.00', isSum: true },
-        { header: 'Created By', key: 'createdBy', width: 14, align: 'left' },
         { header: 'Remarks', key: 'remarks', width: 22, align: 'left' }
       ];
       break;
@@ -660,13 +765,16 @@ const generateClientExcel = async ({ reportType, reportTitle, filters = {}, reco
         { header: 'Gate Pass Date', key: 'date', width: 14, align: 'center', isDate: true },
         { header: 'Party / Company Name', key: 'companyName', width: 26, align: 'left' },
         { header: 'Item Description', key: 'itemName', width: 24, align: 'left' },
-        { header: 'Original Qty', key: 'originalQuantity', width: 14, align: 'right', numFmt: '#,##0.00', isSum: true },
-        { header: 'Returnable Qty', key: 'returnableQuantity', width: 14, align: 'right', numFmt: '#,##0.00', isSum: true },
-        { header: 'Returned Qty', key: 'returnedQuantity', width: 14, align: 'right', numFmt: '#,##0.00', isSum: true },
-        { header: 'Pending Qty', key: 'pendingQuantity', width: 14, align: 'right', numFmt: '#,##0.00', isSum: true },
+        { header: 'Orig. Qty', key: 'originalQuantity', width: 12, align: 'right', numFmt: '#,##0.00', isSum: true },
+        { header: 'Ret. Qty', key: 'returnableQuantity', width: 12, align: 'right', numFmt: '#,##0.00', isSum: true },
+        { header: 'Rec. Qty', key: 'returnedQuantity', width: 12, align: 'right', numFmt: '#,##0.00', isSum: true },
+        { header: 'Pend. Qty', key: 'pendingQuantity', width: 12, align: 'right', numFmt: '#,##0.00', isSum: true },
         ...(reportType === 'pending-returns' ? [{ header: 'Days Pending', key: 'daysPending', width: 14, align: 'right', numFmt: '#,##0' }] : []),
-        { header: 'Last Inward Date', key: 'lastInwardDate', width: 16, align: 'center', isDate: true, withTime: true },
-        { header: 'Gate Pass Status', key: 'gatePassStatus', width: 14, align: 'center' },
+        { header: 'Rate (₹)', key: 'rate', width: 12, align: 'right', numFmt: '"₹" #,##0.00' },
+        { header: 'Taxable Amt (₹)', key: 'taxableAmount', width: 15, align: 'right', numFmt: '"₹" #,##0.00', isSum: true },
+        { header: 'GST %', key: 'gstPercentage', width: 10, align: 'center', numFmt: '0.0"%"' },
+        { header: 'GST Amt (₹)', key: 'gstAmount', width: 14, align: 'right', numFmt: '"₹" #,##0.00', isSum: true },
+        { header: 'Grand Total (₹)', key: 'grandTotal', width: 16, align: 'right', numFmt: '"₹" #,##0.00', isSum: true },
         { header: 'Return Status', key: 'returnStatus', width: 18, align: 'center' },
         { header: 'Remarks', key: 'remarks', width: 22, align: 'left' }
       ];
@@ -681,10 +789,12 @@ const generateClientExcel = async ({ reportType, reportTitle, filters = {}, reco
         { header: 'Orig. Returnable Qty', key: 'originalReturnableQuantity', width: 18, align: 'right', numFmt: '#,##0.00', isSum: true },
         { header: 'Total Returned Qty', key: 'totalReturnedQuantity', width: 18, align: 'right', numFmt: '#,##0.00', isSum: true },
         { header: 'Final Inward No.', key: 'finalInwardNumber', width: 18, align: 'center' },
-        { header: 'Final Inward Date', key: 'finalInwardDate', width: 16, align: 'center', isDate: true, withTime: true },
-        { header: 'Closure Date', key: 'closureDate', width: 16, align: 'center', isDate: true, withTime: true },
-        { header: 'Total Days to Close', key: 'totalDaysToClose', width: 16, align: 'right', numFmt: '#,##0' },
-        { header: 'Gate Pass Status', key: 'gatePassStatus', width: 14, align: 'center' },
+        { header: 'Days to Close', key: 'totalDaysToClose', width: 14, align: 'right', numFmt: '#,##0' },
+        { header: 'Rate (₹)', key: 'rate', width: 12, align: 'right', numFmt: '"₹" #,##0.00' },
+        { header: 'Taxable Amt (₹)', key: 'taxableAmount', width: 15, align: 'right', numFmt: '"₹" #,##0.00', isSum: true },
+        { header: 'GST %', key: 'gstPercentage', width: 10, align: 'center', numFmt: '0.0"%"' },
+        { header: 'GST Amt (₹)', key: 'gstAmount', width: 14, align: 'right', numFmt: '"₹" #,##0.00', isSum: true },
+        { header: 'Grand Total (₹)', key: 'grandTotal', width: 16, align: 'right', numFmt: '"₹" #,##0.00', isSum: true },
         { header: 'Return Status', key: 'returnStatus', width: 18, align: 'center' }
       ];
       break;
@@ -699,7 +809,9 @@ const generateClientExcel = async ({ reportType, reportTitle, filters = {}, reco
         { header: 'Returnable Qty', key: 'totalReturnableQuantity', width: 16, align: 'right', numFmt: '#,##0.00', isSum: true },
         { header: 'Returned Qty', key: 'totalReturnedQuantity', width: 16, align: 'right', numFmt: '#,##0.00', isSum: true },
         { header: 'Pending Qty', key: 'totalPendingQuantity', width: 16, align: 'right', numFmt: '#,##0.00', isSum: true },
-        { header: 'Oldest Pending Date', key: 'oldestPendingDate', width: 18, align: 'center', isDate: true },
+        { header: 'Taxable Amt (₹)', key: 'taxableAmount', width: 16, align: 'right', numFmt: '"₹" #,##0.00', isSum: true },
+        { header: 'GST %', key: 'gstPercentage', width: 10, align: 'center', numFmt: '0.0"%"' },
+        { header: 'GST Amt (₹)', key: 'totalGst', width: 15, align: 'right', numFmt: '"₹" #,##0.00', isSum: true },
         { header: 'Grand Value (₹)', key: 'totalGrandTotal', width: 18, align: 'right', numFmt: '"₹" #,##0.00', isSum: true }
       ];
       break;
@@ -712,12 +824,15 @@ const generateClientExcel = async ({ reportType, reportTitle, filters = {}, reco
         { header: 'GP Date', key: 'date', width: 14, align: 'center', isDate: true },
         { header: 'Party / Company Name', key: 'partyName', width: 26, align: 'left' },
         { header: 'Item Description', key: 'itemDescription', width: 24, align: 'left' },
-        { header: 'Original Qty', key: 'originalQuantity', width: 14, align: 'right', numFmt: '#,##0.00', isSum: true },
-        { header: 'Returnable Qty', key: 'returnableQuantity', width: 14, align: 'right', numFmt: '#,##0.00', isSum: true },
+        { header: 'Ret. Qty', key: 'returnableQuantity', width: 12, align: 'right', numFmt: '#,##0.00', isSum: true },
         { header: 'Inward No.', key: 'inwardNumber', width: 16, align: 'center' },
-        { header: 'Inward Date', key: 'inwardDate', width: 16, align: 'center', isDate: true, withTime: true },
-        { header: 'Received Qty', key: 'receivedQuantity', width: 14, align: 'right', numFmt: '#,##0.00', isSum: true },
-        { header: 'Balance Qty', key: 'balanceQuantity', width: 14, align: 'right', numFmt: '#,##0.00', isSum: true },
+        { header: 'Rec. Qty', key: 'receivedQuantity', width: 12, align: 'right', numFmt: '#,##0.00', isSum: true },
+        { header: 'Bal. Qty', key: 'balanceQuantity', width: 12, align: 'right', numFmt: '#,##0.00', isSum: true },
+        { header: 'Rate (₹)', key: 'rate', width: 12, align: 'right', numFmt: '"₹" #,##0.00' },
+        { header: 'Taxable Amt (₹)', key: 'taxableAmount', width: 15, align: 'right', numFmt: '"₹" #,##0.00', isSum: true },
+        { header: 'GST %', key: 'gstPercentage', width: 10, align: 'center', numFmt: '0.0"%"' },
+        { header: 'GST Amt (₹)', key: 'gstAmount', width: 14, align: 'right', numFmt: '"₹" #,##0.00', isSum: true },
+        { header: 'Grand Total (₹)', key: 'grandTotal', width: 16, align: 'right', numFmt: '"₹" #,##0.00', isSum: true },
         { header: 'Return Status', key: 'returnStatus', width: 18, align: 'center' }
       ];
       break;

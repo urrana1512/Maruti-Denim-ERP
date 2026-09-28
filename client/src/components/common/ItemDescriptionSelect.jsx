@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { itemMasterList } from '../../data/itemMasterData';
-import { ChevronDown, Search, Check, Layers } from 'lucide-react';
+import { masterDataService } from '../../services/masterDataService';
+import { itemMasterList as fallbackList } from '../../data/itemMasterData';
+import { ChevronDown, Check, Layers } from 'lucide-react';
 
 const ItemDescriptionSelect = ({
   value = '',
@@ -9,10 +10,28 @@ const ItemDescriptionSelect = ({
   placeholder = 'Type or search item description...',
   error
 }) => {
+  const [items, setItems] = useState([]);
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState(value || '');
   const containerRef = useRef(null);
   const inputRef = useRef(null);
+
+  useEffect(() => {
+    const loadItems = async () => {
+      try {
+        const res = await masterDataService.getActiveItems();
+        if (res.success && res.data?.length > 0) {
+          setItems(res.data);
+        } else {
+          setItems(fallbackList);
+        }
+      } catch (err) {
+        console.warn('Using fallback item master list:', err);
+        setItems(fallbackList);
+      }
+    };
+    loadItems();
+  }, []);
 
   useEffect(() => {
     setSearch(value || '');
@@ -28,8 +47,10 @@ const ItemDescriptionSelect = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const filteredItems = itemMasterList.filter(item =>
-    item.description.toLowerCase().includes((search || '').toLowerCase())
+  const itemList = items.length > 0 ? items : fallbackList;
+
+  const filteredItems = itemList.filter(item =>
+    (item.description || '').toLowerCase().includes((search || '').toLowerCase())
   ).slice(0, 100);
 
   const handleInputChange = (e) => {
@@ -37,9 +58,9 @@ const ItemDescriptionSelect = ({
     setSearch(val);
     onChange(val);
 
-    const matched = itemMasterList.find(i => i.description.toLowerCase() === val.trim().toLowerCase());
+    const matched = itemList.find(i => (i.description || '').toLowerCase() === val.trim().toLowerCase());
     if (matched && onSelectUom) {
-      onSelectUom(matched.uom);
+      onSelectUom(matched.um || matched.uom || 'Nos');
     }
   };
 
@@ -47,7 +68,7 @@ const ItemDescriptionSelect = ({
     setSearch(item.description);
     onChange(item.description);
     if (onSelectUom) {
-      onSelectUom(item.uom);
+      onSelectUom(item.um || item.uom || 'Nos');
     }
     setIsOpen(false);
   };
@@ -64,7 +85,9 @@ const ItemDescriptionSelect = ({
           onChange={handleInputChange}
           onFocus={() => setIsOpen(true)}
           placeholder={placeholder}
-          className="w-full px-3 py-2 pr-9 bg-white border border-border-subtle rounded-md text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-denim font-medium placeholder:text-slate-400"
+          className={`w-full px-3 py-2 pr-9 bg-white border ${
+            error ? 'border-danger focus:ring-danger' : 'border-border-subtle focus:ring-brand-denim'
+          } rounded-md text-sm text-slate-800 focus:outline-none focus:ring-2 font-medium placeholder:text-slate-400`}
         />
         <button
           type="button"
@@ -79,31 +102,31 @@ const ItemDescriptionSelect = ({
         </button>
       </div>
 
-      {/* Professional White Dropdown Popup */}
+      {/* Dropdown Popup */}
       {isOpen && (
         <div className="absolute z-[9999] left-0 right-0 top-full mt-1 bg-white border border-slate-300 rounded-lg shadow-2xl shadow-slate-900/25 overflow-hidden min-w-[320px] max-w-[500px]">
-          {/* Header info bar */}
           <div className="px-3 py-1.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between text-[11px] font-semibold text-slate-500">
             <span className="flex items-center">
               <Layers size={12} className="mr-1.5 text-brand-denim" />
               Item Master ({filteredItems.length} matching)
             </span>
-            <span>Click to select & auto-fill UOM</span>
+            <span>Click to select & auto-fill UM</span>
           </div>
 
           {filteredItems.length === 0 ? (
             <div className="p-4 text-center text-xs text-slate-400 italic">
-              No matching item in master catalog. Custom item description will be used.
+              No matching item in master catalog. Custom description will be used.
             </div>
           ) : (
             <ul className="max-h-56 overflow-y-auto divide-y divide-slate-100">
               {filteredItems.map((item, idx) => {
-                const isSelected = item.description.toLowerCase() === (search || '').toLowerCase().trim();
+                const isSelected = (item.description || '').toLowerCase() === (search || '').toLowerCase().trim();
+                const umVal = item.um || item.uom || 'Nos';
                 return (
                   <li
-                    key={idx}
+                    key={item._id || idx}
                     onMouseDown={(e) => {
-                      e.preventDefault(); // Prevent input blur before click event registers
+                      e.preventDefault();
                       handleSelectOption(item);
                     }}
                     className={`px-3 py-2.5 cursor-pointer flex items-center justify-between text-xs transition-colors hover:bg-slate-100/80 ${
@@ -115,7 +138,7 @@ const ItemDescriptionSelect = ({
                       <span className="truncate">{item.description}</span>
                     </div>
                     <span className="text-[10px] px-2 py-0.5 bg-slate-100 text-slate-700 font-bold rounded border border-slate-200 flex-shrink-0 shadow-xs">
-                      {item.uom}
+                      {umVal}
                     </span>
                   </li>
                 );

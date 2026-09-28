@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
 import { X, Printer, Download } from 'lucide-react';
-import html2canvas from 'html2canvas';
+import { safeHtml2Canvas } from '../../utils/html2canvasUtil';
 import { jsPDF } from 'jspdf';
 import { toast } from 'sonner';
 import MaterialInwardDocument from './MaterialInwardDocument';
@@ -44,7 +44,7 @@ const MaterialInwardPreviewModal = ({ materialInward, onClose }) => {
 
       // Fallback to client rendering if ID is absent or backend timeout
       const element = documentRef.current;
-      const canvas = await html2canvas(element, {
+      const canvas = await safeHtml2Canvas(element, {
         scale: 2,
         useCORS: true,
         allowTaint: true,

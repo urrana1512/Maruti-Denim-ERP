@@ -6,6 +6,8 @@ import AddGatePass from './pages/GatePass/AddGatePass';
 import ManageGatePass from './pages/GatePass/ManageGatePass';
 import MaterialInward from './pages/MaterialInward/MaterialInward';
 import Reports from './pages/Reports/Reports';
+import ItemMasterPage from './pages/MasterData/ItemMasterPage';
+import VendorMasterPage from './pages/MasterData/VendorMasterPage';
 
 import GatePassPrintView from './pages/Documents/GatePassPrintView';
 import MaterialInwardPrintView from './pages/Documents/MaterialInwardPrintView';
@@ -23,6 +25,11 @@ function App() {
           <Route path="manage-gatepass" element={<Navigate to="/gate-pass/manage" replace />} />
           <Route path="material-inward" element={<MaterialInward />} />
           <Route path="reports" element={<Reports />} />
+          
+          {/* Master Data Routes */}
+          <Route path="master-data/items" element={<ItemMasterPage />} />
+          <Route path="master-data/vendors" element={<VendorMasterPage />} />
+          
           <Route path="gate-pass/:id" element={<div className="p-6">View Gate Pass</div>} />
         </Route>
 

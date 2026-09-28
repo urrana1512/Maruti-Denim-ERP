@@ -25,6 +25,7 @@ const inwardItemSchema = new mongoose.Schema({
   inwardNumber: { type: String },
   challanInvoiceNumber: { type: String },
   gateEntryNumber: { type: String },
+  itemId: { type: mongoose.Schema.Types.ObjectId, ref: 'ItemMaster', default: null },
   remarks: { type: String, default: '' },
 });
 
@@ -37,6 +38,7 @@ const materialInwardSchema = new mongoose.Schema(
     inwardDate: { type: Date, required: true },
     documentType: { type: String, default: 'Challan' },
     challanInvoiceNumber: { type: String, required: true },
+    vendorId: { type: mongoose.Schema.Types.ObjectId, ref: 'VendorMaster', default: null },
     partyName: { type: String, required: true },
     items: [inwardItemSchema],
     subtotal: { type: Number, default: 0 },

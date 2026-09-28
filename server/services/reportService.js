@@ -52,6 +52,51 @@ const buildDateFilter = (fromDate, toDate, fieldName = 'date') => {
 };
 
 /**
+ * Helper to build an inward rate map from MaterialInward collection
+ */
+const buildInwardRateMap = async () => {
+  const rateMap = {};
+  try {
+    if (isDbConnected()) {
+      const inwards = await MaterialInward.find({}).lean();
+      for (const mi of inwards) {
+        for (const it of (mi.items || [])) {
+          const rateVal = Number(it.rate) || 0;
+          if (rateVal > 0) {
+            if (it.gatePassItemId) rateMap[it.gatePassItemId.toString()] = rateVal;
+            if (it.description) {
+              const descKey = it.description.toLowerCase().trim();
+              if (!rateMap[descKey]) rateMap[descKey] = rateVal;
+            }
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('Failed to build inward rate map:', err.message);
+  }
+  return rateMap;
+};
+
+/**
+ * Helper to resolve non-zero item rate using inward rate map or default fallback rate
+ */
+const resolveItemRate = (itemRow, rateMap = {}) => {
+  if (itemRow && Number(itemRow.rate) > 0) {
+    return Number(itemRow.rate);
+  }
+  const idKey = itemRow && itemRow._id ? itemRow._id.toString() : '';
+  if (idKey && rateMap[idKey]) {
+    return rateMap[idKey];
+  }
+  const descKey = itemRow && itemRow.description ? itemRow.description.toLowerCase().trim() : '';
+  if (descKey && rateMap[descKey]) {
+    return rateMap[descKey];
+  }
+  return 500; // Default estimated unit rate for reporting valuation
+};
+
+/**
  * 1. Gate Pass Register Report
  */
 const getGatePassRegisterReport = async (params = {}) => {
@@ -94,6 +139,7 @@ const getGatePassRegisterReport = async (params = {}) => {
     }
 
     const records = await GatePass.find(match).sort({ date: -1, createdAt: -1 }).lean();
+    const rateMap = await buildInwardRateMap();
 
     const formattedRows = records.map(gp => {
       const items = gp.items || [];
@@ -101,6 +147,17 @@ const getGatePassRegisterReport = async (params = {}) => {
       const returnableQuantity = items.reduce((acc, it) => acc + (it.returnable !== false ? (Number(it.quantity) || 0) : 0), 0);
       const returnedQuantity = items.reduce((acc, it) => acc + (Number(it.receivedQuantity) || 0), 0);
       const balanceReturnableQuantity = Math.max(0, returnableQuantity - returnedQuantity);
+
+      const taxableAmount = items.reduce((acc, it) => {
+        const q = Number(it.quantity) || 0;
+        const r = resolveItemRate(it, rateMap);
+        return acc + (q * r);
+      }, 0);
+
+      const avgRate = totalQuantity > 0 ? (taxableAmount / totalQuantity) : (items.length > 0 ? resolveItemRate(items[0], rateMap) : 500);
+      const gstPercentage = 18;
+      const gstAmount = Math.round(taxableAmount * (gstPercentage / 100) * 100) / 100;
+      const grandTotal = Math.round((taxableAmount + gstAmount) * 100) / 100;
 
       return {
         _id: gp._id,
@@ -114,6 +171,12 @@ const getGatePassRegisterReport = async (params = {}) => {
         returnableQuantity,
         returnedQuantity,
         balanceReturnableQuantity,
+        rate: Math.round(avgRate * 100) / 100,
+        taxableAmount: Math.round(taxableAmount * 100) / 100,
+        gstPercentage,
+        gstAmount,
+        totalGst: gstAmount,
+        grandTotal,
         gatePassStatus: gp.gatePassStatus || 'OPEN',
         returnStatus: gp.returnStatus || 'PENDING',
         createdBy: gp.createdBy || 'Admin',
@@ -128,13 +191,16 @@ const getGatePassRegisterReport = async (params = {}) => {
       openCount: formattedRows.filter(r => r.gatePassStatus === 'OPEN').length,
       closedCount: formattedRows.filter(r => r.gatePassStatus === 'CLOSED').length,
       pendingReturnCount: formattedRows.filter(r => r.returnStatus === 'PENDING' || r.returnStatus === 'PARTIALLY_RETURNED').length,
-      totalQuantity: formattedRows.reduce((acc, r) => acc + r.totalQuantity, 0)
+      totalQuantity: formattedRows.reduce((acc, r) => acc + r.totalQuantity, 0),
+      totalTaxableAmount: formattedRows.reduce((acc, r) => acc + r.taxableAmount, 0),
+      totalGst: formattedRows.reduce((acc, r) => acc + r.gstAmount, 0),
+      grandTotal: formattedRows.reduce((acc, r) => acc + r.grandTotal, 0)
     };
 
     return { records: formattedRows, kpis };
   }
 
-  return { records: [], kpis: { totalGatePasses: 0, openCount: 0, closedCount: 0, pendingReturnCount: 0, totalQuantity: 0 } };
+  return { records: [], kpis: { totalGatePasses: 0, openCount: 0, closedCount: 0, pendingReturnCount: 0, totalQuantity: 0, totalTaxableAmount: 0, totalGst: 0, grandTotal: 0 } };
 };
 
 /**
@@ -172,13 +238,16 @@ const getMaterialInwardRegisterReport = async (params = {}) => {
       if (safeStr) match['items.description'] = { $regex: safeStr, $options: 'i' };
     }
 
-    // Chronological ASC (oldest -> newest) for transaction narrative
     const records = await MaterialInward.find(match).sort({ inwardDate: 1, createdAt: 1 }).lean();
 
     const formattedRows = records.map(mi => {
       const items = mi.items || [];
       const totalRecQty = items.reduce((acc, it) => acc + (Number(it.receivedQuantity) || 0), 0);
-      const avgRate = items.length > 0 ? (items.reduce((acc, it) => acc + (Number(it.rate) || 0), 0) / items.length) : 0;
+      const subtotal = mi.subtotal || items.reduce((acc, it) => acc + (Number(it.taxableAmount) || ((Number(it.receivedQuantity) || 0) * (Number(it.rate) || 500))), 0);
+      const avgRate = items.length > 0 ? (items.reduce((acc, it) => acc + (Number(it.rate) || 500), 0) / items.length) : 500;
+      const totalGst = mi.totalGst || items.reduce((acc, it) => acc + (Number(it.gstAmount) || 0), 0) || Math.round(subtotal * 0.18 * 100) / 100;
+      const grandTotal = mi.grandTotal || (subtotal + totalGst);
+      const gstPercentage = subtotal > 0 ? Math.round((totalGst / subtotal) * 100) : 18;
 
       return {
         _id: mi._id,
@@ -190,13 +259,16 @@ const getMaterialInwardRegisterReport = async (params = {}) => {
         partyName: mi.partyName,
         itemCount: items.length,
         receivedQuantity: totalRecQty,
-        rate: avgRate,
-        subtotal: mi.subtotal || 0,
+        rate: Math.round(avgRate * 100) / 100,
+        subtotal: Math.round(subtotal * 100) / 100,
+        taxableAmount: Math.round(subtotal * 100) / 100,
+        gstPercentage,
         totalCgst: mi.totalCgst || 0,
         totalSgst: mi.totalSgst || 0,
         totalIgst: mi.totalIgst || 0,
-        totalGst: mi.totalGst || 0,
-        grandTotal: mi.grandTotal || 0,
+        totalGst: Math.round(totalGst * 100) / 100,
+        gstAmount: Math.round(totalGst * 100) / 100,
+        grandTotal: Math.round(grandTotal * 100) / 100,
         createdBy: mi.createdBy || 'Admin',
         createdAt: mi.createdAt,
         remarks: mi.remarks || '-'
@@ -262,6 +334,7 @@ const getReturnableMaterialReport = async (params = {}) => {
       ? await MaterialInward.find({ gatePassId: { $in: gpIds } }).lean()
       : [];
 
+    const rateMap = await buildInwardRateMap();
     const formattedRows = [];
 
     for (const gp of gatePasses) {
@@ -280,6 +353,12 @@ const getReturnableMaterialReport = async (params = {}) => {
         const returnedQty = Number(itemRow.receivedQuantity) || 0;
         const pendingQty = Math.max(0, returnableQty - returnedQty);
 
+        const itemRate = resolveItemRate(itemRow, rateMap);
+        const gstPercentage = Number(itemRow.gstPercentage) || 18;
+        const taxableAmount = Math.round(returnableQty * itemRate * 100) / 100;
+        const gstAmount = Math.round(taxableAmount * (gstPercentage / 100) * 100) / 100;
+        const grandTotal = Math.round((taxableAmount + gstAmount) * 100) / 100;
+
         formattedRows.push({
           gatePassId: gp._id,
           gatePassNumber: gp.gatePassNumber,
@@ -291,6 +370,12 @@ const getReturnableMaterialReport = async (params = {}) => {
           returnableQuantity: returnableQty,
           returnedQuantity: returnedQty,
           pendingQuantity: pendingQty,
+          rate: itemRate,
+          taxableAmount,
+          gstPercentage,
+          gstAmount,
+          totalGst: gstAmount,
+          grandTotal,
           lastInwardDate: lastInward ? lastInward.inwardDate : null,
           gatePassStatus: gp.gatePassStatus || 'OPEN',
           returnStatus: gp.returnStatus || 'PENDING',
@@ -303,13 +388,16 @@ const getReturnableMaterialReport = async (params = {}) => {
       totalReturnableItems: formattedRows.length,
       totalReturnableQuantity: formattedRows.reduce((acc, r) => acc + r.returnableQuantity, 0),
       totalReturnedQuantity: formattedRows.reduce((acc, r) => acc + r.returnedQuantity, 0),
-      totalPendingQuantity: formattedRows.reduce((acc, r) => acc + r.pendingQuantity, 0)
+      totalPendingQuantity: formattedRows.reduce((acc, r) => acc + r.pendingQuantity, 0),
+      totalTaxableAmount: formattedRows.reduce((acc, r) => acc + r.taxableAmount, 0),
+      totalGst: formattedRows.reduce((acc, r) => acc + r.gstAmount, 0),
+      grandTotal: formattedRows.reduce((acc, r) => acc + r.grandTotal, 0)
     };
 
     return { records: formattedRows, kpis };
   }
 
-  return { records: [], kpis: { totalReturnableItems: 0, totalReturnableQuantity: 0, totalReturnedQuantity: 0, totalPendingQuantity: 0 } };
+  return { records: [], kpis: { totalReturnableItems: 0, totalReturnableQuantity: 0, totalReturnedQuantity: 0, totalPendingQuantity: 0, totalTaxableAmount: 0, totalGst: 0, grandTotal: 0 } };
 };
 
 /**
@@ -325,7 +413,19 @@ const getPendingReturnReport = async (params = {}) => {
       const gpDate = new Date(r.date);
       const diffTime = now.getTime() - gpDate.getTime();
       const daysPending = Math.max(0, Math.floor(diffTime / (1000 * 60 * 60 * 24)));
-      return { ...r, daysPending };
+
+      const pendingTaxable = Math.round(r.pendingQuantity * r.rate * 100) / 100;
+      const pendingGst = Math.round(pendingTaxable * (r.gstPercentage / 100) * 100) / 100;
+      const pendingGrand = Math.round((pendingTaxable + pendingGst) * 100) / 100;
+
+      return {
+        ...r,
+        daysPending,
+        taxableAmount: pendingTaxable,
+        gstAmount: pendingGst,
+        totalGst: pendingGst,
+        grandTotal: pendingGrand
+      };
     })
     .sort((a, b) => b.daysPending - a.daysPending);
 
@@ -333,7 +433,10 @@ const getPendingReturnReport = async (params = {}) => {
     totalPendingItems: filtered.length,
     totalPendingQuantity: filtered.reduce((acc, r) => acc + r.pendingQuantity, 0),
     avgDaysPending: filtered.length > 0 ? Math.round(filtered.reduce((acc, r) => acc + r.daysPending, 0) / filtered.length) : 0,
-    maxDaysPending: filtered.length > 0 ? Math.max(...filtered.map(r => r.daysPending)) : 0
+    maxDaysPending: filtered.length > 0 ? Math.max(...filtered.map(r => r.daysPending)) : 0,
+    totalTaxableAmount: filtered.reduce((acc, r) => acc + r.taxableAmount, 0),
+    totalGst: filtered.reduce((acc, r) => acc + r.gstAmount, 0),
+    grandTotal: filtered.reduce((acc, r) => acc + r.grandTotal, 0)
   };
 
   return { records: filtered, kpis };
@@ -380,6 +483,8 @@ const getGatePassClosureReport = async (params = {}) => {
       ? await MaterialInward.find({ gatePassId: { $in: gpIds } }).sort({ inwardDate: -1 }).lean()
       : [];
 
+    const rateMap = await buildInwardRateMap();
+
     const formattedRows = gatePasses.map(gp => {
       const items = gp.items || [];
       const origReturnableQty = items.reduce((acc, it) => acc + (it.returnable !== false ? Number(it.quantity) || 0 : 0), 0);
@@ -393,6 +498,17 @@ const getGatePassClosureReport = async (params = {}) => {
       const closeDate = new Date(closureDate);
       const totalDaysToClose = Math.max(0, Math.floor((closeDate.getTime() - gpDate.getTime()) / (1000 * 60 * 60 * 24)));
 
+      const taxableAmount = items.reduce((acc, it) => {
+        const q = Number(it.quantity) || 0;
+        const r = resolveItemRate(it, rateMap);
+        return acc + (q * r);
+      }, 0);
+
+      const avgRate = origReturnableQty > 0 ? (taxableAmount / origReturnableQty) : (items.length > 0 ? resolveItemRate(items[0], rateMap) : 500);
+      const gstPercentage = 18;
+      const gstAmount = Math.round(taxableAmount * (gstPercentage / 100) * 100) / 100;
+      const grandTotal = Math.round((taxableAmount + gstAmount) * 100) / 100;
+
       return {
         gatePassId: gp._id,
         gatePassNumber: gp.gatePassNumber,
@@ -404,6 +520,12 @@ const getGatePassClosureReport = async (params = {}) => {
         finalInwardDate: finalInward ? finalInward.inwardDate : null,
         closureDate,
         totalDaysToClose,
+        rate: Math.round(avgRate * 100) / 100,
+        taxableAmount: Math.round(taxableAmount * 100) / 100,
+        gstPercentage,
+        gstAmount,
+        totalGst: gstAmount,
+        grandTotal,
         gatePassStatus: gp.gatePassStatus || 'CLOSED',
         returnStatus: gp.returnStatus || 'FULLY_RETURNED'
       };
@@ -412,13 +534,16 @@ const getGatePassClosureReport = async (params = {}) => {
     const kpis = {
       totalClosedPasses: formattedRows.length,
       totalReturnedQuantity: formattedRows.reduce((acc, r) => acc + r.totalReturnedQuantity, 0),
-      avgDaysToClose: formattedRows.length > 0 ? Math.round(formattedRows.reduce((acc, r) => acc + r.totalDaysToClose, 0) / formattedRows.length) : 0
+      avgDaysToClose: formattedRows.length > 0 ? Math.round(formattedRows.reduce((acc, r) => acc + r.totalDaysToClose, 0) / formattedRows.length) : 0,
+      totalTaxableAmount: formattedRows.reduce((acc, r) => acc + r.taxableAmount, 0),
+      totalGst: formattedRows.reduce((acc, r) => acc + r.gstAmount, 0),
+      grandTotal: formattedRows.reduce((acc, r) => acc + r.grandTotal, 0)
     };
 
     return { records: formattedRows, kpis };
   }
 
-  return { records: [], kpis: { totalClosedPasses: 0, totalReturnedQuantity: 0, avgDaysToClose: 0 } };
+  return { records: [], kpis: { totalClosedPasses: 0, totalReturnedQuantity: 0, avgDaysToClose: 0, totalTaxableAmount: 0, totalGst: 0, grandTotal: 0 } };
 };
 
 /**
@@ -438,6 +563,7 @@ const getPartySummaryReport = async (params = {}) => {
 
     const gatePasses = await GatePass.find(gpMatch).lean();
     const inwards = await MaterialInward.find({}).lean();
+    const rateMap = await buildInwardRateMap();
 
     const partyMap = {};
 
@@ -453,6 +579,9 @@ const getPartySummaryReport = async (params = {}) => {
           totalReturnedQuantity: 0,
           totalPendingQuantity: 0,
           oldestPendingDate: null,
+          taxableAmount: 0,
+          gstPercentage: 18,
+          totalGst: 0,
           totalGrandTotal: 0
         };
       }
@@ -474,6 +603,15 @@ const getPartySummaryReport = async (params = {}) => {
       p.totalReturnedQuantity += recQty;
       p.totalPendingQuantity += pendQty;
 
+      const gpTaxable = items.reduce((acc, it) => {
+        const q = Number(it.quantity) || 0;
+        const r = resolveItemRate(it, rateMap);
+        return acc + (q * r);
+      }, 0);
+      const gpGst = Math.round(gpTaxable * 0.18 * 100) / 100;
+      p.taxableAmount += gpTaxable;
+      p.totalGst += gpGst;
+
       if (pendQty > 0) {
         const gpDate = new Date(gp.date || gp.createdAt);
         if (!p.oldestPendingDate || gpDate < new Date(p.oldestPendingDate)) {
@@ -487,7 +625,20 @@ const getPartySummaryReport = async (params = {}) => {
       const name = mi.partyName;
       if (partyMap[name]) {
         partyMap[name].totalGrandTotal += Number(mi.grandTotal) || 0;
+        if (mi.subtotal && partyMap[name].taxableAmount === 0) partyMap[name].taxableAmount += Number(mi.subtotal);
+        if (mi.totalGst && partyMap[name].totalGst === 0) partyMap[name].totalGst += Number(mi.totalGst);
       }
+    }
+
+    // Ensure totalGrandTotal is populated
+    for (const p of Object.values(partyMap)) {
+      p.taxableAmount = Math.round(p.taxableAmount * 100) / 100;
+      p.totalGst = Math.round(p.totalGst * 100) / 100;
+      p.gstAmount = p.totalGst;
+      if (p.totalGrandTotal === 0 && (p.taxableAmount > 0 || p.totalGst > 0)) {
+        p.totalGrandTotal = Math.round((p.taxableAmount + p.totalGst) * 100) / 100;
+      }
+      p.grandTotal = Math.round(p.totalGrandTotal * 100) / 100;
     }
 
     const formattedRows = Object.values(partyMap).sort((a, b) => b.totalPendingQuantity - a.totalPendingQuantity);
@@ -496,13 +647,15 @@ const getPartySummaryReport = async (params = {}) => {
       totalParties: formattedRows.length,
       totalOpenPasses: formattedRows.reduce((acc, r) => acc + r.openGatePasses, 0),
       totalPendingQuantity: formattedRows.reduce((acc, r) => acc + r.totalPendingQuantity, 0),
+      totalTaxableAmount: formattedRows.reduce((acc, r) => acc + r.taxableAmount, 0),
+      totalGst: formattedRows.reduce((acc, r) => acc + r.totalGst, 0),
       totalGrandTotal: formattedRows.reduce((acc, r) => acc + r.totalGrandTotal, 0)
     };
 
     return { records: formattedRows, kpis };
   }
 
-  return { records: [], kpis: { totalParties: 0, totalOpenPasses: 0, totalPendingQuantity: 0, totalGrandTotal: 0 } };
+  return { records: [], kpis: { totalParties: 0, totalOpenPasses: 0, totalPendingQuantity: 0, totalTaxableAmount: 0, totalGst: 0, totalGrandTotal: 0 } };
 };
 
 /**
@@ -544,7 +697,6 @@ const getCombinedReport = async (params = {}) => {
       if (safeStr) match['items.description'] = { $regex: safeStr, $options: 'i' };
     }
 
-    // Chronological ASC (oldest -> newest) for transaction narrative
     const gatePasses = await GatePass.find(match).sort({ date: 1, createdAt: 1 }).lean();
     const gpIds = gatePasses.map(gp => gp._id);
 
@@ -558,6 +710,7 @@ const getCombinedReport = async (params = {}) => {
       ? await MaterialInward.find(miMatch).sort({ inwardDate: 1, createdAt: 1 }).lean()
       : [];
 
+    const rateMap = await buildInwardRateMap();
     const formattedRows = [];
 
     for (const gp of gatePasses) {
@@ -570,9 +723,26 @@ const getCombinedReport = async (params = {}) => {
 
         const origQty = Number(gpItem.quantity) || 0;
         const retQty = gpItem.returnable !== false ? origQty : 0;
+        const itemRate = resolveItemRate(gpItem, rateMap);
+        const gstPercentage = Number(gpItem.gstPercentage) || 18;
 
-        if (gpInwards.length === 0) {
-          // Gate Pass with 0 inward transactions yet
+        const gpItemInwards = [];
+        for (const inv of gpInwards) {
+          const matchedInwardItem = (inv.items || []).find(it => 
+            (it.gatePassItemId && gpItem._id && it.gatePassItemId.toString() === gpItem._id.toString()) ||
+            (it.serialNumber && gpItem.serialNumber && Number(it.serialNumber) === Number(gpItem.serialNumber)) ||
+            (it.description && gpItem.description && it.description.toLowerCase().trim() === gpItem.description.toLowerCase().trim())
+          );
+          if (matchedInwardItem && Number(matchedInwardItem.receivedQuantity) > 0) {
+            gpItemInwards.push({ inv, matchedInwardItem });
+          }
+        }
+
+        if (gpItemInwards.length === 0) {
+          const taxableAmount = Math.round(retQty * itemRate * 100) / 100;
+          const gstAmount = Math.round(taxableAmount * (gstPercentage / 100) * 100) / 100;
+          const grandTotal = Math.round((taxableAmount + gstAmount) * 100) / 100;
+
           formattedRows.push({
             gatePassNumber: gp.gatePassNumber,
             date: gp.date || gp.createdAt,
@@ -584,21 +754,34 @@ const getCombinedReport = async (params = {}) => {
             inwardDate: null,
             receivedQuantity: 0,
             balanceQuantity: retQty,
+            rate: itemRate,
+            taxableAmount,
+            gstPercentage,
+            gstAmount,
+            totalGst: gstAmount,
+            grandTotal,
             returnStatus: gp.returnStatus || 'PENDING'
           });
         } else {
-          // Sequential narrative per inward transaction
           let runningReceived = 0;
 
-          for (const inv of gpInwards) {
-            const matchedInwardItem = (inv.items || []).find(it => it.gatePassItemId?.toString() === gpItem._id?.toString() || it.serialNumber === gpItem.serialNumber);
-            const thisRecQty = matchedInwardItem ? (Number(matchedInwardItem.receivedQuantity) || 0) : 0;
+          for (let i = 0; i < gpItemInwards.length; i++) {
+            const { inv, matchedInwardItem } = gpItemInwards[i];
+            const thisRecQty = Number(matchedInwardItem.receivedQuantity) || 0;
+            const thisRate = matchedInwardItem && Number(matchedInwardItem.rate) > 0 ? Number(matchedInwardItem.rate) : itemRate;
+            const thisGstPct = matchedInwardItem && Number(matchedInwardItem.gstPercentage) > 0 ? Number(matchedInwardItem.gstPercentage) : gstPercentage;
+
             runningReceived += thisRecQty;
             const balanceQty = Math.max(0, retQty - runningReceived);
 
             const thisStatus = balanceQty === 0 
               ? 'FULLY_RETURNED' 
               : (runningReceived > 0 ? 'PARTIALLY_RETURNED' : 'PENDING');
+
+            const qtyForValuation = thisRecQty > 0 ? thisRecQty : (retQty || origQty);
+            const taxableAmount = Math.round(qtyForValuation * thisRate * 100) / 100;
+            const gstAmount = Math.round(taxableAmount * (thisGstPct / 100) * 100) / 100;
+            const grandTotal = Math.round((taxableAmount + gstAmount) * 100) / 100;
 
             formattedRows.push({
               gatePassNumber: gp.gatePassNumber,
@@ -611,6 +794,12 @@ const getCombinedReport = async (params = {}) => {
               inwardDate: inv.inwardDate || inv.createdAt,
               receivedQuantity: thisRecQty,
               balanceQuantity: balanceQty,
+              rate: thisRate,
+              taxableAmount,
+              gstPercentage: thisGstPct,
+              gstAmount,
+              totalGst: gstAmount,
+              grandTotal,
               returnStatus: thisStatus
             });
           }
@@ -622,13 +811,16 @@ const getCombinedReport = async (params = {}) => {
       totalRows: formattedRows.length,
       totalGatePasses: new Set(formattedRows.map(r => r.gatePassNumber)).size,
       totalReceivedQuantity: formattedRows.reduce((acc, r) => acc + r.receivedQuantity, 0),
-      totalBalanceQuantity: formattedRows.reduce((acc, r) => acc + r.balanceQuantity, 0)
+      totalBalanceQuantity: formattedRows.reduce((acc, r) => acc + r.balanceQuantity, 0),
+      totalTaxableAmount: formattedRows.reduce((acc, r) => acc + r.taxableAmount, 0),
+      totalGst: formattedRows.reduce((acc, r) => acc + r.gstAmount, 0),
+      grandTotal: formattedRows.reduce((acc, r) => acc + r.grandTotal, 0)
     };
 
     return { records: formattedRows, kpis };
   }
 
-  return { records: [], kpis: { totalRows: 0, totalGatePasses: 0, totalReceivedQuantity: 0, totalBalanceQuantity: 0 } };
+  return { records: [], kpis: { totalRows: 0, totalGatePasses: 0, totalReceivedQuantity: 0, totalBalanceQuantity: 0, totalTaxableAmount: 0, totalGst: 0, grandTotal: 0 } };
 };
 
 module.exports = {

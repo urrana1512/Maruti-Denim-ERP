@@ -131,6 +131,12 @@ const GatePassDocument = ({ gatePass: directGatePass, data }) => {
                 <strong style={{ color: '#1e293b' }}>{gatePass.department}</strong>
               </div>
             )}
+            {gatePass.costCentre && (
+              <div>
+                <span style={{ color: '#64748b', fontWeight: 600 }}>Cost Centre:</span>{' '}
+                <strong style={{ color: '#1e293b' }}>{gatePass.costCentre}</strong>
+              </div>
+            )}
             {gatePass.vehicleNumber && (
               <div>
                 <span style={{ color: '#64748b', fontWeight: 600 }}>Vehicle No:</span>{' '}
@@ -156,12 +162,13 @@ const GatePassDocument = ({ gatePass: directGatePass, data }) => {
         <table className="w-full border-collapse mb-4" style={{ border: '1px solid #0F2A47', tableLayout: 'fixed' }}>
           <thead>
             <tr style={{ backgroundColor: '#0F2A47', color: '#ffffff' }}>
-              <th style={{ padding: '7px 8px', border: '1px solid #0F2A47', fontSize: '11.5px', fontWeight: 'bold', textTransform: 'uppercase', width: '40px', textAlign: 'center' }}>Sr.</th>
+              <th style={{ padding: '7px 8px', border: '1px solid #0F2A47', fontSize: '11.5px', fontWeight: 'bold', textTransform: 'uppercase', width: '35px', textAlign: 'center' }}>Sr.</th>
               <th style={{ padding: '7px 8px', border: '1px solid #0F2A47', fontSize: '11.5px', fontWeight: 'bold', textTransform: 'uppercase', textAlign: 'left' }}>Description</th>
-              <th style={{ padding: '7px 8px', border: '1px solid #0F2A47', fontSize: '11.5px', fontWeight: 'bold', textTransform: 'uppercase', width: '150px', textAlign: 'left' }}>Category</th>
-              <th style={{ padding: '7px 8px', border: '1px solid #0F2A47', fontSize: '11.5px', fontWeight: 'bold', textTransform: 'uppercase', width: '60px', textAlign: 'center' }}>Qty</th>
-              <th style={{ padding: '7px 8px', border: '1px solid #0F2A47', fontSize: '11.5px', fontWeight: 'bold', textTransform: 'uppercase', width: '50px', textAlign: 'center' }}>UM</th>
-              <th style={{ padding: '7px 8px', border: '1px solid #0F2A47', fontSize: '11.5px', fontWeight: 'bold', textTransform: 'uppercase', width: '22%', textAlign: 'left' }}>Remarks</th>
+              <th style={{ padding: '7px 8px', border: '1px solid #0F2A47', fontSize: '11.5px', fontWeight: 'bold', textTransform: 'uppercase', width: '130px', textAlign: 'left' }}>Category</th>
+              <th style={{ padding: '7px 8px', border: '1px solid #0F2A47', fontSize: '11.5px', fontWeight: 'bold', textTransform: 'uppercase', width: '55px', textAlign: 'center' }}>Qty</th>
+              <th style={{ padding: '7px 8px', border: '1px solid #0F2A47', fontSize: '11.5px', fontWeight: 'bold', textTransform: 'uppercase', width: '45px', textAlign: 'center' }}>UM</th>
+              <th style={{ padding: '7px 8px', border: '1px solid #0F2A47', fontSize: '11.5px', fontWeight: 'bold', textTransform: 'uppercase', width: '110px', textAlign: 'left' }}>Cost Centre</th>
+              <th style={{ padding: '7px 8px', border: '1px solid #0F2A47', fontSize: '11.5px', fontWeight: 'bold', textTransform: 'uppercase', width: '18%', textAlign: 'left' }}>Remarks</th>
             </tr>
           </thead>
           <tbody>
@@ -172,6 +179,7 @@ const GatePassDocument = ({ gatePass: directGatePass, data }) => {
                 <td style={{ padding: '6px 8px', border: '1px solid #cbd5e1', fontSize: '12.5px', fontWeight: 600, color: '#334155' }}>{item.category || '-'}</td>
                 <td style={{ padding: '6px 8px', border: '1px solid #cbd5e1', fontSize: '12.5px', fontWeight: 600, textAlign: 'center', color: '#334155' }}>{item.quantity}</td>
                 <td style={{ padding: '6px 8px', border: '1px solid #cbd5e1', fontSize: '12.5px', textAlign: 'center', color: '#334155' }}>{item.uom || 'Nos'}</td>
+                <td style={{ padding: '6px 8px', border: '1px solid #cbd5e1', fontSize: '12.5px', color: '#334155', wordBreak: 'break-word' }}>{item.costCentre || gatePass.costCentre || '-'}</td>
                 <td style={{ padding: '6px 8px', border: '1px solid #cbd5e1', fontSize: '12.5px', color: '#334155', wordBreak: 'break-word' }}>{item.remarks || '-'}</td>
               </tr>
             ))}

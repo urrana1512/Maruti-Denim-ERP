@@ -51,10 +51,10 @@ const generatePdfFromUrl = async (url) => {
       printBackground: true,
       preferCSSPageSize: true,
       margin: {
-        top: '0mm',
-        right: '0mm',
-        bottom: '0mm',
-        left: '0mm'
+        top: '12mm',
+        right: '10mm',
+        bottom: '12mm',
+        left: '10mm'
       }
     });
 

@@ -234,3 +234,30 @@ exports.exportExcel = async (req, res) => {
     res.status(500).json({ success: false, message: 'Unable to generate Excel export', error: error.message });
   }
 };
+
+const { generatePdfFromUrl } = require('../services/pdfService');
+
+/**
+ * Download Corporate MIS Report as PDF via Puppeteer
+ */
+exports.downloadReportPdf = async (req, res) => {
+  try {
+    const queryParams = new URLSearchParams(req.query);
+    queryParams.set('autoprint', 'false');
+
+    const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+    const printUrl = `${clientUrl}/documents/reports/print?${queryParams.toString()}`;
+
+    const pdfBuffer = await generatePdfFromUrl(printUrl);
+
+    const reportType = req.query.reportType || 'report';
+    const filename = `MarutiDenim_${reportType.replace(/[^a-zA-Z0-9]/g, '_')}_Report.pdf`;
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(pdfBuffer);
+  } catch (error) {
+    console.error('Download Report PDF Error:', error);
+    res.status(500).json({ success: false, message: 'Failed to generate Report PDF', error: error.message });
+  }
+};

@@ -112,15 +112,12 @@ const generateReportExcel = async ({ reportType, reportTitle, filters = {}, reco
         { header: 'Party / Company Name', key: 'companyName', width: 28, align: 'left' },
         { header: 'Purpose', key: 'purpose', width: 22, align: 'left' },
         { header: 'Material Type', key: 'materialType', width: 14, align: 'center' },
-        { header: 'Item Count', key: 'itemCount', width: 12, align: 'right', numFmt: '#,##0' },
         { header: 'Total Qty', key: 'totalQuantity', width: 12, align: 'right', numFmt: '#,##0.00', isSum: true },
-        { header: 'Returnable Qty', key: 'returnableQuantity', width: 14, align: 'right', numFmt: '#,##0.00', isSum: true },
-        { header: 'Returned Qty', key: 'returnedQuantity', width: 14, align: 'right', numFmt: '#,##0.00', isSum: true },
-        { header: 'Balance Qty', key: 'balanceReturnableQuantity', width: 14, align: 'right', numFmt: '#,##0.00', isSum: true },
-        { header: 'Gate Pass Status', key: 'gatePassStatus', width: 14, align: 'center' },
+        { header: 'Ret. Qty', key: 'returnableQuantity', width: 12, align: 'right', numFmt: '#,##0.00', isSum: true },
+        { header: 'Rec. Qty', key: 'returnedQuantity', width: 12, align: 'right', numFmt: '#,##0.00', isSum: true },
+        { header: 'Bal. Qty', key: 'balanceReturnableQuantity', width: 12, align: 'right', numFmt: '#,##0.00', isSum: true },
+        { header: 'GP Status', key: 'gatePassStatus', width: 14, align: 'center' },
         { header: 'Return Status', key: 'returnStatus', width: 18, align: 'center' },
-        { header: 'Created By', key: 'createdBy', width: 14, align: 'left' },
-        { header: 'Created Date', key: 'createdAt', width: 16, align: 'center', isDate: true, withTime: true },
         { header: 'Remarks', key: 'remarks', width: 25, align: 'left' }
       ];
       break;
@@ -132,17 +129,10 @@ const generateReportExcel = async ({ reportType, reportTitle, filters = {}, reco
         { header: 'Inward Date & Time', key: 'inwardDate', width: 18, align: 'center', isDate: true, withTime: true },
         { header: 'Gate Pass No.', key: 'gatePassNumber', width: 16, align: 'center' },
         { header: 'Gate Entry No.', key: 'gateEntryNumber', width: 16, align: 'center' },
-        { header: 'Challan / Invoice No.', key: 'challanInvoiceNumber', width: 20, align: 'left' },
         { header: 'Party / Company Name', key: 'partyName', width: 26, align: 'left' },
-        { header: 'Item Count', key: 'itemCount', width: 12, align: 'right', numFmt: '#,##0' },
         { header: 'Rec. Qty', key: 'receivedQuantity', width: 12, align: 'right', numFmt: '#,##0.00', isSum: true },
-        { header: 'Subtotal (₹)', key: 'subtotal', width: 15, align: 'right', numFmt: '"₹" #,##0.00', isSum: true },
-        { header: 'CGST (₹)', key: 'totalCgst', width: 14, align: 'right', numFmt: '"₹" #,##0.00', isSum: true },
-        { header: 'SGST (₹)', key: 'totalSgst', width: 14, align: 'right', numFmt: '"₹" #,##0.00', isSum: true },
-        { header: 'IGST (₹)', key: 'totalIgst', width: 14, align: 'right', numFmt: '"₹" #,##0.00', isSum: true },
         { header: 'Total GST (₹)', key: 'totalGst', width: 15, align: 'right', numFmt: '"₹" #,##0.00', isSum: true },
         { header: 'Grand Total (₹)', key: 'grandTotal', width: 16, align: 'right', numFmt: '"₹" #,##0.00', isSum: true },
-        { header: 'Created By', key: 'createdBy', width: 14, align: 'left' },
         { header: 'Remarks', key: 'remarks', width: 22, align: 'left' }
       ];
       break;
@@ -155,13 +145,11 @@ const generateReportExcel = async ({ reportType, reportTitle, filters = {}, reco
         { header: 'Gate Pass Date', key: 'date', width: 14, align: 'center', isDate: true },
         { header: 'Party / Company Name', key: 'companyName', width: 26, align: 'left' },
         { header: 'Item Description', key: 'itemName', width: 24, align: 'left' },
-        { header: 'Original Qty', key: 'originalQuantity', width: 14, align: 'right', numFmt: '#,##0.00', isSum: true },
-        { header: 'Returnable Qty', key: 'returnableQuantity', width: 14, align: 'right', numFmt: '#,##0.00', isSum: true },
-        { header: 'Returned Qty', key: 'returnedQuantity', width: 14, align: 'right', numFmt: '#,##0.00', isSum: true },
-        { header: 'Pending Qty', key: 'pendingQuantity', width: 14, align: 'right', numFmt: '#,##0.00', isSum: true },
+        { header: 'Orig. Qty', key: 'originalQuantity', width: 12, align: 'right', numFmt: '#,##0.00', isSum: true },
+        { header: 'Ret. Qty', key: 'returnableQuantity', width: 12, align: 'right', numFmt: '#,##0.00', isSum: true },
+        { header: 'Rec. Qty', key: 'returnedQuantity', width: 12, align: 'right', numFmt: '#,##0.00', isSum: true },
+        { header: 'Pend. Qty', key: 'pendingQuantity', width: 12, align: 'right', numFmt: '#,##0.00', isSum: true },
         ...(reportType === 'pending-returns' ? [{ header: 'Days Pending', key: 'daysPending', width: 14, align: 'right', numFmt: '#,##0' }] : []),
-        { header: 'Last Inward Date', key: 'lastInwardDate', width: 16, align: 'center', isDate: true, withTime: true },
-        { header: 'Gate Pass Status', key: 'gatePassStatus', width: 14, align: 'center' },
         { header: 'Return Status', key: 'returnStatus', width: 18, align: 'center' },
         { header: 'Remarks', key: 'remarks', width: 22, align: 'left' }
       ];
@@ -176,10 +164,7 @@ const generateReportExcel = async ({ reportType, reportTitle, filters = {}, reco
         { header: 'Orig. Returnable Qty', key: 'originalReturnableQuantity', width: 18, align: 'right', numFmt: '#,##0.00', isSum: true },
         { header: 'Total Returned Qty', key: 'totalReturnedQuantity', width: 18, align: 'right', numFmt: '#,##0.00', isSum: true },
         { header: 'Final Inward No.', key: 'finalInwardNumber', width: 18, align: 'center' },
-        { header: 'Final Inward Date', key: 'finalInwardDate', width: 16, align: 'center', isDate: true, withTime: true },
-        { header: 'Closure Date', key: 'closureDate', width: 16, align: 'center', isDate: true, withTime: true },
-        { header: 'Total Days to Close', key: 'totalDaysToClose', width: 16, align: 'right', numFmt: '#,##0' },
-        { header: 'Gate Pass Status', key: 'gatePassStatus', width: 14, align: 'center' },
+        { header: 'Days to Close', key: 'totalDaysToClose', width: 14, align: 'right', numFmt: '#,##0' },
         { header: 'Return Status', key: 'returnStatus', width: 18, align: 'center' }
       ];
       break;
@@ -193,9 +178,7 @@ const generateReportExcel = async ({ reportType, reportTitle, filters = {}, reco
         { header: 'Closed Passes', key: 'closedGatePasses', width: 14, align: 'right', numFmt: '#,##0', isSum: true },
         { header: 'Returnable Qty', key: 'totalReturnableQuantity', width: 16, align: 'right', numFmt: '#,##0.00', isSum: true },
         { header: 'Returned Qty', key: 'totalReturnedQuantity', width: 16, align: 'right', numFmt: '#,##0.00', isSum: true },
-        { header: 'Pending Qty', key: 'totalPendingQuantity', width: 16, align: 'right', numFmt: '#,##0.00', isSum: true },
-        { header: 'Oldest Pending Date', key: 'oldestPendingDate', width: 18, align: 'center', isDate: true },
-        { header: 'Grand Value (₹)', key: 'totalGrandTotal', width: 18, align: 'right', numFmt: '"₹" #,##0.00', isSum: true }
+        { header: 'Pending Qty', key: 'totalPendingQuantity', width: 16, align: 'right', numFmt: '#,##0.00', isSum: true }
       ];
       break;
 
@@ -207,12 +190,15 @@ const generateReportExcel = async ({ reportType, reportTitle, filters = {}, reco
         { header: 'GP Date', key: 'date', width: 14, align: 'center', isDate: true },
         { header: 'Party / Company Name', key: 'partyName', width: 26, align: 'left' },
         { header: 'Item Description', key: 'itemDescription', width: 24, align: 'left' },
-        { header: 'Original Qty', key: 'originalQuantity', width: 14, align: 'right', numFmt: '#,##0.00', isSum: true },
-        { header: 'Returnable Qty', key: 'returnableQuantity', width: 14, align: 'right', numFmt: '#,##0.00', isSum: true },
+        { header: 'Ret. Qty', key: 'returnableQuantity', width: 12, align: 'right', numFmt: '#,##0.00', isSum: true },
         { header: 'Inward No.', key: 'inwardNumber', width: 16, align: 'center' },
-        { header: 'Inward Date', key: 'inwardDate', width: 16, align: 'center', isDate: true, withTime: true },
-        { header: 'Received Qty', key: 'receivedQuantity', width: 14, align: 'right', numFmt: '#,##0.00', isSum: true },
-        { header: 'Balance Qty', key: 'balanceQuantity', width: 14, align: 'right', numFmt: '#,##0.00', isSum: true },
+        { header: 'Rec. Qty', key: 'receivedQuantity', width: 12, align: 'right', numFmt: '#,##0.00', isSum: true },
+        { header: 'Bal. Qty', key: 'balanceQuantity', width: 12, align: 'right', numFmt: '#,##0.00', isSum: true },
+        { header: 'Rate (₹)', key: 'rate', width: 12, align: 'right', numFmt: '"₹" #,##0.00' },
+        { header: 'Taxable Amt (₹)', key: 'taxableAmount', width: 15, align: 'right', numFmt: '"₹" #,##0.00', isSum: true },
+        { header: 'GST %', key: 'gstPercentage', width: 10, align: 'center', numFmt: '0.0"%"' },
+        { header: 'GST Amt (₹)', key: 'gstAmount', width: 14, align: 'right', numFmt: '"₹" #,##0.00', isSum: true },
+        { header: 'Grand Total (₹)', key: 'grandTotal', width: 16, align: 'right', numFmt: '"₹" #,##0.00', isSum: true },
         { header: 'Return Status', key: 'returnStatus', width: 18, align: 'center' }
       ];
       break;

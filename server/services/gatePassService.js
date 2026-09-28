@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const GatePass = require('../models/GatePass');
+const { calculateGatePassReturnStatus } = require('../utils/returnCalculator');
 
 // Mock data store
 let mockGatePasses = [];
@@ -55,7 +56,18 @@ const createGatePass = async (data) => {
     ...item,
     serialNumber: item.serialNumber || idx + 1
   }));
-  const payload = { ...data, date: finalDate, gatePassNumber, items };
+  
+  const statusInfo = calculateGatePassReturnStatus(items, data.passType || 'Returnable');
+
+  const payload = { 
+    ...data, 
+    date: finalDate, 
+    gatePassNumber, 
+    items,
+    returnStatus: statusInfo.returnStatus,
+    gatePassStatus: statusInfo.gatePassStatus,
+    gatePassType: statusInfo.gatePassType
+  };
 
   if (isDbConnected()) {
     const newGatePass = new GatePass(payload);
@@ -86,7 +98,13 @@ const getGatePasses = async (query = {}) => {
     }
 
     if (status && status !== 'All') {
-      dbQuery.status = status;
+      if (['PENDING', 'PARTIALLY_RETURNED', 'FULLY_RETURNED', 'NOT_APPLICABLE'].includes(status)) {
+        dbQuery.returnStatus = status;
+      } else if (['OPEN', 'CLOSED', 'CANCELLED'].includes(status)) {
+        dbQuery.gatePassStatus = status;
+      } else {
+        dbQuery.$or = [{ returnStatus: status }, { gatePassStatus: status }, { status }];
+      }
     }
 
     if (startDate || endDate) {
@@ -116,7 +134,7 @@ const getGatePasses = async (query = {}) => {
     }
 
     if (status && status !== 'All') {
-      results = results.filter(gp => gp.status === status);
+      results = results.filter(gp => gp.returnStatus === status || gp.gatePassStatus === status || gp.status === status);
     }
 
     if (startDate) {
@@ -148,15 +166,35 @@ const getGatePassById = async (id) => {
 };
 
 const updateGatePass = async (id, data) => {
+  delete data.gatePassNumber;
+
   if (isDbConnected()) {
-    // Prevent gatePassNumber from being updated
-    delete data.gatePassNumber;
+    const existing = await GatePass.findById(id);
+    if (!existing) return null;
+
+    const passType = data.passType || existing.passType || 'Returnable';
+    const items = data.items || existing.items || [];
+
+    const statusInfo = calculateGatePassReturnStatus(items, passType);
+
+    data.items = items;
+    data.returnStatus = statusInfo.returnStatus;
+    data.gatePassStatus = statusInfo.gatePassStatus;
+    data.gatePassType = statusInfo.gatePassType;
+
     return await GatePass.findByIdAndUpdate(id, data, { new: true });
   } else {
     const index = mockGatePasses.findIndex(gp => gp._id === id);
     if (index !== -1) {
-      delete data.gatePassNumber;
-      mockGatePasses[index] = { ...mockGatePasses[index], ...data, updatedAt: new Date() };
+      const merged = { ...mockGatePasses[index], ...data };
+      const statusInfo = calculateGatePassReturnStatus(merged.items || [], merged.passType || 'Returnable');
+      mockGatePasses[index] = { 
+        ...merged, 
+        returnStatus: statusInfo.returnStatus,
+        gatePassStatus: statusInfo.gatePassStatus,
+        gatePassType: statusInfo.gatePassType,
+        updatedAt: new Date() 
+      };
       return mockGatePasses[index];
     }
     return null;
