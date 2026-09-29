@@ -12,6 +12,7 @@ import VendorMasterPage from './pages/MasterData/VendorMasterPage';
 import GatePassPrintView from './pages/Documents/GatePassPrintView';
 import MaterialInwardPrintView from './pages/Documents/MaterialInwardPrintView';
 import CorporateReportPrintView from './pages/Documents/CorporateReportPrintView';
+import MasterDataPrintView from './pages/Documents/MasterDataPrintView';
 
 function App() {
   return (
@@ -37,6 +38,7 @@ function App() {
         <Route path="/documents/gate-pass/:id/print" element={<GatePassPrintView />} />
         <Route path="/documents/material-inward/:id/print" element={<MaterialInwardPrintView />} />
         <Route path="/documents/reports/print" element={<CorporateReportPrintView />} />
+        <Route path="/documents/master-data/print" element={<MasterDataPrintView />} />
       </Routes>
     </BrowserRouter>
   );

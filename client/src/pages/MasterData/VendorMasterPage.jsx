@@ -2,10 +2,12 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { masterDataService } from '../../services/masterDataService';
 import { 
   Plus, Search, Filter, Edit, Trash2, Power, Eye, 
-  ChevronLeft, ChevronRight, Loader2, Building2, AlertTriangle, X, FileText
+  ChevronLeft, ChevronRight, Loader2, Building2, AlertTriangle, X, FileText,
+  FileSpreadsheet, Download
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import MasterDataPreviewModal from '../../components/master-data/MasterDataPreviewModal';
 
 const VendorMasterPage = () => {
   const [vendors, setVendors] = useState([]);
@@ -15,6 +17,11 @@ const VendorMasterPage = () => {
   const [page, setPage] = useState(1);
   const [limit] = useState(10);
   const [pagination, setPagination] = useState({ totalItems: 0, totalPages: 1, currentPage: 1 });
+
+  // PDF Preview State
+  const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
+  const [pdfRecords, setPdfRecords] = useState([]);
+  const [loadingPdf, setLoadingPdf] = useState(false);
 
   // Modal States
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
@@ -51,6 +58,33 @@ const VendorMasterPage = () => {
     fetchVendors();
   }, [fetchVendors]);
 
+  const handleOpenPdfPreview = async () => {
+    try {
+      setLoadingPdf(true);
+      toast.loading('Preparing Vendor Master PDF Report...', { id: 'vendor-pdf-toast' });
+      const res = await masterDataService.getVendors({
+        search,
+        status: statusFilter,
+        page: 1,
+        limit: 5000 // Get all for PDF preview
+      });
+      if (res.success) {
+        setPdfRecords(res.data || []);
+        setIsPdfModalOpen(true);
+        toast.dismiss('vendor-pdf-toast');
+      }
+    } catch (err) {
+      toast.error('Failed to load records for PDF preview.', { id: 'vendor-pdf-toast' });
+    } finally {
+      setLoadingPdf(false);
+    }
+  };
+
+  const handleExportExcel = () => {
+    toast.info('Generating Excel file download...');
+    masterDataService.exportVendorsExcel({ search, status: statusFilter });
+  };
+
   const handleOpenAdd = () => {
     setEditingVendor(null);
     setFormData({ vendorName: '', status: 'ACTIVE' });
@@ -83,20 +117,21 @@ const VendorMasterPage = () => {
       if (editingVendor) {
         const res = await masterDataService.updateVendor(editingVendor._id, formData);
         if (res.success) {
-          toast.success('Vendor updated successfully.');
+          toast.success(res.message || 'Vendor updated successfully.');
           setIsFormModalOpen(false);
           fetchVendors();
         }
       } else {
         const res = await masterDataService.createVendor(formData);
         if (res.success) {
-          toast.success('Vendor created successfully.');
+          toast.success(res.message || 'Vendor created successfully.');
           setIsFormModalOpen(false);
           fetchVendors();
         }
       }
     } catch (err) {
       const msg = err.response?.data?.message || 'Failed to save vendor.';
+      setFormErrors(prev => ({ ...prev, vendorName: msg }));
       toast.error(msg);
     } finally {
       setIsSaving(false);
@@ -146,12 +181,27 @@ const VendorMasterPage = () => {
             Manage standardized company and vendor information used throughout the system.
           </p>
         </div>
-        <div>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={handleExportExcel}
+            className="flex items-center px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-colors shadow-xs"
+          >
+            <FileSpreadsheet size={15} className="mr-1.5" /> Excel
+          </button>
+          <button
+            type="button"
+            onClick={handleOpenPdfPreview}
+            disabled={loadingPdf}
+            className="flex items-center px-3.5 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-xs font-bold transition-colors shadow-xs disabled:opacity-50"
+          >
+            {loadingPdf ? <Loader2 size={15} className="animate-spin mr-1.5" /> : <Download size={15} className="mr-1.5 text-blue-400" />} PDF Report
+          </button>
           <button
             onClick={handleOpenAdd}
             className="flex items-center px-4 py-2 bg-brand-denim hover:bg-brand-navy text-white rounded-lg text-xs font-bold transition-colors shadow-sm"
           >
-            <Plus size={16} className="mr-1.5" /> + Add Vendor
+            <Plus size={16} className="mr-1.5" /> Add Vendor
           </button>
         </div>
       </div>
@@ -500,6 +550,17 @@ const VendorMasterPage = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* PDF Report Preview Modal */}
+      {isPdfModalOpen && (
+        <MasterDataPreviewModal
+          type="vendors"
+          title="Vendor Master Report"
+          records={pdfRecords}
+          filterInfo={{ search, status: statusFilter }}
+          onClose={() => setIsPdfModalOpen(false)}
+        />
       )}
     </div>
   );

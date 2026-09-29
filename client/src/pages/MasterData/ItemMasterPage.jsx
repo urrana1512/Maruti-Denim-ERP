@@ -2,10 +2,12 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { masterDataService } from '../../services/masterDataService';
 import { 
   Plus, Search, Filter, Upload, Edit, Trash2, Power, Eye, 
-  ChevronLeft, ChevronRight, Loader2, CheckCircle2, XCircle, AlertTriangle, X, FileText
+  ChevronLeft, ChevronRight, Loader2, CheckCircle2, XCircle, AlertTriangle, X, FileText,
+  FileSpreadsheet, Download
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import MasterDataPreviewModal from '../../components/master-data/MasterDataPreviewModal';
 
 const CONTROLLED_UOMS = [
   'Nos', 'Pcs', 'Kg', 'Gram', 'Mtr', 'Centimeter', 'Ltr', 'Millilitre', 'Box', 'Set', 'Pair', 'Roll', 'Bundle', 'Ton'
@@ -19,6 +21,11 @@ const ItemMasterPage = () => {
   const [page, setPage] = useState(1);
   const [limit] = useState(10);
   const [pagination, setPagination] = useState({ totalItems: 0, totalPages: 1, currentPage: 1 });
+
+  // PDF Preview State
+  const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
+  const [pdfRecords, setPdfRecords] = useState([]);
+  const [loadingPdf, setLoadingPdf] = useState(false);
 
   // Modal States
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
@@ -60,6 +67,33 @@ const ItemMasterPage = () => {
     fetchItems();
   }, [fetchItems]);
 
+  const handleOpenPdfPreview = async () => {
+    try {
+      setLoadingPdf(true);
+      toast.loading('Preparing Item Master PDF Report...', { id: 'item-pdf-toast' });
+      const res = await masterDataService.getItems({
+        search,
+        status: statusFilter,
+        page: 1,
+        limit: 5000 // Get all for PDF preview
+      });
+      if (res.success) {
+        setPdfRecords(res.data || []);
+        setIsPdfModalOpen(true);
+        toast.dismiss('item-pdf-toast');
+      }
+    } catch (err) {
+      toast.error('Failed to load records for PDF preview.', { id: 'item-pdf-toast' });
+    } finally {
+      setLoadingPdf(false);
+    }
+  };
+
+  const handleExportExcel = () => {
+    toast.info('Generating Excel file download...');
+    masterDataService.exportItemsExcel({ search, status: statusFilter });
+  };
+
   const handleOpenAdd = () => {
     setEditingItem(null);
     setFormData({ description: '', um: 'Nos', status: 'ACTIVE' });
@@ -95,20 +129,21 @@ const ItemMasterPage = () => {
       if (editingItem) {
         const res = await masterDataService.updateItem(editingItem._id, formData);
         if (res.success) {
-          toast.success('Item description updated successfully.');
+          toast.success(res.message || 'Item description updated successfully.');
           setIsFormModalOpen(false);
           fetchItems();
         }
       } else {
         const res = await masterDataService.createItem(formData);
         if (res.success) {
-          toast.success('Item description created successfully.');
+          toast.success(res.message || 'Item description created successfully.');
           setIsFormModalOpen(false);
           fetchItems();
         }
       }
     } catch (err) {
       const msg = err.response?.data?.message || 'Failed to save item description.';
+      setFormErrors(prev => ({ ...prev, description: msg }));
       toast.error(msg);
     } finally {
       setIsSaving(false);
@@ -197,7 +232,22 @@ const ItemMasterPage = () => {
             Manage standardized material and item descriptions used throughout the Gate Pass and Material Inward system.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={handleExportExcel}
+            className="flex items-center px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-colors shadow-xs"
+          >
+            <FileSpreadsheet size={15} className="mr-1.5" /> Excel
+          </button>
+          <button
+            type="button"
+            onClick={handleOpenPdfPreview}
+            disabled={loadingPdf}
+            className="flex items-center px-3.5 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-xs font-bold transition-colors shadow-xs disabled:opacity-50"
+          >
+            {loadingPdf ? <Loader2 size={15} className="animate-spin mr-1.5" /> : <Download size={15} className="mr-1.5 text-blue-400" />} PDF Report
+          </button>
           <button
             onClick={() => {
               setImportText('');
@@ -212,7 +262,7 @@ const ItemMasterPage = () => {
             onClick={handleOpenAdd}
             className="flex items-center px-4 py-2 bg-brand-denim hover:bg-brand-navy text-white rounded-lg text-xs font-bold transition-colors shadow-sm"
           >
-            <Plus size={16} className="mr-1.5" /> + Add Item Description
+            <Plus size={16} className="mr-1.5" /> Add Item Description
           </button>
         </div>
       </div>
@@ -649,6 +699,17 @@ const ItemMasterPage = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* PDF Report Preview Modal */}
+      {isPdfModalOpen && (
+        <MasterDataPreviewModal
+          type="items"
+          title="Item Description Master Report"
+          records={pdfRecords}
+          filterInfo={{ search, status: statusFilter }}
+          onClose={() => setIsPdfModalOpen(false)}
+        />
       )}
     </div>
   );

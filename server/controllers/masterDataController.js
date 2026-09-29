@@ -3,21 +3,43 @@ const VendorMaster = require('../models/VendorMaster');
 const MasterDataAudit = require('../models/MasterDataAudit');
 const GatePass = require('../models/GatePass');
 const MaterialInward = require('../models/MaterialInward');
+const ExcelJS = require('exceljs');
+const { format } = require('date-fns');
 
 const normalizeString = (str) => {
   if (!str) return '';
   return String(str).trim().toLowerCase().replace(/\s+/g, ' ');
 };
 
-// Helper: Generate next Code
+// Helper: Generate next Code (finding max existing numerical code to avoid collision)
 async function generateNextItemCode() {
-  const count = await ItemMaster.countDocuments();
-  return `ITEM-${String(count + 1).padStart(4, '0')}`;
+  const items = await ItemMaster.find({}, { itemCode: 1 }).lean();
+  let maxNum = 0;
+  items.forEach(i => {
+    if (i.itemCode) {
+      const match = i.itemCode.match(/\d+/);
+      if (match) {
+        const num = parseInt(match[0], 10);
+        if (num > maxNum) maxNum = num;
+      }
+    }
+  });
+  return `ITEM-${String(maxNum + 1).padStart(4, '0')}`;
 }
 
 async function generateNextVendorCode() {
-  const count = await VendorMaster.countDocuments();
-  return `VEN-${String(count + 1).padStart(4, '0')}`;
+  const vendors = await VendorMaster.find({}, { vendorCode: 1 }).lean();
+  let maxNum = 0;
+  vendors.forEach(v => {
+    if (v.vendorCode) {
+      const match = v.vendorCode.match(/\d+/);
+      if (match) {
+        const num = parseInt(match[0], 10);
+        if (num > maxNum) maxNum = num;
+      }
+    }
+  });
+  return `VEN-${String(maxNum + 1).padStart(4, '0')}`;
 }
 
 // ---------------------------------------------------------
@@ -114,13 +136,38 @@ exports.createItem = async (req, res) => {
     const descTrimmed = description.trim();
     const umTrimmed = um.trim();
     const normDesc = normalizeString(descTrimmed);
+    const escapeRegex = (s) => s.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
+    const umRegex = new RegExp(`^${escapeRegex(umTrimmed)}$`, 'i');
 
     // Duplicate check
-    const existing = await ItemMaster.findOne({ descriptionNormalized: normDesc, um: umTrimmed });
+    const existing = await ItemMaster.findOne({ descriptionNormalized: normDesc, um: umRegex });
     if (existing) {
+      if (existing.status === 'INACTIVE') {
+        // Auto-reactivate inactive item record
+        existing.status = 'ACTIVE';
+        existing.description = descTrimmed;
+        existing.um = umTrimmed;
+        existing.updatedBy = req.body.createdBy || 'Admin';
+        await existing.save();
+
+        await MasterDataAudit.create({
+          entityType: 'ITEM',
+          entityId: existing._id,
+          action: 'ACTIVATED',
+          performedBy: req.body.createdBy || 'Admin',
+          newValue: existing.toObject()
+        });
+
+        return res.status(200).json({
+          success: true,
+          message: `Item "${existing.description}" (${existing.itemCode}) existed in inactive records and has been reactivated successfully.`,
+          data: existing
+        });
+      }
+
       return res.status(400).json({ 
         success: false, 
-        message: 'An item with this description and unit of measurement already exists.' 
+        message: `An item with description "${existing.description}" (${existing.itemCode}) and UM (${existing.um}) already exists.` 
       });
     }
 
@@ -193,17 +240,20 @@ exports.updateItem = async (req, res) => {
 
     item.updatedBy = req.body.updatedBy || 'Admin';
 
+    const escapeRegex = (s) => s.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
+    const umRegex = new RegExp(`^${escapeRegex(item.um)}$`, 'i');
+
     // Check duplicate if description or um changed
     const duplicate = await ItemMaster.findOne({
       _id: { $ne: id },
       descriptionNormalized: item.descriptionNormalized,
-      um: item.um
+      um: umRegex
     });
 
     if (duplicate) {
       return res.status(400).json({ 
         success: false, 
-        message: 'An item with this description and unit of measurement already exists.' 
+        message: `An item with description "${duplicate.description}" (${duplicate.itemCode}) and UM (${duplicate.um}) already exists.` 
       });
     }
 
@@ -503,7 +553,32 @@ exports.createVendor = async (req, res) => {
 
     const existing = await VendorMaster.findOne({ vendorNameNormalized: normName });
     if (existing) {
-      return res.status(400).json({ success: false, message: 'This vendor already exists.' });
+      if (existing.status === 'INACTIVE') {
+        // Auto-reactivate inactive vendor record
+        existing.status = 'ACTIVE';
+        existing.vendorName = nameTrimmed;
+        existing.updatedBy = req.body.createdBy || 'Admin';
+        await existing.save();
+
+        await MasterDataAudit.create({
+          entityType: 'VENDOR',
+          entityId: existing._id,
+          action: 'ACTIVATED',
+          performedBy: req.body.createdBy || 'Admin',
+          newValue: existing.toObject()
+        });
+
+        return res.status(200).json({
+          success: true,
+          message: `Vendor "${existing.vendorName}" (${existing.vendorCode}) existed in inactive records and has been reactivated successfully.`,
+          data: existing
+        });
+      }
+
+      return res.status(400).json({ 
+        success: false, 
+        message: `Vendor "${existing.vendorName}" (${existing.vendorCode}) already exists.` 
+      });
     }
 
     const vendorCode = await generateNextVendorCode();
@@ -571,7 +646,10 @@ exports.updateVendor = async (req, res) => {
     });
 
     if (duplicate) {
-      return res.status(400).json({ success: false, message: 'This vendor already exists.' });
+      return res.status(400).json({ 
+        success: false, 
+        message: `Vendor "${duplicate.vendorName}" (${duplicate.vendorCode}) already exists.` 
+      });
     }
 
     await vendor.save();
@@ -703,5 +781,171 @@ exports.getAuditHistory = async (req, res) => {
     res.json({ success: true, data: history });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Error loading audit history.' });
+  }
+};
+
+exports.exportItemsExcel = async (req, res) => {
+  try {
+    const { search = '', status = 'ALL' } = req.query;
+    const query = {};
+    if (status && status.toUpperCase() !== 'ALL') {
+      query.status = status.toUpperCase();
+    }
+    if (search && search.trim()) {
+      const regex = new RegExp(search.trim(), 'i');
+      query.$or = [{ description: regex }, { um: regex }, { itemCode: regex }];
+    }
+
+    const items = await ItemMaster.find(query).sort({ itemCode: 1 });
+
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('Item Master Data');
+
+    sheet.mergeCells('A1:F1');
+    const titleCell = sheet.getCell('A1');
+    titleCell.value = 'MARUTI NANDAN DENIM PVT LTD — ITEM DESCRIPTION MASTER REPORT';
+    titleCell.font = { name: 'Calibri', size: 14, bold: true, color: { argb: 'FFFFFFFF' } };
+    titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F2A47' } };
+    titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+    sheet.getRow(1).height = 30;
+
+    sheet.addRow([]);
+    sheet.addRow(['Report Period:', `Generated on ${format(new Date(), 'dd-MM-yyyy HH:mm')}`]);
+    sheet.addRow(['Total Items:', items.length]);
+    sheet.addRow([]);
+
+    const headerRow = sheet.addRow(['Sr. No.', 'Item Code', 'Item Description', 'Unit of Measurement (UM)', 'Status', 'Created Date']);
+    headerRow.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+    headerRow.eachCell((cell) => {
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
+      cell.alignment = { vertical: 'middle' };
+    });
+    headerRow.height = 24;
+
+    items.forEach((item, idx) => {
+      sheet.addRow([
+        idx + 1,
+        item.itemCode || '-',
+        item.description,
+        item.um,
+        item.status,
+        item.createdAt ? format(new Date(item.createdAt), 'dd-MM-yyyy') : '-'
+      ]);
+    });
+
+    sheet.columns = [
+      { width: 8 },
+      { width: 14 },
+      { width: 45 },
+      { width: 25 },
+      { width: 12 },
+      { width: 16 }
+    ];
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename="MarutiDenim_Item_Master_Report.xlsx"');
+
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (err) {
+    console.error('Error exporting items excel:', err);
+    res.status(500).json({ success: false, message: 'Failed to export Excel report.' });
+  }
+};
+
+exports.exportVendorsExcel = async (req, res) => {
+  try {
+    const { search = '', status = 'ALL' } = req.query;
+    const query = {};
+    if (status && status.toUpperCase() !== 'ALL') {
+      query.status = status.toUpperCase();
+    }
+    if (search && search.trim()) {
+      const regex = new RegExp(search.trim(), 'i');
+      query.$or = [{ vendorName: regex }, { vendorCode: regex }];
+    }
+
+    const vendors = await VendorMaster.find(query).sort({ vendorCode: 1 });
+
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('Vendor Master Data');
+
+    sheet.mergeCells('A1:E1');
+    const titleCell = sheet.getCell('A1');
+    titleCell.value = 'MARUTI NANDAN DENIM PVT LTD — VENDOR MASTER REPORT';
+    titleCell.font = { name: 'Calibri', size: 14, bold: true, color: { argb: 'FFFFFFFF' } };
+    titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F2A47' } };
+    titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+    sheet.getRow(1).height = 30;
+
+    sheet.addRow([]);
+    sheet.addRow(['Report Period:', `Generated on ${format(new Date(), 'dd-MM-yyyy HH:mm')}`]);
+    sheet.addRow(['Total Vendors:', vendors.length]);
+    sheet.addRow([]);
+
+    const headerRow = sheet.addRow(['Sr. No.', 'Vendor Code', 'Vendor Name / Company Name', 'Status', 'Created Date']);
+    headerRow.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+    headerRow.eachCell((cell) => {
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
+      cell.alignment = { vertical: 'middle' };
+    });
+    headerRow.height = 24;
+
+    vendors.forEach((vendor, idx) => {
+      sheet.addRow([
+        idx + 1,
+        vendor.vendorCode || '-',
+        vendor.vendorName,
+        vendor.status,
+        vendor.createdAt ? format(new Date(vendor.createdAt), 'dd-MM-yyyy') : '-'
+      ]);
+    });
+
+    sheet.columns = [
+      { width: 8 },
+      { width: 14 },
+      { width: 45 },
+      { width: 12 },
+      { width: 16 }
+    ];
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename="MarutiDenim_Vendor_Master_Report.xlsx"');
+
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (err) {
+    console.error('Error exporting vendors excel:', err);
+    res.status(500).json({ success: false, message: 'Failed to export Excel report.' });
+  }
+};
+
+const { generatePdfFromUrl } = require('../services/pdfService');
+
+exports.downloadMasterDataPdf = async (req, res) => {
+  try {
+    const { type = 'items', search = '', status = 'ALL' } = req.query;
+
+    const queryParams = new URLSearchParams({
+      type,
+      search,
+      status,
+      autoprint: 'false'
+    });
+
+    const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+    const printUrl = `${clientUrl}/documents/master-data/print?${queryParams.toString()}`;
+
+    const pdfBuffer = await generatePdfFromUrl(printUrl);
+
+    const titleStr = type === 'items' ? 'Item_Master' : 'Vendor_Master';
+    const filename = `MarutiDenim_${titleStr}_Report.pdf`;
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(pdfBuffer);
+  } catch (error) {
+    console.error('Download Master Data PDF Error:', error);
+    res.status(500).json({ success: false, message: 'Failed to generate Master Data PDF', error: error.message });
   }
 };

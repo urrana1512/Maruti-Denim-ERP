@@ -80,6 +80,16 @@ export const masterDataService = {
     return res.data;
   },
 
+  exportItemsExcel: (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    window.open(`${API_URL}/items/export/excel?${query}`, '_blank');
+  },
+
+  exportVendorsExcel: (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    window.open(`${API_URL}/vendors/export/excel?${query}`, '_blank');
+  },
+
   // Audit history
   getAuditHistory: async (entityType, entityId) => {
     const res = await axios.get(`${API_URL}/audit/${entityType}/${entityId}`);
