@@ -14,8 +14,14 @@ const VendorSelect = ({
   const [loading, setLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState(value || '');
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [newVendorName, setNewVendorName] = useState('');
+  const [newVendorData, setNewVendorData] = useState({
+    vendorName: '',
+    address: '',
+    city: '',
+    pincode: '',
+    gstin: '',
+    panCard: ''
+  });
   const [isCreating, setIsCreating] = useState(false);
 
   const containerRef = useRef(null);
@@ -79,19 +85,19 @@ const VendorSelect = ({
 
   const handleCreateVendor = async (e) => {
     e.preventDefault();
-    if (!newVendorName.trim()) {
+    if (!newVendorData.vendorName.trim()) {
       toast.error('Vendor name is required.');
       return;
     }
     try {
       setIsCreating(true);
-      const res = await masterDataService.createVendor({ vendorName: newVendorName.trim() });
+      const res = await masterDataService.createVendor(newVendorData);
       if (res.success) {
         toast.success(`Vendor "${res.data.vendorName}" created successfully.`);
         await fetchActiveVendors();
         handleSelectOption(res.data);
         setIsAddModalOpen(false);
-        setNewVendorName('');
+        setNewVendorData({ vendorName: '', address: '', city: '', pincode: '', gstin: '', panCard: '' });
       }
     } catch (err) {
       const msg = err.response?.data?.message || 'Failed to create vendor.';
@@ -143,6 +149,7 @@ const VendorSelect = ({
                 type="button"
                 onClick={() => {
                   setIsOpen(false);
+                  setNewVendorData({ vendorName: search, address: '', city: '', pincode: '', gstin: '', panCard: '' });
                   setIsAddModalOpen(true);
                 }}
                 className="text-brand-denim hover:underline font-bold flex items-center"
@@ -162,7 +169,7 @@ const VendorSelect = ({
                   type="button"
                   onClick={() => {
                     setIsOpen(false);
-                    setNewVendorName(search);
+                    setNewVendorData({ vendorName: search, address: '', city: '', pincode: '', gstin: '', panCard: '' });
                     setIsAddModalOpen(true);
                   }}
                   className="inline-flex items-center px-3 py-1.5 bg-brand-denim text-white text-xs font-bold rounded-md hover:bg-brand-navy transition-colors"
@@ -201,34 +208,101 @@ const VendorSelect = ({
       {/* Quick Add Vendor Modal */}
       {isAddModalOpen && (
         <div className="fixed inset-0 z-[10000] bg-black/50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 space-y-4">
-            <h3 className="text-base font-bold text-brand-navy flex items-center">
+          <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full p-6 space-y-4">
+            <h3 className="text-base font-bold text-brand-navy flex items-center border-b pb-3 border-slate-200">
               <Building2 size={18} className="mr-2 text-brand-denim" />
               Add New Vendor Record
             </h3>
-            <p className="text-xs text-slate-500">
-              Create a new vendor in Vendor Master to select it in transaction documents.
-            </p>
+            
             <form onSubmit={handleCreateVendor} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Vendor / Company Name *
+                  Vendor / Company Name <span className="text-danger">*</span>
                 </label>
                 <input
                   type="text"
                   autoFocus
-                  value={newVendorName}
-                  onChange={(e) => setNewVendorName(e.target.value)}
+                  value={newVendorData.vendorName}
+                  onChange={(e) => setNewVendorData({ ...newVendorData, vendorName: e.target.value })}
                   placeholder="e.g. PARV ELECTRONICS"
                   className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-brand-denim"
                 />
               </div>
 
-              <div className="flex justify-end gap-2 pt-2">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Address <span className="text-slate-400 font-normal">(Optional)</span>
+                </label>
+                <textarea
+                  rows={2}
+                  value={newVendorData.address}
+                  onChange={(e) => setNewVendorData({ ...newVendorData, address: e.target.value })}
+                  placeholder="Street, Building, Area..."
+                  className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-brand-denim"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    City <span className="text-slate-400 font-normal">(Optional)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={newVendorData.city}
+                    onChange={(e) => setNewVendorData({ ...newVendorData, city: e.target.value })}
+                    placeholder="e.g. Ahmedabad"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-brand-denim"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Pincode <span className="text-slate-400 font-normal">(Optional)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={newVendorData.pincode}
+                    onChange={(e) => setNewVendorData({ ...newVendorData, pincode: e.target.value })}
+                    placeholder="e.g. 382220"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-brand-denim"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    GSTIN Number <span className="text-slate-400 font-normal">(Optional)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={newVendorData.gstin}
+                    onChange={(e) => setNewVendorData({ ...newVendorData, gstin: e.target.value.toUpperCase() })}
+                    placeholder="e.g. 24AAAAA0000A1Z5"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-brand-denim font-mono uppercase"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    PAN Card Number <span className="text-slate-400 font-normal">(Optional)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={newVendorData.panCard}
+                    onChange={(e) => setNewVendorData({ ...newVendorData, panCard: e.target.value.toUpperCase() })}
+                    placeholder="e.g. ABCDE1234F"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-brand-denim font-mono uppercase"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-slate-200">
                 <button
                   type="button"
                   onClick={() => setIsAddModalOpen(false)}
-                  className="px-3 py-1.5 border border-slate-300 rounded-md text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                  className="px-3.5 py-1.5 border border-slate-300 rounded-md text-xs font-semibold text-slate-600 hover:bg-slate-50"
                 >
                   Cancel
                 </button>

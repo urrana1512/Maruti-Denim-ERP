@@ -19,6 +19,33 @@ const vendorMasterSchema = new mongoose.Schema(
       trim: true,
       lowercase: true 
     },
+    address: {
+      type: String,
+      default: '',
+      trim: true
+    },
+    city: {
+      type: String,
+      default: '',
+      trim: true
+    },
+    pincode: {
+      type: String,
+      default: '',
+      trim: true
+    },
+    gstin: {
+      type: String,
+      default: '',
+      trim: true,
+      uppercase: true
+    },
+    panCard: {
+      type: String,
+      default: '',
+      trim: true,
+      uppercase: true
+    },
     status: { 
       type: String, 
       enum: ['ACTIVE', 'INACTIVE'], 

@@ -542,7 +542,15 @@ exports.getVendorById = async (req, res) => {
 
 exports.createVendor = async (req, res) => {
   try {
-    const { vendorName, status = 'ACTIVE' } = req.body;
+    const { 
+      vendorName, 
+      address = '', 
+      city = '', 
+      pincode = '', 
+      gstin = '', 
+      panCard = '', 
+      status = 'ACTIVE' 
+    } = req.body;
 
     if (!vendorName || !vendorName.trim()) {
       return res.status(400).json({ success: false, message: 'Vendor name is required.' });
@@ -557,6 +565,11 @@ exports.createVendor = async (req, res) => {
         // Auto-reactivate inactive vendor record
         existing.status = 'ACTIVE';
         existing.vendorName = nameTrimmed;
+        existing.address = address ? address.trim() : '';
+        existing.city = city ? city.trim() : '';
+        existing.pincode = pincode ? pincode.trim() : '';
+        existing.gstin = gstin ? gstin.trim().toUpperCase() : '';
+        existing.panCard = panCard ? panCard.trim().toUpperCase() : '';
         existing.updatedBy = req.body.createdBy || 'Admin';
         await existing.save();
 
@@ -587,6 +600,11 @@ exports.createVendor = async (req, res) => {
       vendorCode,
       vendorName: nameTrimmed,
       vendorNameNormalized: normName,
+      address: address ? address.trim() : '',
+      city: city ? city.trim() : '',
+      pincode: pincode ? pincode.trim() : '',
+      gstin: gstin ? gstin.trim().toUpperCase() : '',
+      panCard: panCard ? panCard.trim().toUpperCase() : '',
       status: status.toUpperCase() === 'INACTIVE' ? 'INACTIVE' : 'ACTIVE',
       createdBy: req.body.createdBy || 'Admin'
     });
@@ -607,6 +625,30 @@ exports.createVendor = async (req, res) => {
   } catch (err) {
     console.error('Error creating vendor:', err);
     if (err.code === 11000) {
+      if (err.message && err.message.includes('vendorCode')) {
+        try {
+          const fallbackCode = `VEN-${Date.now().toString().slice(-6)}`;
+          const retryVendor = await VendorMaster.create({
+            vendorCode: fallbackCode,
+            vendorName: nameTrimmed,
+            vendorNameNormalized: normName,
+            address: address ? address.trim() : '',
+            city: city ? city.trim() : '',
+            pincode: pincode ? pincode.trim() : '',
+            gstin: gstin ? gstin.trim().toUpperCase() : '',
+            panCard: panCard ? panCard.trim().toUpperCase() : '',
+            status: status.toUpperCase() === 'INACTIVE' ? 'INACTIVE' : 'ACTIVE',
+            createdBy: req.body.createdBy || 'Admin'
+          });
+          return res.status(201).json({
+            success: true,
+            message: 'Vendor created successfully.',
+            data: retryVendor
+          });
+        } catch (retryErr) {
+          return res.status(400).json({ success: false, message: 'This vendor already exists.' });
+        }
+      }
       return res.status(400).json({ success: false, message: 'This vendor already exists.' });
     }
     res.status(500).json({ success: false, message: 'Failed to create vendor.' });
@@ -616,7 +658,7 @@ exports.createVendor = async (req, res) => {
 exports.updateVendor = async (req, res) => {
   try {
     const { id } = req.params;
-    const { vendorName, status } = req.body;
+    const { vendorName, address, city, pincode, gstin, panCard, status } = req.body;
 
     const vendor = await VendorMaster.findById(id);
     if (!vendor) {
@@ -632,6 +674,12 @@ exports.updateVendor = async (req, res) => {
       vendor.vendorName = vendorName.trim();
       vendor.vendorNameNormalized = normalizeString(vendorName);
     }
+
+    if (address !== undefined) vendor.address = address ? address.trim() : '';
+    if (city !== undefined) vendor.city = city ? city.trim() : '';
+    if (pincode !== undefined) vendor.pincode = pincode ? pincode.trim() : '';
+    if (gstin !== undefined) vendor.gstin = gstin ? gstin.trim().toUpperCase() : '';
+    if (panCard !== undefined) vendor.panCard = panCard ? panCard.trim().toUpperCase() : '';
 
     if (status !== undefined) {
       vendor.status = status.toUpperCase() === 'INACTIVE' ? 'INACTIVE' : 'ACTIVE';
@@ -870,7 +918,7 @@ exports.exportVendorsExcel = async (req, res) => {
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet('Vendor Master Data');
 
-    sheet.mergeCells('A1:E1');
+    sheet.mergeCells('A1:J1');
     const titleCell = sheet.getCell('A1');
     titleCell.value = 'MARUTI NANDAN DENIM PVT LTD — VENDOR MASTER REPORT';
     titleCell.font = { name: 'Calibri', size: 14, bold: true, color: { argb: 'FFFFFFFF' } };
@@ -883,7 +931,7 @@ exports.exportVendorsExcel = async (req, res) => {
     sheet.addRow(['Total Vendors:', vendors.length]);
     sheet.addRow([]);
 
-    const headerRow = sheet.addRow(['Sr. No.', 'Vendor Code', 'Vendor Name / Company Name', 'Status', 'Created Date']);
+    const headerRow = sheet.addRow(['Sr. No.', 'Vendor Code', 'Vendor Name / Company Name', 'Address', 'City', 'Pincode', 'GSTIN', 'PAN Card', 'Status', 'Created Date']);
     headerRow.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
     headerRow.eachCell((cell) => {
       cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
@@ -896,6 +944,11 @@ exports.exportVendorsExcel = async (req, res) => {
         idx + 1,
         vendor.vendorCode || '-',
         vendor.vendorName,
+        vendor.address || '-',
+        vendor.city || '-',
+        vendor.pincode || '-',
+        vendor.gstin || '-',
+        vendor.panCard || '-',
         vendor.status,
         vendor.createdAt ? format(new Date(vendor.createdAt), 'dd-MM-yyyy') : '-'
       ]);
@@ -904,7 +957,12 @@ exports.exportVendorsExcel = async (req, res) => {
     sheet.columns = [
       { width: 8 },
       { width: 14 },
-      { width: 45 },
+      { width: 35 },
+      { width: 30 },
+      { width: 18 },
+      { width: 12 },
+      { width: 18 },
+      { width: 16 },
       { width: 12 },
       { width: 16 }
     ];

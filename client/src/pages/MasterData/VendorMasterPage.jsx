@@ -26,7 +26,15 @@ const VendorMasterPage = () => {
   // Modal States
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [editingVendor, setEditingVendor] = useState(null);
-  const [formData, setFormData] = useState({ vendorName: '', status: 'ACTIVE' });
+  const [formData, setFormData] = useState({
+    vendorName: '',
+    address: '',
+    city: '',
+    pincode: '',
+    gstin: '',
+    panCard: '',
+    status: 'ACTIVE'
+  });
   const [formErrors, setFormErrors] = useState({});
   const [isSaving, setIsSaving] = useState(false);
 
@@ -87,14 +95,30 @@ const VendorMasterPage = () => {
 
   const handleOpenAdd = () => {
     setEditingVendor(null);
-    setFormData({ vendorName: '', status: 'ACTIVE' });
+    setFormData({
+      vendorName: '',
+      address: '',
+      city: '',
+      pincode: '',
+      gstin: '',
+      panCard: '',
+      status: 'ACTIVE'
+    });
     setFormErrors({});
     setIsFormModalOpen(true);
   };
 
   const handleOpenEdit = (vendor) => {
     setEditingVendor(vendor);
-    setFormData({ vendorName: vendor.vendorName, status: vendor.status || 'ACTIVE' });
+    setFormData({
+      vendorName: vendor.vendorName || '',
+      address: vendor.address || '',
+      city: vendor.city || '',
+      pincode: vendor.pincode || '',
+      gstin: vendor.gstin || '',
+      panCard: vendor.panCard || '',
+      status: vendor.status || 'ACTIVE'
+    });
     setFormErrors({});
     setIsFormModalOpen(true);
   };
@@ -244,40 +268,54 @@ const VendorMasterPage = () => {
       {/* Main Data Table */}
       <div className="bg-surface-card rounded-lg border border-border-subtle shadow-xs overflow-hidden">
         <div className="overflow-x-auto min-h-[400px]">
-          <table className="w-full text-left border-collapse min-w-[700px]">
+          <table className="w-full text-left border-collapse min-w-[850px]">
             <thead>
               <tr className="bg-slate-50 border-b border-border-subtle text-xs font-semibold text-slate-600 uppercase tracking-wider">
                 <th className="p-3 w-14 text-center">Sr.</th>
                 <th className="p-3 w-28">Vendor Code</th>
-                <th className="p-3 min-w-[250px]">Vendor Name / Company Name</th>
+                <th className="p-3 min-w-[200px]">Vendor Name / Company Name</th>
+                <th className="p-3">Address / City</th>
+                <th className="p-3">GSTIN / PAN</th>
                 <th className="p-3 w-28 text-center">Status</th>
-                <th className="p-3 w-36">Created By</th>
-                <th className="p-3 w-36">Created Date</th>
-                <th className="p-3 w-36 text-center">Actions</th>
+                <th className="p-3 w-28 text-center">Created Date</th>
+                <th className="p-3 w-32 text-center">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border-subtle text-sm">
               {loading ? (
                 <tr>
-                  <td colSpan="7" className="p-8 text-center text-slate-400">
+                  <td colSpan="8" className="p-8 text-center text-slate-400">
                     <Loader2 size={24} className="animate-spin mx-auto mb-2 text-brand-denim" />
                     Loading vendor master records...
                   </td>
                 </tr>
               ) : vendors.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="p-8 text-center text-slate-400">
+                  <td colSpan="8" className="p-8 text-center text-slate-400">
                     No vendor records found matching your search.
                   </td>
                 </tr>
               ) : (
                 vendors.map((vendor, idx) => {
                   const srNo = (pagination.currentPage - 1) * limit + idx + 1;
+                  const locationStr = [vendor.address, vendor.city, vendor.pincode].filter(Boolean).join(', ');
                   return (
                     <tr key={vendor._id} className="hover:bg-slate-50/60 transition-colors">
                       <td className="p-3 text-center text-slate-500 font-medium text-xs">{srNo}</td>
                       <td className="p-3 font-mono text-xs font-semibold text-brand-navy">{vendor.vendorCode || '-'}</td>
                       <td className="p-3 font-semibold text-slate-900">{vendor.vendorName}</td>
+                      <td className="p-3 text-xs text-slate-600 max-w-[220px] truncate" title={locationStr}>
+                        {locationStr || '-'}
+                      </td>
+                      <td className="p-3 text-xs font-mono">
+                        {vendor.gstin ? (
+                          <span className="block font-semibold text-slate-800">{vendor.gstin}</span>
+                        ) : null}
+                        {vendor.panCard ? (
+                          <span className="block text-[10px] text-slate-400">PAN: {vendor.panCard}</span>
+                        ) : null}
+                        {!vendor.gstin && !vendor.panCard && '-'}
+                      </td>
                       <td className="p-3 text-center">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
                           vendor.status === 'ACTIVE' 
@@ -287,8 +325,7 @@ const VendorMasterPage = () => {
                           {vendor.status === 'ACTIVE' ? 'ACTIVE' : 'INACTIVE'}
                         </span>
                       </td>
-                      <td className="p-3 text-xs text-slate-600">{vendor.createdBy || 'Admin'}</td>
-                      <td className="p-3 text-xs text-slate-500">
+                      <td className="p-3 text-xs text-slate-500 text-center">
                         {vendor.createdAt ? format(new Date(vendor.createdAt), 'dd/MM/yyyy') : '-'}
                       </td>
                       <td className="p-3 text-center">
@@ -369,7 +406,7 @@ const VendorMasterPage = () => {
       {/* Form Modal (Add / Edit) */}
       {isFormModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 space-y-5">
+          <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full p-6 space-y-5">
             <div className="flex items-center justify-between border-b pb-3 border-slate-200">
               <h3 className="text-base font-bold text-brand-navy">
                 {editingVendor ? 'Edit Vendor Record' : 'Add New Vendor Record'}
@@ -382,7 +419,7 @@ const VendorMasterPage = () => {
             <form onSubmit={handleSaveVendor} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Vendor / Company Name *
+                  Vendor / Company Name <span className="text-danger">*</span>
                 </label>
                 <input
                   type="text"
@@ -394,6 +431,75 @@ const VendorMasterPage = () => {
                 {formErrors.vendorName && (
                   <p className="text-danger text-xs mt-1">{formErrors.vendorName}</p>
                 )}
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Address <span className="text-slate-400 font-normal">(Optional)</span>
+                </label>
+                <textarea
+                  rows={2}
+                  value={formData.address}
+                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                  placeholder="Street, Building, Area..."
+                  className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-brand-denim"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    City <span className="text-slate-400 font-normal">(Optional)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.city}
+                    onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                    placeholder="e.g. Ahmedabad"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-brand-denim"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Pincode <span className="text-slate-400 font-normal">(Optional)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.pincode}
+                    onChange={(e) => setFormData({ ...formData, pincode: e.target.value })}
+                    placeholder="e.g. 382220"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-brand-denim"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    GSTIN Number <span className="text-slate-400 font-normal">(Optional)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.gstin}
+                    onChange={(e) => setFormData({ ...formData, gstin: e.target.value.toUpperCase() })}
+                    placeholder="e.g. 24AAAAA0000A1Z5"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-brand-denim font-mono uppercase"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    PAN Card Number <span className="text-slate-400 font-normal">(Optional)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.panCard}
+                    onChange={(e) => setFormData({ ...formData, panCard: e.target.value.toUpperCase() })}
+                    placeholder="e.g. ABCDE1234F"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-brand-denim font-mono uppercase"
+                  />
+                </div>
               </div>
 
               <div>
@@ -456,6 +562,32 @@ const VendorMasterPage = () => {
                 <p className="font-bold text-slate-900 bg-slate-50 p-2 rounded mt-1 border border-slate-200">
                   {viewingVendor.vendorName}
                 </p>
+              </div>
+              <div>
+                <span className="font-semibold text-slate-500">Address:</span>
+                <p className="text-slate-800 bg-slate-50 p-2 rounded mt-1 border border-slate-200">
+                  {viewingVendor.address || 'Not specified'}
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <span className="font-semibold text-slate-500">City:</span>{' '}
+                  <span className="font-semibold text-slate-800">{viewingVendor.city || '-'}</span>
+                </div>
+                <div>
+                  <span className="font-semibold text-slate-500">Pincode:</span>{' '}
+                  <span className="font-semibold text-slate-800">{viewingVendor.pincode || '-'}</span>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <span className="font-semibold text-slate-500">GSTIN:</span>{' '}
+                  <span className="font-mono font-bold text-brand-navy">{viewingVendor.gstin || '-'}</span>
+                </div>
+                <div>
+                  <span className="font-semibold text-slate-500">PAN Card:</span>{' '}
+                  <span className="font-mono font-bold text-slate-800">{viewingVendor.panCard || '-'}</span>
+                </div>
               </div>
               <div>
                 <span className="font-semibold text-slate-500">Status:</span>{' '}
