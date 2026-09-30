@@ -30,10 +30,10 @@ const CorporateReportDocument = ({
     let bg = '#F1F5F9';
     let color = '#334155';
     let label = status;
-    if (status === 'OPEN' || status === 'PENDING') { bg = '#FEF3C7'; color = '#92400E'; }
-    if (status === 'CLOSED' || status === 'FULLY_RETURNED') { bg = '#D1FAE5'; color = '#065F46'; label = status === 'FULLY_RETURNED' ? 'FULL RETURN' : 'CLOSED'; }
+    if (status === 'OPEN' || status === 'PENDING' || status === 'Pending') { bg = '#FEF3C7'; color = '#92400E'; label = status === 'Pending' ? 'PENDING' : status; }
+    if (status === 'CLOSED' || status === 'FULLY_RETURNED' || status === 'Approved') { bg = '#D1FAE5'; color = '#065F46'; label = status === 'FULLY_RETURNED' ? 'FULL RETURN' : status === 'Approved' ? 'APPROVED' : 'CLOSED'; }
     if (status === 'PARTIALLY_RETURNED') { bg = '#DBEAFE'; color = '#1E40AF'; label = 'PARTIAL RET'; }
-    if (status === 'CANCELLED') { bg = '#FEE2E2'; color = '#991B1B'; }
+    if (status === 'CANCELLED' || status === 'Cancelled') { bg = '#FEE2E2'; color = '#991B1B'; label = 'CANCELLED'; }
 
     return (
       <span style={{
@@ -165,7 +165,9 @@ const CorporateReportDocument = ({
                   <th style={{ padding: '5px 6px', border: '1px solid #0F2A47', fontSize: '10px', fontWeight: 'bold', textAlign: 'center' }}>GP Date</th>
                   <th style={{ padding: '5px 6px', border: '1px solid #0F2A47', fontSize: '10px', fontWeight: 'bold', textAlign: 'left' }}>Party / Company</th>
                   <th style={{ padding: '5px 6px', border: '1px solid #0F2A47', fontSize: '10px', fontWeight: 'bold', textAlign: 'right' }}>Total Qty</th>
-                  <th style={{ padding: '5px 6px', border: '1px solid #0F2A47', fontSize: '10px', fontWeight: 'bold', textAlign: 'center' }}>Status</th>
+                  <th style={{ padding: '5px 6px', border: '1px solid #0F2A47', fontSize: '10px', fontWeight: 'bold', textAlign: 'center' }}>Approval</th>
+                  <th style={{ padding: '5px 6px', border: '1px solid #0F2A47', fontSize: '10px', fontWeight: 'bold', textAlign: 'center' }}>GP Status</th>
+                  <th style={{ padding: '5px 6px', border: '1px solid #0F2A47', fontSize: '10px', fontWeight: 'bold', textAlign: 'center' }}>Return Status</th>
                 </>
               )}
 
@@ -219,8 +221,8 @@ const CorporateReportDocument = ({
                 <>
                   <th style={{ padding: '4px 2px', border: '1px solid #0F2A47', fontSize: '8.5px', fontWeight: 'bold', textAlign: 'center', width: '7.5%' }}>GP No.</th>
                   <th style={{ padding: '4px 2px', border: '1px solid #0F2A47', fontSize: '8.5px', fontWeight: 'bold', textAlign: 'center', width: '7.5%' }}>GP Date</th>
-                  <th style={{ padding: '4px 2px', border: '1px solid #0F2A47', fontSize: '8.5px', fontWeight: 'bold', textAlign: 'left', width: '13.5%' }}>Party / Company</th>
-                  <th style={{ padding: '4px 2px', border: '1px solid #0F2A47', fontSize: '8.5px', fontWeight: 'bold', textAlign: 'left', width: '13.5%' }}>Item</th>
+                  <th style={{ padding: '4px 2px', border: '1px solid #0F2A47', fontSize: '8.5px', fontWeight: 600, textAlign: 'left', width: '13.5%' }}>Party / Company</th>
+                  <th style={{ padding: '4px 2px', border: '1px solid #0F2A47', fontSize: '8.5px', fontWeight: 600, textAlign: 'left', width: '13.5%' }}>Item</th>
                   <th style={{ padding: '4px 2px', border: '1px solid #0F2A47', fontSize: '8.5px', fontWeight: 'bold', textAlign: 'center', width: '7.5%' }}>Inward No.</th>
                   <th style={{ padding: '4px 2px', border: '1px solid #0F2A47', fontSize: '8.5px', fontWeight: 'bold', textAlign: 'right', width: '5%' }}>Rec. Qty</th>
                   <th style={{ padding: '4px 2px', border: '1px solid #0F2A47', fontSize: '8.5px', fontWeight: 'bold', textAlign: 'right', width: '6.5%' }}>Rate (₹)</th>
@@ -251,7 +253,9 @@ const CorporateReportDocument = ({
                       <td style={{ padding: '4px 6px', border: '1px solid #cbd5e1', fontSize: '10px', textAlign: 'center' }}>{safeFormatDate(r.date)}</td>
                       <td style={{ padding: '4px 6px', border: '1px solid #cbd5e1', fontSize: '10px', fontWeight: 600 }}>{r.companyName}</td>
                       <td style={{ padding: '4px 6px', border: '1px solid #cbd5e1', fontSize: '10px', textAlign: 'right' }}>{r.totalQuantity}</td>
+                      <td style={{ padding: '4px 6px', border: '1px solid #cbd5e1', fontSize: '10px', textAlign: 'center' }}>{renderStatusTag(r.approvalStatus || (r.gatePassStatus === 'CANCELLED' ? 'Cancelled' : 'Pending'))}</td>
                       <td style={{ padding: '4px 6px', border: '1px solid #cbd5e1', fontSize: '10px', textAlign: 'center' }}>{renderStatusTag(r.gatePassStatus)}</td>
+                      <td style={{ padding: '4px 6px', border: '1px solid #cbd5e1', fontSize: '10px', textAlign: 'center' }}>{renderStatusTag(r.returnStatus)}</td>
                     </>
                   )}
 

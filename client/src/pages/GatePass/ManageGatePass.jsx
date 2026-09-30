@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Plus, FileText, Download, Edit, Trash2, Eye, Calendar, RotateCcw, Filter, ArrowRightLeft, History, X, Lock, ShieldAlert } from 'lucide-react';
+import { Search, Plus, FileText, Download, Edit, Eye, Calendar, RotateCcw, Filter, ArrowRightLeft, History, X, Lock, CheckCircle, Ban, AlertTriangle } from 'lucide-react';
 import { safeFormatDate } from '../../utils/dateUtils';
 import { toast } from 'sonner';
 import { gatePassService } from '../../services/gatePassService';
@@ -22,6 +22,12 @@ const ManageGatePass = () => {
   const [selectedGatePass, setSelectedGatePass] = useState(null);
   const [editingGatePass, setEditingGatePass] = useState(null);
   const [historyGatePass, setHistoryGatePass] = useState(null);
+
+  // Approval & Cancel Modal States
+  const [approvingGatePass, setApprovingGatePass] = useState(null);
+  const [cancellingGatePass, setCancellingGatePass] = useState(null);
+  const [cancelReason, setCancelReason] = useState('');
+  const [isProcessingAction, setIsProcessingAction] = useState(false);
 
   const fetchGatePasses = async () => {
     try {
@@ -65,23 +71,44 @@ const ManageGatePass = () => {
     Boolean(endDate)
   ].filter(Boolean).length;
 
-  const handleDelete = async (gp) => {
-    // Check if locked
-    if (gp.returnStatus === 'PARTIALLY_RETURNED' || gp.returnStatus === 'FULLY_RETURNED' || gp.gatePassStatus === 'CLOSED') {
-      toast.error('Gate Pass cannot be deleted because Material Inward has already been processed.');
+  const handleConfirmApprove = async () => {
+    if (!approvingGatePass) return;
+    try {
+      setIsProcessingAction(true);
+      const res = await gatePassService.approve(approvingGatePass._id);
+      if (res.success) {
+        toast.success(`Gate Pass ${approvingGatePass.gatePassNumber} approved successfully.`);
+        setApprovingGatePass(null);
+        fetchGatePasses();
+      }
+    } catch (error) {
+      console.error('Approve Gate Pass Error:', error);
+      toast.error(error.response?.data?.message || error.message || 'Failed to approve gate pass');
+    } finally {
+      setIsProcessingAction(false);
+    }
+  };
+
+  const handleConfirmCancel = async () => {
+    if (!cancellingGatePass) return;
+    if (!cancelReason.trim()) {
+      toast.error('Please enter a cancellation reason.');
       return;
     }
-
-    if (window.confirm('Are you sure you want to delete this gate pass? This action cannot be undone.')) {
-      try {
-        const res = await gatePassService.delete(gp._id);
-        if (res.success) {
-          toast.success('Gate Pass deleted successfully.');
-          fetchGatePasses();
-        }
-      } catch (error) {
-        toast.error(error.response?.data?.message || 'Unable to delete gate pass.');
+    try {
+      setIsProcessingAction(true);
+      const res = await gatePassService.cancel(cancellingGatePass._id, { cancelReason: cancelReason.trim() });
+      if (res.success) {
+        toast.success(`Gate Pass ${cancellingGatePass.gatePassNumber} cancelled successfully.`);
+        setCancellingGatePass(null);
+        setCancelReason('');
+        fetchGatePasses();
       }
+    } catch (error) {
+      console.error('Cancel Gate Pass Error:', error);
+      toast.error(error.response?.data?.message || error.message || 'Failed to cancel gate pass');
+    } finally {
+      setIsProcessingAction(false);
     }
   };
 
@@ -91,7 +118,7 @@ const ManageGatePass = () => {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 min-w-0 max-w-full">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-brand-navy">Manage Gate Pass</h1>
-          <p className="text-slate-500 text-xs sm:text-sm mt-1">View, search and manage all gate passes with post-inward transaction locking.</p>
+          <p className="text-slate-500 text-xs sm:text-sm mt-1">View, search, approve and manage gate passes with strict transaction integrity.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
           <button
@@ -115,9 +142,9 @@ const ManageGatePass = () => {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 min-w-0 max-w-full">
         {[
           { label: 'Total Gate Passes', value: gatePasses.length, icon: FileText },
-          { label: "Today's Passes", value: gatePasses.filter(gp => new Date(gp.date || gp.createdAt).toDateString() === new Date().toDateString()).length, icon: Calendar },
-          { label: 'Pending Returns', value: gatePasses.filter(gp => gp.passType === 'Returnable' && gp.returnStatus !== 'FULLY_RETURNED').length, icon: ArrowRightLeft },
-          { label: 'Closed / Returned', value: gatePasses.filter(gp => gp.gatePassStatus === 'CLOSED' || gp.returnStatus === 'FULLY_RETURNED').length, icon: Eye },
+          { label: "Approved Passes", value: gatePasses.filter(gp => gp.approvalStatus === 'Approved').length, icon: CheckCircle },
+          { label: 'Pending Returns', value: gatePasses.filter(gp => gp.passType === 'Returnable' && gp.returnStatus !== 'FULLY_RETURNED' && gp.gatePassStatus !== 'CANCELLED').length, icon: ArrowRightLeft },
+          { label: 'Cancelled Passes', value: gatePasses.filter(gp => gp.gatePassStatus === 'CANCELLED').length, icon: Ban },
         ].map((stat, idx) => {
           const Icon = stat.icon;
           return (
@@ -274,6 +301,7 @@ const ManageGatePass = () => {
                 <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Date</th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Party / Dept</th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Pass Type</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Approval</th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Return Status</th>
                 <th scope="col" className="px-6 py-3 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">Actions</th>
               </tr>
@@ -281,11 +309,11 @@ const ManageGatePass = () => {
             <tbody className="bg-white divide-y divide-border-subtle">
               {loading ? (
                 <tr>
-                  <td colSpan="6" className="px-6 py-12 text-center text-slate-500">Loading...</td>
+                  <td colSpan="7" className="px-6 py-12 text-center text-slate-500">Loading...</td>
                 </tr>
               ) : gatePasses.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="px-6 py-12 text-center text-slate-500">
+                  <td colSpan="7" className="px-6 py-12 text-center text-slate-500">
                     <div className="flex flex-col items-center">
                       <FileText size={48} className="text-slate-300 mb-3" />
                       <p className="text-base font-medium">No Gate Passes Found</p>
@@ -298,20 +326,26 @@ const ManageGatePass = () => {
                 </tr>
               ) : (
                 gatePasses.map((gp) => {
-                  const isGpLocked = gp.returnStatus === 'PARTIALLY_RETURNED' || gp.returnStatus === 'FULLY_RETURNED' || gp.gatePassStatus === 'CLOSED' || gp.gatePassStatus === 'CANCELLED';
+                  const isApproved = gp.approvalStatus === 'Approved';
+                  const isCancelled = gp.gatePassStatus === 'CANCELLED';
+                  const isGpLocked = gp.returnStatus === 'PARTIALLY_RETURNED' || gp.returnStatus === 'FULLY_RETURNED' || gp.gatePassStatus === 'CLOSED' || isApproved || isCancelled;
 
                   return (
-                    <tr key={gp._id} className="hover:bg-slate-50 transition-colors">
+                    <tr key={gp._id} className={`hover:bg-slate-50 transition-colors ${isCancelled ? 'bg-red-50/30' : ''}`}>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-brand-navy">
                         <div className="flex items-center space-x-1.5">
-                          {isGpLocked && <Lock size={14} className="text-amber-600 flex-shrink-0" title="Material Inward Processed — Transaction Details Locked" />}
-                          <span>{gp.gatePassNumber}</span>
+                          {isGpLocked && <Lock size={14} className="text-amber-600 flex-shrink-0" title="Gate Pass Locked" />}
+                          <span className={isCancelled ? 'line-through text-slate-400' : ''}>{gp.gatePassNumber}</span>
                         </div>
-                        {gp.gatePassStatus === 'CLOSED' && (
+                        {isCancelled ? (
+                          <span className="ml-2 px-1.5 py-0.5 bg-red-100 text-red-700 rounded text-[10px] uppercase font-bold border border-red-200">
+                            CANCELLED
+                          </span>
+                        ) : gp.gatePassStatus === 'CLOSED' ? (
                           <span className="ml-2 px-1.5 py-0.5 bg-slate-200 text-slate-600 rounded text-[10px] uppercase font-bold">
                             CLOSED
                           </span>
-                        )}
+                        ) : null}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
                         {safeFormatDate(gp.date || gp.createdAt)}
@@ -328,7 +362,22 @@ const ManageGatePass = () => {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        {gp.passType === 'Returnable' ? (
+                        {isApproved ? (
+                          <span className="px-2.5 py-1 inline-flex items-center text-xs leading-5 font-bold rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
+                            <CheckCircle size={12} className="mr-1 text-emerald-600" /> Approved
+                          </span>
+                        ) : isCancelled ? (
+                          <span className="px-2.5 py-1 inline-flex items-center text-xs leading-5 font-bold rounded-full bg-red-100 text-red-800 border border-red-300">
+                            <Ban size={12} className="mr-1 text-red-600" /> Cancelled
+                          </span>
+                        ) : (
+                          <span className="px-2.5 py-1 inline-flex items-center text-xs leading-5 font-bold rounded-full bg-amber-50 text-amber-800 border border-amber-200">
+                            Pending
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {gp.passType === 'Returnable' && !isCancelled ? (
                           <span className={`px-2.5 py-1 inline-flex text-xs leading-5 font-bold rounded-full ${
                             gp.returnStatus === 'FULLY_RETURNED' ? 'bg-emerald-100 text-emerald-800' :
                             gp.returnStatus === 'PARTIALLY_RETURNED' ? 'bg-amber-100 text-amber-800' :
@@ -340,33 +389,58 @@ const ManageGatePass = () => {
                           <span className="text-xs text-slate-400">N/A</span>
                         )}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-1 sm:space-x-2">
+                        {/* History button */}
                         {gp.passType === 'Returnable' && (
                           <button
                             onClick={() => setHistoryGatePass(gp)}
                             className="text-slate-500 hover:text-brand-navy p-1"
-                            title="View Inward Receipts & Downloads"
+                            title="View Inward Receipts & History"
                           >
                             <History size={18} />
                           </button>
                         )}
-                        <button onClick={() => setSelectedGatePass(gp)} className="text-slate-400 hover:text-brand-denim p-1" title="View & Download PDF">
+
+                        {/* View & Download PDF */}
+                        <button
+                          onClick={() => setSelectedGatePass(gp)}
+                          className="text-emerald-600 hover:text-emerald-800 p-1"
+                          title="View & Download PDF (with Approved Stamp if approved)"
+                        >
                           <Download size={18} />
                         </button>
+
+                        {/* Approve Button */}
+                        {!isApproved && !isCancelled && (
+                          <button
+                            onClick={() => setApprovingGatePass(gp)}
+                            className="text-emerald-600 hover:text-emerald-800 p-1"
+                            title="Approve Gate Pass"
+                          >
+                            <CheckCircle size={18} />
+                          </button>
+                        )}
+
+                        {/* Edit Button */}
                         <button 
                           onClick={() => setEditingGatePass(gp)} 
-                          className={`p-1 ${isGpLocked ? 'text-amber-600 hover:text-amber-800' : 'text-slate-400 hover:text-brand-navy'}`} 
-                          title={isGpLocked ? "Gate Pass Locked (Inward Processed) — Click to view / request correction" : "Edit Gate Pass"}
+                          className={`p-1 ${isGpLocked ? 'text-slate-400 hover:text-slate-600' : 'text-blue-600 hover:text-blue-800'}`} 
+                          title={isApproved ? "Approved Gate Pass (Read-Only View)" : isCancelled ? "Cancelled Gate Pass (Read-Only View)" : "Edit Gate Pass"}
                         >
                           <Edit size={18} />
                         </button>
+
+                        {/* Cancel Button (Replaces Delete) */}
                         <button 
-                          onClick={() => handleDelete(gp)} 
+                          onClick={() => {
+                            setCancellingGatePass(gp);
+                            setCancelReason('');
+                          }} 
                           disabled={isGpLocked}
-                          className={`p-1 ${isGpLocked ? 'text-slate-300 cursor-not-allowed' : 'text-slate-400 hover:text-danger'}`} 
-                          title={isGpLocked ? "Cannot delete locked Gate Pass with inward history" : "Delete"}
+                          className={`p-1 ${isGpLocked ? 'text-slate-300 cursor-not-allowed' : 'text-rose-600 hover:text-rose-800'}`} 
+                          title={isApproved ? "Approved gate pass cannot be cancelled" : isCancelled ? "Gate pass already cancelled" : "Cancel Gate Pass"}
                         >
-                          <Trash2 size={18} />
+                          <Ban size={18} />
                         </button>
                       </td>
                     </tr>
@@ -394,22 +468,30 @@ const ManageGatePass = () => {
           </div>
         ) : (
           gatePasses.map((gp) => {
-            const isGpLocked = gp.returnStatus === 'PARTIALLY_RETURNED' || gp.returnStatus === 'FULLY_RETURNED' || gp.gatePassStatus === 'CLOSED' || gp.gatePassStatus === 'CANCELLED';
+            const isApproved = gp.approvalStatus === 'Approved';
+            const isCancelled = gp.gatePassStatus === 'CANCELLED';
+            const isGpLocked = gp.returnStatus === 'PARTIALLY_RETURNED' || gp.returnStatus === 'FULLY_RETURNED' || gp.gatePassStatus === 'CLOSED' || isApproved || isCancelled;
 
             return (
               <div 
                 key={gp._id}
-                className="bg-white rounded-xl border border-border-subtle p-4 shadow-sm space-y-3"
+                className={`bg-white rounded-xl border border-border-subtle p-4 shadow-sm space-y-3 ${isCancelled ? 'bg-red-50/20' : ''}`}
               >
                 <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
                   <div className="flex items-center gap-2">
                     {isGpLocked && <Lock size={14} className="text-amber-600" />}
-                    <span className="font-extrabold text-brand-navy text-sm">{gp.gatePassNumber}</span>
-                    {gp.gatePassStatus === 'CLOSED' && (
+                    <span className={`font-extrabold text-brand-navy text-sm ${isCancelled ? 'line-through text-slate-400' : ''}`}>
+                      {gp.gatePassNumber}
+                    </span>
+                    {isCancelled ? (
+                      <span className="px-1.5 py-0.2 bg-red-100 text-red-700 rounded text-[10px] font-bold">
+                        CANCELLED
+                      </span>
+                    ) : gp.gatePassStatus === 'CLOSED' ? (
                       <span className="px-1.5 py-0.2 bg-slate-200 text-slate-700 rounded text-[10px] font-bold">
                         CLOSED
                       </span>
-                    )}
+                    ) : null}
                   </div>
                   <span className={`px-2 py-0.5 rounded text-[11px] font-bold ${
                     gp.passType === 'Returnable' ? 'bg-blue-100 text-blue-800' : 'bg-slate-100 text-slate-700'
@@ -428,8 +510,13 @@ const ManageGatePass = () => {
                     <span className="font-semibold text-slate-700 block">{safeFormatDate(gp.date || gp.createdAt)}</span>
                   </div>
                   <div>
-                    <span className="text-slate-400 block font-medium">Items Count:</span>
-                    <span className="font-semibold text-slate-700 block">{gp.items?.length || 0} items</span>
+                    <span className="text-slate-400 block font-medium">Approval Status:</span>
+                    <span className={`font-bold inline-block px-2 py-0.5 rounded text-[10px] mt-0.5 ${
+                      isApproved ? 'bg-emerald-100 text-emerald-800' :
+                      isCancelled ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800'
+                    }`}>
+                      {isApproved ? 'Approved' : isCancelled ? 'Cancelled' : 'Pending'}
+                    </span>
                   </div>
                   <div>
                     <span className="text-slate-400 block font-medium">Return Status:</span>
@@ -449,32 +536,47 @@ const ManageGatePass = () => {
                       onClick={() => setHistoryGatePass(gp)}
                       className="flex items-center px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-brand-denim font-bold text-xs rounded"
                     >
-                      <History size={14} className="mr-1" /> Inward Receipts
+                      <History size={14} className="mr-1" /> History
                     </button>
                   )}
 
-                  <div className="flex items-center gap-2 ml-auto">
+                  <div className="flex items-center gap-1.5 ml-auto">
                     <button 
                       onClick={() => setSelectedGatePass(gp)} 
-                      className="p-1.5 bg-blue-50 text-brand-denim hover:bg-blue-100 rounded" 
-                      title="PDF"
+                      className="p-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded" 
+                      title="PDF Download"
                     >
                       <Download size={16} />
                     </button>
+
+                    {!isApproved && !isCancelled && (
+                      <button 
+                        onClick={() => setApprovingGatePass(gp)} 
+                        className="p-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded" 
+                        title="Approve"
+                      >
+                        <CheckCircle size={16} />
+                      </button>
+                    )}
+
                     <button 
                       onClick={() => setEditingGatePass(gp)} 
                       className="p-1.5 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded" 
-                      title="Edit"
+                      title="Edit / View"
                     >
                       <Edit size={16} />
                     </button>
+
                     <button 
-                      onClick={() => handleDelete(gp)} 
+                      onClick={() => {
+                        setCancellingGatePass(gp);
+                        setCancelReason('');
+                      }} 
                       disabled={isGpLocked}
                       className="p-1.5 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded disabled:opacity-40" 
-                      title="Delete"
+                      title="Cancel Gate Pass"
                     >
-                      <Trash2 size={16} />
+                      <Ban size={16} />
                     </button>
                   </div>
                 </div>
@@ -483,6 +585,120 @@ const ManageGatePass = () => {
           })
         )}
       </div>
+
+      {/* MODAL: APPROVE GATE PASS CONFIRMATION */}
+      {approvingGatePass && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-xl shadow-2xl border border-slate-200 max-w-md w-full overflow-hidden animate-scaleIn">
+            <div className="p-6 text-center space-y-4">
+              <div className="w-14 h-14 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-inner">
+                <CheckCircle size={32} />
+              </div>
+
+              <div>
+                <h3 className="text-lg font-bold text-brand-navy">Approve Gate Pass</h3>
+                <p className="text-xs text-slate-500 mt-1">
+                  Gate Pass No: <span className="font-extrabold text-brand-denim">{approvingGatePass.gatePassNumber}</span>
+                </p>
+              </div>
+
+              <div className="bg-emerald-50/70 border border-emerald-200 rounded-lg p-3 text-left text-xs text-emerald-900 space-y-1">
+                <p className="font-semibold text-emerald-950 flex items-center">
+                  <CheckCircle size={14} className="mr-1.5 text-emerald-600" /> What happens when approved?
+                </p>
+                <ul className="list-disc list-inside text-[11px] text-emerald-800 space-y-0.5 pl-1">
+                  <li>This Gate Pass will be locked against future edits.</li>
+                  <li>The <strong>APPROVED STAMP</strong> will be displayed on all downloaded PDF documents.</li>
+                </ul>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setApprovingGatePass(null)}
+                  disabled={isProcessingAction}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmApprove}
+                  disabled={isProcessingAction}
+                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-sm transition-colors flex items-center"
+                >
+                  {isProcessingAction ? 'Approving...' : 'Confirm Approval'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: CANCEL GATE PASS CONFIRMATION */}
+      {cancellingGatePass && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-xl shadow-2xl border border-slate-200 max-w-md w-full overflow-hidden animate-scaleIn">
+            <div className="p-6 space-y-4">
+              <div className="flex items-center space-x-3">
+                <div className="w-12 h-12 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center flex-shrink-0">
+                  <Ban size={26} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-brand-navy">Cancel Gate Pass</h3>
+                  <p className="text-xs text-slate-500">
+                    Gate Pass No: <span className="font-extrabold text-brand-denim">{cancellingGatePass.gatePassNumber}</span>
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-rose-50/70 border border-rose-200 rounded-lg p-3 text-xs text-rose-900 space-y-1">
+                <p className="font-semibold text-rose-950 flex items-center">
+                  <AlertTriangle size={14} className="mr-1.5 text-rose-600" /> Historical Record Preserved
+                </p>
+                <p className="text-[11px] text-rose-800">
+                  This Gate Pass will not be deleted. It will remain in system records marked as <strong>CANCELLED</strong> with your reason attached for audit trail.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  Reason for Cancellation <span className="text-rose-600">*</span>
+                </label>
+                <textarea
+                  rows={3}
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                  placeholder="e.g. Created with wrong party name / incorrect items list..."
+                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rose-500"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCancellingGatePass(null);
+                    setCancelReason('');
+                  }}
+                  disabled={isProcessingAction}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition-colors"
+                >
+                  Close
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmCancel}
+                  disabled={isProcessingAction}
+                  className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg shadow-sm transition-colors flex items-center"
+                >
+                  {isProcessingAction ? 'Cancelling...' : 'Cancel Gate Pass'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {selectedGatePass && (
         <GatePassPreviewModal

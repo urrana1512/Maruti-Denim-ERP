@@ -3,7 +3,7 @@ import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
-import { X, Trash2, Plus, Edit2, Building2, Lock, AlertTriangle } from 'lucide-react';
+import { X, Trash2, Plus, Edit2, Building2, Lock, AlertTriangle, CheckCircle, Ban } from 'lucide-react';
 import { toast } from 'sonner';
 import { gatePassService } from '../../services/gatePassService';
 import ItemDescriptionSelect from '../common/ItemDescriptionSelect';
@@ -121,10 +121,26 @@ const EditGatePassModal = ({ gatePass, onClose, onSuccess }) => {
     fetchLock();
   }, [gatePass?._id]);
 
-  const isLocked = Boolean(lockState?.gatePassLocked);
+  const isApproved = gatePass?.approvalStatus === 'Approved';
+  const isCancelled = gatePass?.gatePassStatus === 'CANCELLED';
+  const isLocked = Boolean(lockState?.gatePassLocked) || isApproved || isCancelled;
 
   const renderItemBadge = (idx) => {
     const itemLock = lockState?.items?.[idx];
+    if (isApproved) {
+      return (
+        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+          <CheckCircle size={10} className="mr-1 text-emerald-700" /> APPROVED — READ ONLY
+        </span>
+      );
+    }
+    if (isCancelled) {
+      return (
+        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-800 border border-red-300">
+          <Ban size={10} className="mr-1 text-red-700" /> CANCELLED — READ ONLY
+        </span>
+      );
+    }
     if (!itemLock || (!itemLock.locked && !isLocked)) {
       return (
         <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
@@ -154,6 +170,10 @@ const EditGatePassModal = ({ gatePass, onClose, onSuccess }) => {
   };
 
   const onSubmit = async (data) => {
+    if (isApproved || isCancelled) {
+      toast.error('Approved or Cancelled Gate Passes cannot be edited.');
+      return;
+    }
     try {
       setIsSubmitting(true);
       const isReturnablePass = data.passType === 'Returnable';
@@ -190,9 +210,19 @@ const EditGatePassModal = ({ gatePass, onClose, onSuccess }) => {
           <div className="flex items-center min-w-0">
             <Edit2 className="text-brand-denim mr-2 flex-shrink-0" size={20} />
             <h3 className="text-base sm:text-lg font-bold text-brand-navy truncate">
-              Edit Gate Pass — {gatePass.gatePassNumber}
+              {isApproved || isCancelled ? 'View Gate Pass' : 'Edit Gate Pass'} — {gatePass.gatePassNumber}
             </h3>
-            {isLocked && (
+            {isApproved && (
+              <span className="ml-3 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-900 border border-emerald-300">
+                <CheckCircle size={12} className="mr-1 text-emerald-700" /> APPROVED
+              </span>
+            )}
+            {isCancelled && (
+              <span className="ml-3 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-900 border border-red-300">
+                <Ban size={12} className="mr-1 text-red-700" /> CANCELLED
+              </span>
+            )}
+            {!isApproved && !isCancelled && isLocked && (
               <span className="ml-3 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300">
                 <Lock size={12} className="mr-1 text-amber-700" /> LOCKED
               </span>
@@ -205,8 +235,36 @@ const EditGatePassModal = ({ gatePass, onClose, onSuccess }) => {
 
         {/* Body Form */}
         <form onSubmit={handleSubmit(onSubmit)} className="p-4 sm:p-6 overflow-y-auto space-y-5 flex-1 min-w-0">
-          {/* Gate Pass Lock Banner */}
-          {isLocked && (
+          {/* Status Lock Banners */}
+          {isApproved && (
+            <div className="bg-emerald-50 border border-emerald-300 rounded-lg p-3 flex items-center gap-3 text-emerald-900 shadow-sm">
+              <CheckCircle size={18} className="text-emerald-600 flex-shrink-0" />
+              <div>
+                <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-900">
+                  Approved Gate Pass — Read-Only Mode
+                </h4>
+                <p className="text-xs mt-0.5 text-emerald-800">
+                  This Gate Pass has been approved. Approved Gate Passes cannot be edited. Only viewing and PDF downloads with the APPROVED stamp are permitted.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {isCancelled && (
+            <div className="bg-red-50 border border-red-300 rounded-lg p-3 flex items-center gap-3 text-red-900 shadow-sm">
+              <Ban size={18} className="text-red-600 flex-shrink-0" />
+              <div>
+                <h4 className="text-xs font-bold uppercase tracking-wider text-red-900">
+                  Cancelled Gate Pass — Read-Only Mode
+                </h4>
+                <p className="text-xs mt-0.5 text-red-800">
+                  This Gate Pass has been cancelled. Reason: <strong>{gatePass.cancelReason || 'N/A'}</strong>
+                </p>
+              </div>
+            </div>
+          )}
+
+          {!isApproved && !isCancelled && isLocked && (
             <div className="bg-amber-50 border border-amber-300 rounded-lg p-3 flex items-center gap-3 text-amber-900 shadow-sm">
               <Lock size={18} className="text-amber-600 flex-shrink-0" />
               <div>
@@ -219,6 +277,8 @@ const EditGatePassModal = ({ gatePass, onClose, onSuccess }) => {
               </div>
             </div>
           )}
+
+
 
           {/* Gate Pass Info */}
           <div className="bg-surface-bg rounded-lg border border-border-subtle p-4">
@@ -551,15 +611,17 @@ const EditGatePassModal = ({ gatePass, onClose, onSuccess }) => {
               onClick={onClose}
               className="px-4 py-2 border border-border-subtle text-slate-700 rounded-md text-sm font-medium hover:bg-slate-50"
             >
-              Cancel
+              {(isApproved || isCancelled) ? 'Close' : 'Cancel'}
             </button>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="px-6 py-2 bg-brand-denim text-white rounded-md text-sm font-medium hover:bg-brand-navy disabled:opacity-70"
-            >
-              {isSubmitting ? 'Saving Changes...' : 'Save Changes'}
-            </button>
+            {!(isApproved || isCancelled) && (
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="px-6 py-2 bg-brand-denim text-white rounded-md text-sm font-medium hover:bg-brand-navy disabled:opacity-70"
+              >
+                {isSubmitting ? 'Saving Changes...' : 'Save Changes'}
+              </button>
+            )}
           </div>
         </form>
       </div>

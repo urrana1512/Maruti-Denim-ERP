@@ -21,6 +21,14 @@ export const gatePassService = {
     const response = await api.put(`/gate-passes/${id}`, data);
     return response.data;
   },
+  approve: async (id, data = {}) => {
+    const response = await api.put(`/gate-passes/${id}/approve`, data);
+    return response.data;
+  },
+  cancel: async (id, data = {}) => {
+    const response = await api.put(`/gate-passes/${id}/cancel`, data);
+    return response.data;
+  },
   delete: async (id) => {
     const response = await api.delete(`/gate-passes/${id}`);
     return response.data;

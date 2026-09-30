@@ -85,12 +85,16 @@ const GatePassDocument = ({ gatePass: directGatePass, data }) => {
 
   if (!gatePass) return null;
 
-  const isApprovedOrClosed = Boolean(
-    gatePass.status === 'approved' ||
+  const isApproved = Boolean(
+    gatePass.approvalStatus === 'Approved' ||
+    gatePass.status === 'approved'
+  );
+  const isClosed = Boolean(
     gatePass.gatePassStatus === 'CLOSED' ||
     gatePass.returnStatus === 'FULLY_RETURNED'
   );
-  const stampText = gatePass.gatePassStatus === 'CLOSED' ? 'CLOSED' : 'APPROVED';
+  const isApprovedOrClosed = isApproved || isClosed;
+  const stampText = isClosed ? 'CLOSED' : 'APPROVED';
 
   return (
     <div

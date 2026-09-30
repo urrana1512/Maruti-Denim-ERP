@@ -177,6 +177,7 @@ const getGatePassRegisterReport = async (params = {}) => {
         gstAmount,
         totalGst: gstAmount,
         grandTotal,
+        approvalStatus: gp.approvalStatus || (gp.gatePassStatus === 'CANCELLED' ? 'Cancelled' : 'Pending'),
         gatePassStatus: gp.gatePassStatus || 'OPEN',
         returnStatus: gp.returnStatus || 'PENDING',
         createdBy: gp.createdBy || 'Admin',

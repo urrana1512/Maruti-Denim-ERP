@@ -215,11 +215,53 @@ const deleteGatePass = async (id) => {
   }
 };
 
+const approveGatePass = async (id, { approvedBy = 'Admin' } = {}) => {
+  const payload = {
+    approvalStatus: 'Approved',
+    approvedBy,
+    approvedAt: new Date()
+  };
+
+  if (isDbConnected()) {
+    return await GatePass.findByIdAndUpdate(id, payload, { new: true });
+  } else {
+    const index = mockGatePasses.findIndex(gp => gp._id === id);
+    if (index !== -1) {
+      mockGatePasses[index] = { ...mockGatePasses[index], ...payload, updatedAt: new Date() };
+      return mockGatePasses[index];
+    }
+    return null;
+  }
+};
+
+const cancelGatePass = async (id, { cancelReason = '', cancelledBy = 'Admin' } = {}) => {
+  const payload = {
+    status: 'cancelled',
+    gatePassStatus: 'CANCELLED',
+    cancelReason,
+    cancelledBy,
+    cancelledAt: new Date()
+  };
+
+  if (isDbConnected()) {
+    return await GatePass.findByIdAndUpdate(id, payload, { new: true });
+  } else {
+    const index = mockGatePasses.findIndex(gp => gp._id === id);
+    if (index !== -1) {
+      mockGatePasses[index] = { ...mockGatePasses[index], ...payload, updatedAt: new Date() };
+      return mockGatePasses[index];
+    }
+    return null;
+  }
+};
+
 module.exports = {
   createGatePass,
   getGatePasses,
   getGatePassById,
   updateGatePass,
   deleteGatePass,
+  approveGatePass,
+  cancelGatePass,
   getNextGatePassNumber
 };

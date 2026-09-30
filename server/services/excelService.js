@@ -1085,6 +1085,7 @@ const generateReportExcel = async ({ reportType, reportTitle, filters = {}, reco
         { header: 'Ret. Qty', key: 'returnableQuantity', width: 12, align: 'right', numFmt: '#,##0.00', isSum: true },
         { header: 'Rec. Qty', key: 'returnedQuantity', width: 12, align: 'right', numFmt: '#,##0.00', isSum: true },
         { header: 'Bal. Qty', key: 'balanceReturnableQuantity', width: 12, align: 'right', numFmt: '#,##0.00', isSum: true },
+        { header: 'Approval', key: 'approvalStatus', width: 14, align: 'center' },
         { header: 'GP Status', key: 'gatePassStatus', width: 14, align: 'center' },
         { header: 'Return Status', key: 'returnStatus', width: 18, align: 'center' },
         { header: 'Remarks', key: 'remarks', width: 25, align: 'left' }

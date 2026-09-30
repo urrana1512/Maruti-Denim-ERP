@@ -59,6 +59,22 @@ exports.updateGatePass = async (req, res) => {
     const existingGatePass = await gatePassService.getGatePassById(req.params.id);
     if (!existingGatePass) return res.status(404).json({ success: false, message: 'Gate pass not found' });
 
+    if (existingGatePass.approvalStatus === 'Approved') {
+      return res.status(409).json({
+        success: false,
+        message: 'Approved Gate Pass cannot be edited; only view and PDF download are allowed.',
+        code: 'GATE_PASS_APPROVED_LOCKED'
+      });
+    }
+
+    if (existingGatePass.gatePassStatus === 'CANCELLED' || existingGatePass.status === 'cancelled') {
+      return res.status(409).json({
+        success: false,
+        message: 'Cancelled Gate Pass cannot be edited.',
+        code: 'GATE_PASS_CANCELLED_LOCKED'
+      });
+    }
+
     // Fetch lock state inside the same update handler for immediate concurrency protection
     const lockState = await getGatePassLockState(existingGatePass);
     const validation = diffAndValidateGatePassUpdate(existingGatePass, lockState, req.body);
@@ -90,6 +106,73 @@ exports.updateGatePass = async (req, res) => {
     res.status(200).json({ success: true, message: 'Gate pass updated successfully', data: updated });
   } catch (error) {
     res.status(400).json({ success: false, message: 'Unable to update gate pass', error: error.message });
+  }
+};
+
+exports.approveGatePass = async (req, res) => {
+  try {
+    const existingGatePass = await gatePassService.getGatePassById(req.params.id);
+    if (!existingGatePass) return res.status(404).json({ success: false, message: 'Gate pass not found' });
+
+    if (existingGatePass.gatePassStatus === 'CANCELLED' || existingGatePass.status === 'cancelled') {
+      return res.status(400).json({ success: false, message: 'Cancelled Gate Pass cannot be approved.' });
+    }
+
+    const updated = await gatePassService.approveGatePass(req.params.id, {
+      approvedBy: req.body.approvedBy || 'Admin'
+    });
+
+    await logGatePassAudit({
+      action: 'GATE_PASS_APPROVED',
+      gatePassId: updated._id,
+      metadata: { approvedBy: req.body.approvedBy || 'Admin' },
+      performedBy: req.body.approvedBy || 'Admin'
+    });
+
+    res.status(200).json({ success: true, message: 'Gate pass approved successfully', data: updated });
+  } catch (error) {
+    res.status(400).json({ success: false, message: 'Unable to approve gate pass', error: error.message });
+  }
+};
+
+exports.cancelGatePass = async (req, res) => {
+  try {
+    const existingGatePass = await gatePassService.getGatePassById(req.params.id);
+    if (!existingGatePass) return res.status(404).json({ success: false, message: 'Gate pass not found' });
+
+    if (existingGatePass.approvalStatus === 'Approved') {
+      return res.status(400).json({ success: false, message: 'Approved Gate Pass cannot be cancelled.' });
+    }
+
+    const lockState = await getGatePassLockState(existingGatePass);
+    if (lockState.gatePassLocked) {
+      return res.status(409).json({
+        success: false,
+        message: 'Gate Pass cannot be cancelled because Material Inward has already been processed for this transaction.',
+        code: 'GATE_PASS_LOCKED_AFTER_INWARD'
+      });
+    }
+
+    const cancelReason = (req.body.cancelReason || req.body.reason || '').trim();
+    if (!cancelReason) {
+      return res.status(400).json({ success: false, message: 'Cancellation reason is required.' });
+    }
+
+    const updated = await gatePassService.cancelGatePass(req.params.id, {
+      cancelReason,
+      cancelledBy: req.body.cancelledBy || 'Admin'
+    });
+
+    await logGatePassAudit({
+      action: 'GATE_PASS_CANCELLED',
+      gatePassId: updated._id,
+      metadata: { cancelReason, cancelledBy: req.body.cancelledBy || 'Admin' },
+      performedBy: req.body.cancelledBy || 'Admin'
+    });
+
+    res.status(200).json({ success: true, message: 'Gate pass cancelled successfully', data: updated });
+  } catch (error) {
+    res.status(400).json({ success: false, message: 'Unable to cancel gate pass', error: error.message });
   }
 };
 

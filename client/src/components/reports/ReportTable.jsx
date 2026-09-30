@@ -36,11 +36,12 @@ const ReportTable = ({
   const renderStatusBadge = (status, type = 'gp') => {
     if (!status) return '-';
 
+    const upper = String(status).toUpperCase().trim();
     let color = 'bg-slate-100 text-slate-700';
-    if (status === 'OPEN' || status === 'PENDING') color = 'bg-amber-100 text-amber-800 border border-amber-200';
-    if (status === 'CLOSED' || status === 'FULLY_RETURNED') color = 'bg-emerald-100 text-emerald-800 border border-emerald-200';
-    if (status === 'PARTIALLY_RETURNED') color = 'bg-blue-100 text-blue-800 border border-blue-200';
-    if (status === 'CANCELLED') color = 'bg-red-100 text-red-800 border border-red-200';
+    if (upper === 'OPEN' || upper === 'PENDING' || upper === 'PENDING_APPROVAL') color = 'bg-amber-100 text-amber-800 border border-amber-200 font-bold';
+    if (upper === 'APPROVED' || upper === 'CLOSED' || upper === 'FULLY_RETURNED') color = 'bg-emerald-100 text-emerald-800 border border-emerald-200 font-bold';
+    if (upper === 'PARTIALLY_RETURNED') color = 'bg-blue-100 text-blue-800 border border-blue-200 font-bold';
+    if (upper === 'CANCELLED') color = 'bg-red-100 text-red-800 border border-red-200 font-bold';
 
     return (
       <span className={`px-2.5 py-0.5 text-[11px] font-bold rounded-full inline-block ${color}`}>
@@ -65,6 +66,7 @@ const ReportTable = ({
                   <th className="p-3 border-b border-brand-navy">Party / Company</th>
                   <th className="p-3 border-b border-brand-navy">Purpose</th>
                   <th className="p-3 border-b border-brand-navy text-right">Total Qty</th>
+                  <th className="p-3 border-b border-brand-navy text-center">Approval</th>
                   <th className="p-3 border-b border-brand-navy text-center">GP Status</th>
                   <th className="p-3 border-b border-brand-navy text-center">Return Status</th>
                 </>
@@ -148,6 +150,7 @@ const ReportTable = ({
                     <td className="p-3 font-semibold text-slate-800">{r.companyName}</td>
                     <td className="p-3 text-slate-600">{r.purpose}</td>
                     <td className="p-3 text-right font-medium">{r.totalQuantity}</td>
+                    <td className="p-3 text-center">{renderStatusBadge(r.approvalStatus || (r.gatePassStatus === 'CANCELLED' ? 'Cancelled' : 'Pending'))}</td>
                     <td className="p-3 text-center">{renderStatusBadge(r.gatePassStatus)}</td>
                     <td className="p-3 text-center">{renderStatusBadge(r.returnStatus)}</td>
                   </>

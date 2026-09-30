@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { ArrowLeft, Save, Eye, RefreshCw, CheckCircle2, AlertTriangle, FileText, Calendar, Download, Printer, Edit2, Clock } from 'lucide-react';
+import { ArrowLeft, Save, Eye, RefreshCw, CheckCircle2, AlertTriangle, FileText, Calendar, Download, Printer, Edit2, Clock, Ban } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import GatePassSearch from '../../components/material-inward/GatePassSearch';
@@ -149,6 +149,16 @@ const MaterialInward = () => {
   const validateForm = () => {
     if (!selectedGatePass) {
       toast.error('Please select a Returnable Gate Pass.');
+      return false;
+    }
+
+    if (selectedGatePass.gatePassStatus === 'CANCELLED' || selectedGatePass.status === 'cancelled') {
+      toast.error(`Gate Pass ${selectedGatePass.gatePassNumber} is cancelled. Material Inward process cannot continue.`);
+      return false;
+    }
+
+    if (selectedGatePass.approvalStatus !== 'Approved') {
+      toast.error(`Gate Pass ${selectedGatePass.gatePassNumber} is pending approval. Please approve it first.`);
       return false;
     }
 
@@ -360,9 +370,19 @@ const MaterialInward = () => {
     setShowPreviewModal(true);
   };
 
+  const isGatePassCancelled = Boolean(
+    selectedGatePass &&
+    (selectedGatePass.gatePassStatus === 'CANCELLED' || selectedGatePass.status === 'cancelled')
+  );
+
+  const isGatePassUnapproved = Boolean(
+    selectedGatePass && selectedGatePass.approvalStatus !== 'Approved' && !isGatePassCancelled
+  );
+
   const isGatePassClosed = Boolean(
     selectedGatePass &&
-    (selectedGatePass.returnStatus === 'FULLY_RETURNED' || selectedGatePass.gatePassStatus === 'CLOSED')
+    (selectedGatePass.returnStatus === 'FULLY_RETURNED' || selectedGatePass.gatePassStatus === 'CLOSED') &&
+    !isGatePassCancelled
   );
 
   return (
@@ -402,8 +422,47 @@ const MaterialInward = () => {
             onHistoryClick={() => setShowHistoryModal(true)} 
           />
 
-          {/* Warning if Gate Pass is already fully returned or closed */}
-          {isGatePassClosed ? (
+          {/* Warning if Gate Pass is cancelled, unapproved, or closed */}
+          {isGatePassCancelled ? (
+            <div className="bg-rose-50 border border-rose-300 text-rose-900 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-sm shadow-sm">
+              <div className="flex items-center gap-3">
+                <Ban className="text-rose-600 flex-shrink-0" size={24} />
+                <div>
+                  <strong className="block font-bold text-rose-950 text-base">Gate Pass Cancelled — Inward Process Cannot Continue</strong>
+                  Gate Pass <span className="font-extrabold text-rose-900">{selectedGatePass.gatePassNumber}</span> has been cancelled, so the material inward process cannot be continued.
+                  {selectedGatePass.cancelReason && (
+                    <span className="block text-xs mt-1 text-rose-700 font-medium">
+                      Reason: <span className="font-semibold text-rose-900">{selectedGatePass.cancelReason}</span>
+                    </span>
+                  )}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => navigate('/gate-pass/manage')}
+                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-lg whitespace-nowrap transition-colors"
+              >
+                Manage Gate Passes
+              </button>
+            </div>
+          ) : isGatePassUnapproved ? (
+            <div className="bg-amber-50 border border-amber-300 text-amber-900 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-sm shadow-sm">
+              <div className="flex items-center gap-3">
+                <AlertTriangle className="text-amber-600 flex-shrink-0" size={24} />
+                <div>
+                  <strong className="block font-bold text-amber-950 text-base">Gate Pass Pending Approval</strong>
+                  Gate Pass <span className="font-extrabold text-brand-denim">{selectedGatePass.gatePassNumber}</span> is not approved yet. Material Inward can only be processed after the Gate Pass is approved.
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => navigate('/gate-pass/manage')}
+                className="px-4 py-2 bg-brand-denim text-white font-bold text-xs rounded-lg hover:bg-brand-navy whitespace-nowrap transition-colors"
+              >
+                Go to Manage Gate Pass to Approve
+              </button>
+            </div>
+          ) : isGatePassClosed ? (
             <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-xl p-4 flex items-center gap-3 text-sm">
               <AlertTriangle className="text-amber-600 flex-shrink-0" size={20} />
               <div>
@@ -412,33 +471,49 @@ const MaterialInward = () => {
               </div>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Step 3: Returnable Items Entry Table */}
-              <ReturnableItemsTable 
-                items={itemRows} 
-                onItemChange={handleItemChange} 
-                taxType={taxType}
-              />
-
-              {/* Step 4 & 5: Inward Document Details & Live Totals */}
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-                <div className="lg:col-span-7">
-                  <InwardDetailsForm 
-                    details={inwardDetails}
-                    setDetails={setInwardDetails}
-                  />
+            <div className="space-y-6">
+              {/* Green Alert Banner for Approved Gate Pass */}
+              <div className="bg-emerald-50 border border-emerald-300 text-emerald-900 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-sm shadow-sm">
+                <div className="flex items-center gap-3">
+                  <CheckCircle2 className="text-emerald-600 flex-shrink-0" size={24} />
+                  <div>
+                    <strong className="block font-bold text-emerald-950 text-base">Gate Pass Approved</strong>
+                    Gate Pass <span className="font-extrabold text-brand-denim">{selectedGatePass.gatePassNumber}</span> is approved. Material Inward process can be logged below.
+                  </div>
                 </div>
-
-                <div className="lg:col-span-5">
-                  <InwardTotals 
-                    totals={totals}
-                    taxType={taxType}
-                    setTaxType={setTaxType}
-                    submitting={submitting}
-                  />
-                </div>
+                <span className="inline-flex items-center px-3.5 py-1.5 rounded-lg text-xs font-extrabold bg-emerald-600 text-white shadow-sm whitespace-nowrap">
+                  <CheckCircle2 size={14} className="mr-1.5" /> Approved
+                </span>
               </div>
-            </form>
+
+              <form onSubmit={handleSubmit} className="space-y-6">
+                {/* Step 3: Returnable Items Entry Table */}
+                <ReturnableItemsTable 
+                  items={itemRows} 
+                  onItemChange={handleItemChange} 
+                  taxType={taxType}
+                />
+
+                {/* Step 4 & 5: Inward Document Details & Live Totals */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                  <div className="lg:col-span-7">
+                    <InwardDetailsForm 
+                      details={inwardDetails}
+                      setDetails={setInwardDetails}
+                    />
+                  </div>
+
+                  <div className="lg:col-span-5">
+                    <InwardTotals 
+                      totals={totals}
+                      taxType={taxType}
+                      setTaxType={setTaxType}
+                      submitting={submitting}
+                    />
+                  </div>
+                </div>
+              </form>
+            </div>
           )}
 
           {/* Inward Receipts & History Section on Main Page */}

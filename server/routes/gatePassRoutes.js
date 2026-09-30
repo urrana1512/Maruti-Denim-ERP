@@ -10,6 +10,8 @@ router.get('/next-number', gatePassController.getNextGatePassNumber);
 router.get('/:id/lock-state', gatePassController.getGatePassLockState);
 router.get('/:id/pdf', gatePassController.downloadGatePassPdf);
 router.get('/:id', gatePassController.getGatePassById);
+router.put('/:id/approve', gatePassController.approveGatePass);
+router.put('/:id/cancel', gatePassController.cancelGatePass);
 router.put('/:id', gatePassController.updateGatePass);
 router.delete('/:id', gatePassController.deleteGatePass);
 

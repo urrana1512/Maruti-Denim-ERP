@@ -58,6 +58,12 @@ const gatePassSchema = new mongoose.Schema(
       default: 'PENDING' 
     },
     createdBy: { type: String, default: 'Admin' },
+    approvalStatus: { type: String, enum: ['Pending', 'Approved'], default: 'Pending' },
+    approvedAt: { type: Date, default: null },
+    approvedBy: { type: String, default: null },
+    cancelledAt: { type: Date, default: null },
+    cancelledBy: { type: String, default: null },
+    cancelReason: { type: String, default: '' },
   },
   { timestamps: true }
 );

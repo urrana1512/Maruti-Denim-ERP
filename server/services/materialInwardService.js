@@ -73,6 +73,10 @@ const fetchGatePassForInward = async (gatePassNumber) => {
     throw new Error(`Gate Pass ${gatePass.gatePassNumber} has been cancelled.`);
   }
 
+  if (gatePass.approvalStatus !== 'Approved') {
+    throw new Error(`Gate Pass ${gatePass.gatePassNumber} is pending approval. Material Inward can only be processed for approved Gate Passes.`);
+  }
+
   // Filter returnable items (if passType is Returnable, treat all items as returnable unless explicitly returnable: false)
   const isReturnablePass = (gatePass.passType || gatePass.gatePassType || 'Returnable') === 'Returnable';
   const rawItems = gatePass.items || [];
@@ -152,6 +156,9 @@ const createMaterialInward = async (data) => {
   if (!gatePass) throw new Error('Gate Pass not found.');
   if (gatePass.status === 'cancelled' || gatePass.gatePassStatus === 'CANCELLED') {
     throw new Error('Gate Pass is cancelled.');
+  }
+  if (gatePass.approvalStatus !== 'Approved') {
+    throw new Error(`Gate Pass ${gatePass.gatePassNumber} is pending approval. Material Inward can only be processed for approved Gate Passes.`);
   }
   if (gatePass.gatePassStatus === 'CLOSED' || gatePass.returnStatus === 'FULLY_RETURNED') {
     throw new Error('Gate Pass is already closed.');
