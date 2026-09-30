@@ -182,13 +182,17 @@ exports.createItem = async (req, res) => {
       createdBy: req.body.createdBy || 'Admin'
     });
 
-    await MasterDataAudit.create({
-      entityType: 'ITEM',
-      entityId: newItem._id,
-      action: 'CREATED',
-      performedBy: req.body.createdBy || 'Admin',
-      newValue: newItem.toObject()
-    });
+    try {
+      await MasterDataAudit.create({
+        entityType: 'ITEM',
+        entityId: newItem._id,
+        action: 'CREATED',
+        performedBy: req.body.createdBy || 'Admin',
+        newValue: newItem.toObject()
+      });
+    } catch (auditErr) {
+      console.error('Failed to create audit log for item creation:', auditErr.message);
+    }
 
     res.status(201).json({
       success: true,
@@ -259,14 +263,18 @@ exports.updateItem = async (req, res) => {
 
     await item.save();
 
-    await MasterDataAudit.create({
-      entityType: 'ITEM',
-      entityId: item._id,
-      action: 'UPDATED',
-      performedBy: req.body.updatedBy || 'Admin',
-      oldValue: oldVal,
-      newValue: item.toObject()
-    });
+    try {
+      await MasterDataAudit.create({
+        entityType: 'ITEM',
+        entityId: item._id,
+        action: 'UPDATED',
+        performedBy: req.body.updatedBy || 'Admin',
+        oldValue: oldVal,
+        newValue: item.toObject()
+      });
+    } catch (auditErr) {
+      console.error('Failed to create audit log for item update:', auditErr.message);
+    }
 
     res.json({
       success: true,
@@ -305,14 +313,18 @@ exports.updateItemStatus = async (req, res) => {
     item.updatedBy = req.body.updatedBy || 'Admin';
     await item.save();
 
-    await MasterDataAudit.create({
-      entityType: 'ITEM',
-      entityId: item._id,
-      action: newStatus === 'ACTIVE' ? 'ACTIVATED' : 'DEACTIVATED',
-      performedBy: req.body.updatedBy || 'Admin',
-      oldValue: oldVal,
-      newValue: item.toObject()
-    });
+    try {
+      await MasterDataAudit.create({
+        entityType: 'ITEM',
+        entityId: item._id,
+        action: newStatus === 'ACTIVE' ? 'ACTIVATED' : 'DEACTIVATED',
+        performedBy: req.body.updatedBy || 'Admin',
+        oldValue: oldVal,
+        newValue: item.toObject()
+      });
+    } catch (auditErr) {
+      console.error('Failed to create audit log for item status update:', auditErr.message);
+    }
 
     res.json({
       success: true,
@@ -360,15 +372,19 @@ exports.deleteItem = async (req, res) => {
     const oldVal = item.toObject();
     await ItemMaster.findByIdAndDelete(id);
 
-    await MasterDataAudit.create({
-      entityType: 'ITEM',
-      entityId: id,
-      action: 'DELETED',
-      performedBy: req.body.performedBy || 'Admin',
-      oldValue: oldVal
-    });
+    try {
+      await MasterDataAudit.create({
+        entityType: 'ITEM',
+        entityId: item._id,
+        action: 'DELETED',
+        performedBy: req.body?.performedBy || 'Admin',
+        oldValue: oldVal
+      });
+    } catch (auditErr) {
+      console.error('Failed to create audit log for item deletion:', auditErr.message);
+    }
 
-    res.json({
+    return res.json({
       success: true,
       message: 'Item description deleted successfully.'
     });
@@ -573,13 +589,17 @@ exports.createVendor = async (req, res) => {
         existing.updatedBy = req.body.createdBy || 'Admin';
         await existing.save();
 
-        await MasterDataAudit.create({
-          entityType: 'VENDOR',
-          entityId: existing._id,
-          action: 'ACTIVATED',
-          performedBy: req.body.createdBy || 'Admin',
-          newValue: existing.toObject()
-        });
+        try {
+          await MasterDataAudit.create({
+            entityType: 'VENDOR',
+            entityId: existing._id,
+            action: 'ACTIVATED',
+            performedBy: req.body.createdBy || 'Admin',
+            newValue: existing.toObject()
+          });
+        } catch (auditErr) {
+          console.error('Failed to create audit log for vendor reactivation:', auditErr.message);
+        }
 
         return res.status(200).json({
           success: true,
@@ -609,13 +629,17 @@ exports.createVendor = async (req, res) => {
       createdBy: req.body.createdBy || 'Admin'
     });
 
-    await MasterDataAudit.create({
-      entityType: 'VENDOR',
-      entityId: newVendor._id,
-      action: 'CREATED',
-      performedBy: req.body.createdBy || 'Admin',
-      newValue: newVendor.toObject()
-    });
+    try {
+      await MasterDataAudit.create({
+        entityType: 'VENDOR',
+        entityId: newVendor._id,
+        action: 'CREATED',
+        performedBy: req.body.createdBy || 'Admin',
+        newValue: newVendor.toObject()
+      });
+    } catch (auditErr) {
+      console.error('Failed to create audit log for vendor creation:', auditErr.message);
+    }
 
     res.status(201).json({
       success: true,
@@ -702,14 +726,18 @@ exports.updateVendor = async (req, res) => {
 
     await vendor.save();
 
-    await MasterDataAudit.create({
-      entityType: 'VENDOR',
-      entityId: vendor._id,
-      action: 'UPDATED',
-      performedBy: req.body.updatedBy || 'Admin',
-      oldValue: oldVal,
-      newValue: vendor.toObject()
-    });
+    try {
+      await MasterDataAudit.create({
+        entityType: 'VENDOR',
+        entityId: vendor._id,
+        action: 'UPDATED',
+        performedBy: req.body.updatedBy || 'Admin',
+        oldValue: oldVal,
+        newValue: vendor.toObject()
+      });
+    } catch (auditErr) {
+      console.error('Failed to create audit log for vendor update:', auditErr.message);
+    }
 
     res.json({
       success: true,
@@ -745,14 +773,18 @@ exports.updateVendorStatus = async (req, res) => {
     vendor.updatedBy = req.body.updatedBy || 'Admin';
     await vendor.save();
 
-    await MasterDataAudit.create({
-      entityType: 'VENDOR',
-      entityId: vendor._id,
-      action: newStatus === 'ACTIVE' ? 'ACTIVATED' : 'DEACTIVATED',
-      performedBy: req.body.updatedBy || 'Admin',
-      oldValue: oldVal,
-      newValue: vendor.toObject()
-    });
+    try {
+      await MasterDataAudit.create({
+        entityType: 'VENDOR',
+        entityId: vendor._id,
+        action: newStatus === 'ACTIVE' ? 'ACTIVATED' : 'DEACTIVATED',
+        performedBy: req.body.updatedBy || 'Admin',
+        oldValue: oldVal,
+        newValue: vendor.toObject()
+      });
+    } catch (auditErr) {
+      console.error('Failed to create audit log for vendor status update:', auditErr.message);
+    }
 
     res.json({
       success: true,
@@ -800,15 +832,19 @@ exports.deleteVendor = async (req, res) => {
     const oldVal = vendor.toObject();
     await VendorMaster.findByIdAndDelete(id);
 
-    await MasterDataAudit.create({
-      entityType: 'VENDOR',
-      entityId: id,
-      action: 'DELETED',
-      performedBy: req.body.performedBy || 'Admin',
-      oldValue: oldVal
-    });
+    try {
+      await MasterDataAudit.create({
+        entityType: 'VENDOR',
+        entityId: vendor._id,
+        action: 'DELETED',
+        performedBy: req.body?.performedBy || 'Admin',
+        oldValue: oldVal
+      });
+    } catch (auditErr) {
+      console.error('Failed to create audit log for vendor deletion:', auditErr.message);
+    }
 
-    res.json({
+    return res.json({
       success: true,
       message: 'Vendor deleted successfully.'
     });

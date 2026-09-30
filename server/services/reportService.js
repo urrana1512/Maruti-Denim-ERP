@@ -238,10 +238,22 @@ const getMaterialInwardRegisterReport = async (params = {}) => {
       if (safeStr) match['items.description'] = { $regex: safeStr, $options: 'i' };
     }
 
-    const records = await MaterialInward.find(match).sort({ inwardDate: 1, createdAt: 1 }).lean();
+    const records = await MaterialInward.find(match)
+      .populate('gatePassId')
+      .sort({ inwardDate: 1, createdAt: 1 })
+      .lean();
+
+    const gpNumbers = [...new Set(records.map(r => r.gatePassNumber).filter(Boolean))];
+    const fallbackGatePasses = await GatePass.find({ gatePassNumber: { $in: gpNumbers } }).lean();
+    const gpMap = {};
+    fallbackGatePasses.forEach(gp => {
+      gpMap[gp.gatePassNumber] = gp;
+    });
 
     const formattedRows = records.map(mi => {
       const items = mi.items || [];
+      const gp = (mi.gatePassId && typeof mi.gatePassId === 'object' ? mi.gatePassId : gpMap[mi.gatePassNumber]) || {};
+      
       const totalRecQty = items.reduce((acc, it) => acc + (Number(it.receivedQuantity) || 0), 0);
       const subtotal = mi.subtotal || items.reduce((acc, it) => acc + (Number(it.taxableAmount) || ((Number(it.receivedQuantity) || 0) * (Number(it.rate) || 500))), 0);
       const avgRate = items.length > 0 ? (items.reduce((acc, it) => acc + (Number(it.rate) || 500), 0) / items.length) : 500;
@@ -254,10 +266,35 @@ const getMaterialInwardRegisterReport = async (params = {}) => {
         inwardNumber: mi.inwardNumber,
         inwardDate: mi.inwardDate || mi.createdAt,
         gatePassNumber: mi.gatePassNumber,
+        gatePassDate: gp.date || null,
         gateEntryNumber: mi.gateEntryNumber,
+        documentType: mi.documentType || 'Challan',
         challanInvoiceNumber: mi.challanInvoiceNumber,
-        partyName: mi.partyName,
+        partyName: mi.partyName || gp.companyName,
+        vendorAddress: mi.vendorAddress || gp.vendorAddress || '',
+        vendorGstin: mi.vendorGstin || gp.vendorGstin || '',
+        vendorPanCard: mi.vendorPanCard || gp.vendorPanCard || '',
+        status: mi.status || 'Approved',
+        approvedBy: mi.approvedBy || null,
+        approvedAt: mi.approvedAt || null,
         itemCount: items.length,
+        items,
+        gatePass: {
+          gatePassNumber: gp.gatePassNumber || mi.gatePassNumber,
+          date: gp.date || null,
+          companyName: gp.companyName || mi.partyName,
+          vendorAddress: gp.vendorAddress || mi.vendorAddress || '',
+          vendorGstin: gp.vendorGstin || mi.vendorGstin || '',
+          passType: gp.passType || 'Returnable',
+          purpose: gp.purpose || '',
+          vehicleNumber: gp.vehicleNumber || '',
+          driverName: gp.driverName || '',
+          department: gp.department || '',
+          costCentre: gp.costCentre || '',
+          gatePassStatus: gp.gatePassStatus || 'OPEN',
+          returnStatus: gp.returnStatus || 'PENDING',
+          createdBy: gp.createdBy || 'Admin'
+        },
         receivedQuantity: totalRecQty,
         rate: Math.round(avgRate * 100) / 100,
         subtotal: Math.round(subtotal * 100) / 100,
@@ -747,20 +784,32 @@ const getCombinedReport = async (params = {}) => {
             gatePassNumber: gp.gatePassNumber,
             date: gp.date || gp.createdAt,
             partyName: gp.companyName,
+            vendorAddress: gp.vendorAddress || '',
+            vendorGstin: gp.vendorGstin || '',
+            passType: gp.passType || 'Returnable',
+            purpose: gp.purpose || '',
+            vehicleNumber: gp.vehicleNumber || '',
+            driverName: gp.driverName || '',
+            department: gp.department || '',
+            costCentre: gp.costCentre || '',
+            gatePassStatus: gp.gatePassStatus || 'OPEN',
+            returnStatus: gp.returnStatus || 'PENDING',
             itemDescription: gpItem.description,
+            category: gpItem.category || 'OCR',
             originalQuantity: origQty,
             returnableQuantity: retQty,
             inwardNumber: '-',
             inwardDate: null,
             receivedQuantity: 0,
             balanceQuantity: retQty,
+            unit: gpItem.uom || 'Nos',
             rate: itemRate,
             taxableAmount,
             gstPercentage,
             gstAmount,
             totalGst: gstAmount,
             grandTotal,
-            returnStatus: gp.returnStatus || 'PENDING'
+            itemReturnStatus: 'PENDING'
           });
         } else {
           let runningReceived = 0;
@@ -787,20 +836,32 @@ const getCombinedReport = async (params = {}) => {
               gatePassNumber: gp.gatePassNumber,
               date: gp.date || gp.createdAt,
               partyName: gp.companyName,
+              vendorAddress: gp.vendorAddress || '',
+              vendorGstin: gp.vendorGstin || '',
+              passType: gp.passType || 'Returnable',
+              purpose: gp.purpose || '',
+              vehicleNumber: gp.vehicleNumber || '',
+              driverName: gp.driverName || '',
+              department: gp.department || '',
+              costCentre: gp.costCentre || '',
+              gatePassStatus: gp.gatePassStatus || 'OPEN',
+              returnStatus: gp.returnStatus || 'PENDING',
               itemDescription: gpItem.description,
+              category: gpItem.category || 'OCR',
               originalQuantity: origQty,
               returnableQuantity: retQty,
               inwardNumber: inv.inwardNumber,
               inwardDate: inv.inwardDate || inv.createdAt,
               receivedQuantity: thisRecQty,
               balanceQuantity: balanceQty,
+              unit: matchedInwardItem.unit || gpItem.uom || 'Nos',
               rate: thisRate,
               taxableAmount,
               gstPercentage: thisGstPct,
               gstAmount,
               totalGst: gstAmount,
               grandTotal,
-              returnStatus: thisStatus
+              itemReturnStatus: thisStatus
             });
           }
         }
