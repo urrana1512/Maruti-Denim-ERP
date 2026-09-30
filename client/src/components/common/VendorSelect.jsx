@@ -23,6 +23,7 @@ const VendorSelect = ({
     panCard: ''
   });
   const [isCreating, setIsCreating] = useState(false);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   const containerRef = useRef(null);
   const inputRef = useRef(null);
@@ -47,7 +48,13 @@ const VendorSelect = ({
 
   useEffect(() => {
     setSearch(value || '');
-  }, [value]);
+    if (value && vendors.length > 0 && onSelectVendor) {
+      const matched = vendors.find(v => v.vendorName.toLowerCase() === value.trim().toLowerCase());
+      if (matched) {
+        onSelectVendor(matched);
+      }
+    }
+  }, [value, vendors]);
 
   useEffect(() => {
     const handleClickOutside = (e) => {

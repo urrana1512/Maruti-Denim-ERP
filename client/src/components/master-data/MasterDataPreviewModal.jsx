@@ -111,54 +111,91 @@ const MasterDataPreviewModal = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[9999] bg-black/70 flex flex-col justify-between overflow-hidden animate-in fade-in duration-200">
-      {/* Top Header Controls */}
-      <div className="bg-brand-navy border-b border-white/10 px-4 sm:px-6 py-3 flex items-center justify-between text-white shrink-0 print:hidden">
-        <div>
-          <h2 className="text-base sm:text-lg font-bold flex items-center">
-            {title} PDF Preview
-          </h2>
-          <p className="text-xs text-gray-300">
-            {records.length} records ready for print and download
-          </p>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-2 sm:p-6 print:bg-transparent print:p-0 overflow-y-auto">
+      <div className="bg-white w-full max-w-5xl max-h-[94vh] rounded-xl shadow-2xl flex flex-col print:rounded-none print:shadow-none min-w-0">
+        {/* Modal Control Header (Hidden in Print) */}
+        <div className="flex flex-wrap sm:flex-nowrap items-center justify-between px-3 sm:px-6 py-3 border-b border-gray-200 print:hidden gap-2 bg-slate-50 rounded-t-xl">
+          <div>
+            <h3 className="text-sm sm:text-lg font-bold text-brand-navy truncate">
+              {title} — PDF Preview
+            </h3>
+            <p className="text-[11px] text-slate-500">
+              {records.length} records ready for print and download
+            </p>
+          </div>
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <button
+              type="button"
+              onClick={handlePrint}
+              className="flex items-center px-3 py-1.5 text-xs sm:text-sm font-semibold text-slate-700 bg-white hover:bg-slate-100 border border-slate-300 rounded-md shadow-sm transition-all"
+            >
+              <Printer size={15} className="mr-1.5 text-slate-600" /> Direct Print
+            </button>
+            <button
+              type="button"
+              onClick={handleDownloadPDF}
+              className="flex items-center px-3 py-1.5 text-xs sm:text-sm font-semibold text-white bg-brand-denim hover:bg-brand-navy rounded-md shadow-sm transition-all whitespace-nowrap"
+            >
+              <Download size={15} className="mr-1.5" /> Download PDF
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-md ml-1 transition-all"
+            >
+              <X size={20} />
+            </button>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={handlePrint}
-            className="flex items-center px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded text-xs font-semibold transition-all border border-white/20"
-          >
-            <Printer size={15} className="mr-1.5" /> Print Document
-          </button>
-          <button
-            type="button"
-            onClick={handleDownloadPDF}
-            className="flex items-center px-3.5 py-1.5 bg-brand-denim hover:bg-blue-600 text-white rounded text-xs font-bold transition-all shadow-sm"
-          >
-            <Download size={15} className="mr-1.5" /> Download PDF
-          </button>
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-1.5 text-gray-300 hover:text-white hover:bg-white/10 rounded-md ml-1 transition-all"
-          >
-            <X size={20} />
-          </button>
+        {/* Modal Body / Scrollable PDF View Container */}
+        <div className="flex-1 overflow-auto p-2 sm:p-6 bg-slate-200 print:p-0 print:bg-white flex justify-center max-w-full">
+          <div className="bg-white shadow-lg print:shadow-none max-w-full overflow-x-auto rounded p-1" ref={documentRef}>
+            <MasterDataDocument
+              type={type}
+              title={title}
+              records={records}
+              filterInfo={filterInfo}
+            />
+          </div>
         </div>
       </div>
 
-      {/* Modal Body / Scrollable PDF View Container */}
-      <div className="flex-1 overflow-auto p-2 sm:p-6 bg-slate-800 print:p-0 print:bg-white flex justify-center max-w-full">
-        <div className="bg-white shadow-2xl print:shadow-none max-w-full overflow-x-auto rounded p-1" ref={documentRef}>
-          <MasterDataDocument
-            type={type}
-            title={title}
-            records={records}
-            filterInfo={filterInfo}
-          />
-        </div>
-      </div>
+      {/* Global Print Isolation Styles */}
+      <style>{`
+        @media print {
+          body * {
+            visibility: hidden;
+          }
+          .fixed.inset-0 {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            margin: 0;
+            padding: 0;
+          }
+          .fixed.inset-0 *, .fixed.inset-0 {
+             background: white !important;
+          }
+          .print\\:hidden {
+            display: none !important;
+          }
+          div[ref] *, div[ref] {
+             visibility: visible;
+          }
+          .bg-white.shadow-lg.print\\:shadow-none {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+          }
+          .bg-white.shadow-lg.print\\:shadow-none * {
+            visibility: visible;
+          }
+        }
+      `}</style>
     </div>
   );
 };

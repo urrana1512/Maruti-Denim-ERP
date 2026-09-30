@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
-import { Trash2, Plus, FileText, X } from 'lucide-react';
+import { Trash2, Plus, FileText, X, Building2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { gatePassService } from '../../services/gatePassService';
 import GatePassPreviewModal from '../../components/gate-pass/GatePassPreviewModal';
@@ -15,6 +15,11 @@ const gatePassSchema = z.object({
   date: z.string().nonempty('Date is required'),
   vendorId: z.string().optional(),
   companyName: z.string().min(2, 'Company name is required'),
+  vendorAddress: z.string().optional(),
+  vendorCity: z.string().optional(),
+  vendorPincode: z.string().optional(),
+  vendorGstin: z.string().optional(),
+  vendorPanCard: z.string().optional(),
   passType: z.enum(['Returnable', 'Non-Returnable']),
   purpose: z.string().optional(),
   vehicleNumber: z.string().optional(),
@@ -74,6 +79,11 @@ const AddGatePass = () => {
   });
 
   const passType = watch('passType');
+  const vendorAddress = watch('vendorAddress');
+  const vendorCity = watch('vendorCity');
+  const vendorPincode = watch('vendorPincode');
+  const vendorGstin = watch('vendorGstin');
+  const vendorPanCard = watch('vendorPanCard');
 
   const { fields, append, remove } = useFieldArray({
     control,
@@ -147,7 +157,16 @@ const AddGatePass = () => {
                 <VendorSelect
                   value={watch('companyName')}
                   onChange={(val) => setValue('companyName', val, { shouldValidate: true })}
-                  onSelectVendor={(vendor) => setValue('vendorId', vendor._id)}
+                  onSelectVendor={(vendor) => {
+                    if (vendor) {
+                      setValue('vendorId', vendor._id || '');
+                      setValue('vendorAddress', vendor.address || '');
+                      setValue('vendorCity', vendor.city || '');
+                      setValue('vendorPincode', vendor.pincode || '');
+                      setValue('vendorGstin', vendor.gstin || '');
+                      setValue('vendorPanCard', vendor.panCard || '');
+                    }
+                  }}
                   error={errors.companyName?.message}
                 />
                 {errors.companyName && <p className="text-danger text-xs mt-1">{errors.companyName.message}</p>}
@@ -200,6 +219,78 @@ const AddGatePass = () => {
                   {...register('department')}
                   className="w-full px-3 py-2 bg-white border border-border-subtle rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-brand-denim"
                 />
+              </div>
+            </div>
+
+            {/* Auto-Fetched Vendor Address & Tax Details Block */}
+            <div className="mt-4 bg-blue-50/40 border border-blue-200/80 rounded-lg p-3 sm:p-4">
+              <div className="flex items-center justify-between mb-3 border-b border-blue-200/60 pb-2">
+                <span className="text-xs font-bold text-brand-navy uppercase tracking-wider flex items-center">
+                  <Building2 size={15} className="mr-1.5 text-brand-denim flex-shrink-0" />
+                  Auto-Fetched Vendor Details (Master Data)
+                </span>
+                <span className="text-[11px] text-brand-denim font-bold bg-blue-100/80 px-2 py-0.5 rounded border border-blue-200">Read-Only</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
+                <div className="md:col-span-2">
+                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">Address</label>
+                  <input
+                    type="text"
+                    readOnly
+                    tabIndex={-1}
+                    value={vendorAddress || ''}
+                    placeholder="No vendor address registered"
+                    {...register('vendorAddress')}
+                    className="w-full px-3 py-1.5 bg-slate-100/90 border border-slate-300 rounded-md text-xs text-slate-900 font-bold cursor-not-allowed opacity-100 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">City</label>
+                  <input
+                    type="text"
+                    readOnly
+                    tabIndex={-1}
+                    value={vendorCity || ''}
+                    placeholder="No city"
+                    {...register('vendorCity')}
+                    className="w-full px-3 py-1.5 bg-slate-100/90 border border-slate-300 rounded-md text-xs text-slate-900 font-bold cursor-not-allowed opacity-100 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">Pincode</label>
+                  <input
+                    type="text"
+                    readOnly
+                    tabIndex={-1}
+                    value={vendorPincode || ''}
+                    placeholder="No pincode"
+                    {...register('vendorPincode')}
+                    className="w-full px-3 py-1.5 bg-slate-100/90 border border-slate-300 rounded-md text-xs text-slate-900 font-bold cursor-not-allowed opacity-100 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">GSTIN / PAN Card</label>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    <input
+                      type="text"
+                      readOnly
+                      tabIndex={-1}
+                      value={vendorGstin || ''}
+                      placeholder="GSTIN"
+                      {...register('vendorGstin')}
+                      className="w-full px-2 py-1.5 bg-slate-100/90 border border-slate-300 rounded-md text-[11px] font-mono uppercase text-slate-900 font-bold cursor-not-allowed opacity-100 focus:outline-none"
+                    />
+                    <input
+                      type="text"
+                      readOnly
+                      tabIndex={-1}
+                      value={vendorPanCard || ''}
+                      placeholder="PAN Card"
+                      {...register('vendorPanCard')}
+                      className="w-full px-2 py-1.5 bg-slate-100/90 border border-slate-300 rounded-md text-[11px] font-mono uppercase text-slate-900 font-bold cursor-not-allowed opacity-100 focus:outline-none"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
           </div>

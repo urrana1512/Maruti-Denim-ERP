@@ -24,5 +24,9 @@ export const gatePassService = {
   delete: async (id) => {
     const response = await api.delete(`/gate-passes/${id}`);
     return response.data;
+  },
+  getLockState: async (id) => {
+    const response = await api.get(`/gate-passes/${id}/lock-state`);
+    return response.data;
   }
 };

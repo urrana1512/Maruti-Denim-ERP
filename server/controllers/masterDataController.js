@@ -515,7 +515,7 @@ exports.getVendors = async (req, res) => {
 exports.getActiveVendors = async (req, res) => {
   try {
     const vendors = await VendorMaster.find({ status: 'ACTIVE' })
-      .select('_id vendorCode vendorName')
+      .select('_id vendorCode vendorName address city pincode gstin panCard')
       .sort({ vendorNameNormalized: 1 });
 
     res.json({

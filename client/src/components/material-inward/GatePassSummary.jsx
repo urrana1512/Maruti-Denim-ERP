@@ -66,19 +66,28 @@ const GatePassSummary = ({ gatePassData, gatePass: directGatePass, onHistoryClic
         <div>
           <span className="text-slate-400 font-medium block">Party / Company</span>
           <span className="font-bold text-slate-800 text-sm block truncate">{gp.partyName || gp.companyName}</span>
+          {(gp.vendorAddress || gp.vendorId?.address) && (
+            <span className="text-[11px] text-slate-500 block truncate">
+              {[gp.vendorAddress || gp.vendorId?.address, gp.vendorCity || gp.vendorId?.city].filter(Boolean).join(', ')}
+            </span>
+          )}
         </div>
         <div>
-          <span className="text-slate-400 font-medium block">Purpose</span>
-          <span className="font-semibold text-slate-700 block truncate">{gp.purpose || 'Repair'}</span>
+          <span className="text-slate-400 font-medium block">GSTIN / PAN Card</span>
+          <span className="font-semibold text-slate-700 block font-mono text-[11px]">
+            {gp.vendorGstin || gp.vendorId?.gstin ? `GST: ${gp.vendorGstin || gp.vendorId?.gstin}` : (gp.vendorPanCard || gp.vendorId?.panCard ? `PAN: ${gp.vendorPanCard || gp.vendorId?.panCard}` : '-')}
+          </span>
         </div>
         <div>
-          <span className="text-slate-400 font-medium block">Vehicle No.</span>
-          <span className="font-semibold text-slate-700 block truncate">{gp.vehicleNumber || '-'}</span>
-        </div>
-        <div>
-          <span className="text-slate-400 font-medium block">Department / Driver</span>
+          <span className="text-slate-400 font-medium block">Vehicle / Driver</span>
           <span className="font-semibold text-slate-700 block truncate">
-            {gp.department || gp.driverName || '-'}
+            {[gp.vehicleNumber, gp.driverName].filter(Boolean).join(' / ') || '-'}
+          </span>
+        </div>
+        <div>
+          <span className="text-slate-400 font-medium block">Department / Purpose</span>
+          <span className="font-semibold text-slate-700 block truncate">
+            {[gp.department, gp.purpose].filter(Boolean).join(' / ') || '-'}
           </span>
         </div>
       </div>

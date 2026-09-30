@@ -45,16 +45,16 @@ const generatePdfFromUrl = async (url) => {
     // Wait for fonts to load
     await page.evaluate(() => document.fonts ? document.fonts.ready : Promise.resolve());
 
-    // Generate PDF with A4 paper format and CSS page rules
+    // Generate PDF with A4 paper format and exact CSS page padding
     const pdfBuffer = await page.pdf({
       format: 'A4',
       printBackground: true,
       preferCSSPageSize: true,
       margin: {
-        top: '12mm',
-        right: '10mm',
-        bottom: '12mm',
-        left: '10mm'
+        top: '0mm',
+        right: '0mm',
+        bottom: '0mm',
+        left: '0mm'
       }
     });
 

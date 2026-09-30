@@ -196,6 +196,7 @@ const createMaterialInward = async (data) => {
       gatePassItemId: gpItem._id,
       serialNumber: gpItem.serialNumber,
       description: gpItem.description,
+      category: gpItem.category || inputItem.category || '',
       originalQuantity: origQty,
       previouslyReceivedQuantity: prevReceived,
       pendingQuantityBefore: pendingBefore,
@@ -248,7 +249,13 @@ const createMaterialInward = async (data) => {
     inwardDate: finalInwardDate,
     documentType: documentType || 'Challan',
     challanInvoiceNumber,
+    vendorId: gatePass.vendorId?._id || gatePass.vendorId || null,
     partyName: gatePass.companyName,
+    vendorAddress: gatePass.vendorAddress || gatePass.vendorId?.address || '',
+    vendorCity: gatePass.vendorCity || gatePass.vendorId?.city || '',
+    vendorPincode: gatePass.vendorPincode || gatePass.vendorId?.pincode || '',
+    vendorGstin: gatePass.vendorGstin || gatePass.vendorId?.gstin || '',
+    vendorPanCard: gatePass.vendorPanCard || gatePass.vendorId?.panCard || '',
     items: processedInwardItems,
     subtotal: docTotals.subtotal,
     totalCgst: docTotals.totalCgst,
@@ -316,10 +323,10 @@ const getMaterialInwardById = async (id) => {
   }
   if (isDbConnected()) {
     if (mongoose.Types.ObjectId.isValid(id)) {
-      const found = await MaterialInward.findById(id);
+      const found = await MaterialInward.findById(id).populate('vendorId');
       if (found) return found;
     }
-    const foundByNum = await MaterialInward.findOne({ inwardNumber: id.trim() });
+    const foundByNum = await MaterialInward.findOne({ inwardNumber: id.trim() }).populate('vendorId');
     if (foundByNum) return foundByNum;
   }
   return mockInwards.find(mi => mi._id === id || mi.inwardNumber === id);
@@ -327,7 +334,7 @@ const getMaterialInwardById = async (id) => {
 
 const getInwardHistory = async (gatePassNumber) => {
   if (isDbConnected()) {
-    return await MaterialInward.find({ gatePassNumber: gatePassNumber.trim() }).sort({ createdAt: -1 });
+    return await MaterialInward.find({ gatePassNumber: gatePassNumber.trim() }).populate('vendorId').sort({ createdAt: -1 });
   } else {
     return mockInwards
       .filter(mi => mi.gatePassNumber.toLowerCase() === gatePassNumber.trim().toLowerCase())
@@ -425,6 +432,11 @@ const getConsolidatedInwardByGatePass = async (gatePassIdentifier) => {
     documentType: 'Consolidated Receipt',
     challanInvoiceNumber: `CONSOLIDATED (${sortedHistory.length} Inward Vouchers)`,
     partyName: (gatePass ? gatePass.companyName || gatePass.partyName : null) || latestInward.partyName,
+    vendorAddress: (gatePass ? (gatePass.vendorAddress || gatePass.vendorId?.address) : null) || latestInward.vendorAddress || latestInward.vendorId?.address,
+    vendorCity: (gatePass ? (gatePass.vendorCity || gatePass.vendorId?.city) : null) || latestInward.vendorCity || latestInward.vendorId?.city,
+    vendorPincode: (gatePass ? (gatePass.vendorPincode || gatePass.vendorId?.pincode) : null) || latestInward.vendorPincode || latestInward.vendorId?.pincode,
+    vendorGstin: (gatePass ? (gatePass.vendorGstin || gatePass.vendorId?.gstin) : null) || latestInward.vendorGstin || latestInward.vendorId?.gstin,
+    vendorPanCard: (gatePass ? (gatePass.vendorPanCard || gatePass.vendorId?.panCard) : null) || latestInward.vendorPanCard || latestInward.vendorId?.panCard,
     items: allItems,
     subtotal,
     totalCgst,
@@ -441,10 +453,191 @@ const getConsolidatedInwardByGatePass = async (gatePassIdentifier) => {
   };
 };
 
+const approveMaterialInward = async (id, { approvedBy = 'Admin' } = {}) => {
+  let inward = null;
+  if (isDbConnected()) {
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      inward = await MaterialInward.findById(id);
+    }
+    if (!inward) {
+      inward = await MaterialInward.findOne({ inwardNumber: id.trim() });
+    }
+  } else {
+    inward = mockInwards.find(mi => mi._id === id || mi.inwardNumber === id);
+  }
+
+  if (!inward) throw new Error('Material Inward receipt not found.');
+  if (inward.status === 'Approved') throw new Error('This Material Inward receipt is already approved.');
+
+  inward.status = 'Approved';
+  inward.approvedAt = new Date();
+  inward.approvedBy = approvedBy;
+
+  if (isDbConnected()) {
+    await inward.save();
+
+    const audit = new GatePassAudit({
+      gatePassId: inward.gatePassId,
+      inwardId: inward._id,
+      performedBy: approvedBy,
+      action: 'MATERIAL_INWARD_APPROVED',
+      metadata: {
+        inwardNumber: inward.inwardNumber,
+        grandTotal: inward.grandTotal
+      }
+    });
+    await audit.save();
+  }
+
+  return inward;
+};
+
+const updateMaterialInward = async (id, data) => {
+  let inward = null;
+  if (isDbConnected()) {
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      inward = await MaterialInward.findById(id);
+    }
+    if (!inward) {
+      inward = await MaterialInward.findOne({ inwardNumber: id.trim() });
+    }
+  } else {
+    inward = mockInwards.find(mi => mi._id === id || mi.inwardNumber === id);
+  }
+
+  if (!inward) throw new Error('Material Inward receipt not found.');
+  if (inward.status === 'Approved') throw new Error('Approved Material Inward receipts cannot be edited.');
+
+  let gatePass = null;
+  if (isDbConnected()) {
+    gatePass = await GatePass.findById(inward.gatePassId);
+  } else {
+    const gatePassService = require('./gatePassService');
+    gatePass = await gatePassService.getGatePassById(inward.gatePassId);
+  }
+
+  if (!gatePass) throw new Error('Associated Gate Pass not found.');
+
+  if (data.gateEntryNumber) inward.gateEntryNumber = data.gateEntryNumber.trim();
+  if (data.inwardDate) inward.inwardDate = combineDateWithCurrentTime(data.inwardDate);
+  if (data.challanInvoiceNumber) inward.challanInvoiceNumber = data.challanInvoiceNumber.trim();
+  if (data.documentType) inward.documentType = data.documentType;
+  if (typeof data.remarks === 'string') inward.remarks = data.remarks;
+
+  if (Array.isArray(data.items) && data.items.length > 0) {
+    for (const oldItem of inward.items) {
+      const gpItem = (gatePass.items || []).find(it => it._id?.toString() === oldItem.gatePassItemId?.toString() || it.serialNumber === oldItem.serialNumber);
+      if (gpItem) {
+        gpItem.receivedQuantity = Math.max(0, (gpItem.receivedQuantity || 0) - (oldItem.receivedQuantity || 0));
+        gpItem.itemReturnStatus = calculateItemReturnStatus(gpItem.quantity || 0, gpItem.receivedQuantity);
+      }
+    }
+
+    const updatedInwardItems = [];
+    for (const inputItem of data.items) {
+      const receiveQty = Number(inputItem.receivedQuantity) || 0;
+      if (receiveQty <= 0) continue;
+
+      const gpItem = (gatePass.items || []).find(it => it._id?.toString() === inputItem.gatePassItemId?.toString() || it.serialNumber === inputItem.serialNumber);
+      if (!gpItem) continue;
+
+      const origQty = Number(gpItem.quantity) || 0;
+      const currentPrevReceived = Number(gpItem.receivedQuantity) || 0;
+      const pendingAvailable = Math.max(0, origQty - currentPrevReceived);
+
+      if (receiveQty > pendingAvailable) {
+        throw new Error(`Receive quantity (${receiveQty}) exceeds available pending quantity (${pendingAvailable}) for item "${gpItem.description}".`);
+      }
+
+      const catStr = String(gpItem.category || inputItem.category || '');
+      const isOnCost = catStr.includes('On Cost Repair') || catStr.includes('OCR');
+      const effectiveRate = isOnCost ? (Number(inputItem.rate) || 0) : 0;
+
+      const gstCalc = calculateLineItemGST({
+        receivedQuantity: receiveQty,
+        rate: effectiveRate,
+        gstType: inputItem.gstType || data.taxType || 'CGST_SGST',
+        gstPercentage: inputItem.gstPercentage || 18
+      });
+
+      updatedInwardItems.push({
+        gatePassItemId: gpItem._id,
+        serialNumber: gpItem.serialNumber,
+        description: gpItem.description,
+        category: gpItem.category || inputItem.category || oldItem?.category || '',
+        originalQuantity: origQty,
+        previouslyReceivedQuantity: currentPrevReceived,
+        pendingQuantityBefore: pendingAvailable,
+        receivedQuantity: receiveQty,
+        unit: gpItem.uom || inputItem.unit || 'Nos',
+        rate: effectiveRate,
+        taxableAmount: gstCalc.taxableAmount,
+        gstType: gstCalc.gstType,
+        gstPercentage: gstCalc.gstPercentage,
+        cgstPercentage: gstCalc.cgstPercentage,
+        sgstPercentage: gstCalc.sgstPercentage,
+        igstPercentage: gstCalc.igstPercentage,
+        cgstAmount: gstCalc.cgstAmount,
+        sgstAmount: gstCalc.sgstAmount,
+        igstAmount: gstCalc.igstAmount,
+        gstAmount: gstCalc.gstAmount,
+        totalAmount: gstCalc.totalAmount,
+        inwardDate: inward.inwardDate,
+        inwardNumber: inward.inwardNumber,
+        challanInvoiceNumber: inward.challanInvoiceNumber,
+        gateEntryNumber: inward.gateEntryNumber,
+        remarks: inputItem.remarks || ''
+      });
+
+      gpItem.receivedQuantity = currentPrevReceived + receiveQty;
+      gpItem.itemReturnStatus = calculateItemReturnStatus(origQty, gpItem.receivedQuantity);
+    }
+
+    if (updatedInwardItems.length > 0) {
+      inward.items = updatedInwardItems;
+      const docTotals = calculateDocumentTotals(updatedInwardItems);
+      inward.subtotal = docTotals.subtotal;
+      inward.totalCgst = docTotals.totalCgst;
+      inward.totalSgst = docTotals.totalSgst;
+      inward.totalIgst = docTotals.totalIgst;
+      inward.totalGst = docTotals.totalGst;
+      inward.grandTotal = docTotals.grandTotal;
+    }
+  }
+
+  const statusDerivation = calculateGatePassReturnStatus(gatePass.items);
+  gatePass.returnStatus = statusDerivation.returnStatus;
+  gatePass.gatePassStatus = statusDerivation.gatePassStatus;
+  if (statusDerivation.gatePassStatus === 'CLOSED') {
+    gatePass.status = 'closed';
+  }
+
+  if (isDbConnected()) {
+    await inward.save();
+    await gatePass.save();
+
+    const audit = new GatePassAudit({
+      gatePassId: gatePass._id,
+      inwardId: inward._id,
+      performedBy: 'Admin',
+      action: 'MATERIAL_INWARD_UPDATED',
+      metadata: {
+        inwardNumber: inward.inwardNumber,
+        grandTotal: inward.grandTotal
+      }
+    });
+    await audit.save();
+  }
+
+  return inward;
+};
+
 module.exports = {
   fetchGatePassForInward,
   createMaterialInward,
   getMaterialInwardById,
   getInwardHistory,
-  getConsolidatedInwardByGatePass
+  getConsolidatedInwardByGatePass,
+  approveMaterialInward,
+  updateMaterialInward
 };

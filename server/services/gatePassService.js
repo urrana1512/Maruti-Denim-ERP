@@ -117,7 +117,7 @@ const getGatePasses = async (query = {}) => {
       }
     }
 
-    return await GatePass.find(dbQuery).sort({ createdAt: -1 });
+    return await GatePass.find(dbQuery).populate('vendorId').sort({ createdAt: -1 });
   } else {
     let results = [...mockGatePasses];
     if (search) {
@@ -156,10 +156,10 @@ const getGatePassById = async (id) => {
   if (!id) return null;
   if (isDbConnected()) {
     if (mongoose.Types.ObjectId.isValid(id)) {
-      const found = await GatePass.findById(id);
+      const found = await GatePass.findById(id).populate('vendorId');
       if (found) return found;
     }
-    const foundByNum = await GatePass.findOne({ gatePassNumber: id });
+    const foundByNum = await GatePass.findOne({ gatePassNumber: id }).populate('vendorId');
     if (foundByNum) return foundByNum;
   }
   return mockGatePasses.find(gp => gp._id === id || gp.gatePassNumber === id);

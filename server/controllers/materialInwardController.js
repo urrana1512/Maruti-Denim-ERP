@@ -47,6 +47,26 @@ exports.getConsolidatedInward = async (req, res) => {
   }
 };
 
+exports.approveMaterialInward = async (req, res) => {
+  try {
+    const inward = await materialInwardService.approveMaterialInward(req.params.id, {
+      approvedBy: req.body.approvedBy || 'Admin'
+    });
+    res.status(200).json({ success: true, message: `Material Inward ${inward.inwardNumber} approved successfully!`, data: inward });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+exports.updateMaterialInward = async (req, res) => {
+  try {
+    const inward = await materialInwardService.updateMaterialInward(req.params.id, req.body);
+    res.status(200).json({ success: true, message: `Material Inward ${inward.inwardNumber} updated successfully!`, data: inward });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
 const { generatePdfFromUrl } = require('../services/pdfService');
 
 exports.downloadMaterialInwardPdf = async (req, res) => {

@@ -4,6 +4,7 @@ const inwardItemSchema = new mongoose.Schema({
   gatePassItemId: { type: mongoose.Schema.Types.ObjectId },
   serialNumber: { type: Number },
   description: { type: String, required: true },
+  category: { type: String, default: '' },
   originalQuantity: { type: Number, required: true },
   previouslyReceivedQuantity: { type: Number, default: 0 },
   pendingQuantityBefore: { type: Number, required: true },
@@ -40,6 +41,11 @@ const materialInwardSchema = new mongoose.Schema(
     challanInvoiceNumber: { type: String, required: true },
     vendorId: { type: mongoose.Schema.Types.ObjectId, ref: 'VendorMaster', default: null },
     partyName: { type: String, required: true },
+    vendorAddress: { type: String, default: '' },
+    vendorCity: { type: String, default: '' },
+    vendorPincode: { type: String, default: '' },
+    vendorGstin: { type: String, default: '' },
+    vendorPanCard: { type: String, default: '' },
     items: [inwardItemSchema],
     subtotal: { type: Number, default: 0 },
     totalCgst: { type: Number, default: 0 },
@@ -49,6 +55,9 @@ const materialInwardSchema = new mongoose.Schema(
     grandTotal: { type: Number, default: 0 },
     remarks: { type: String, default: '' },
     createdBy: { type: String, default: 'Admin' },
+    status: { type: String, enum: ['Pending', 'Approved'], default: 'Pending' },
+    approvedAt: { type: Date, default: null },
+    approvedBy: { type: String, default: null }
   },
   { timestamps: true }
 );

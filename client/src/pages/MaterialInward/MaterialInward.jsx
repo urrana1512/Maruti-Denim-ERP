@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { ArrowLeft, Save, Eye, RefreshCw, CheckCircle2, AlertTriangle, FileText, Calendar, Download, Printer } from 'lucide-react';
+import { ArrowLeft, Save, Eye, RefreshCw, CheckCircle2, AlertTriangle, FileText, Calendar, Download, Printer, Edit2, Clock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import GatePassSearch from '../../components/material-inward/GatePassSearch';
@@ -9,6 +9,8 @@ import InwardDetailsForm from '../../components/material-inward/InwardDetailsFor
 import InwardTotals from '../../components/material-inward/InwardTotals';
 import MaterialInwardPreviewModal from '../../components/material-inward/MaterialInwardPreviewModal';
 import InwardHistoryModal from '../../components/material-inward/InwardHistoryModal';
+import ApproveInwardConfirmModal from '../../components/material-inward/ApproveInwardConfirmModal';
+import EditInwardModal from '../../components/material-inward/EditInwardModal';
 import { calculateInwardTotals, formatINR } from '../../utils/gstCalculator';
 import { safeFormatDate } from '../../utils/dateUtils';
 import { createMaterialInward, fetchGatePassByNumber, getInwardHistoryByGatePass } from '../../services/materialInwardService';
@@ -22,6 +24,8 @@ const MaterialInward = () => {
   const [loadingSearch, setLoadingSearch] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [inwardHistory, setInwardHistory] = useState([]);
+  const [approvingInward, setApprovingInward] = useState(null);
+  const [editingInward, setEditingInward] = useState(null);
 
   // Form Details State
   const [inwardDetails, setInwardDetails] = useState({
@@ -531,13 +535,57 @@ const MaterialInward = () => {
                         <span className="bg-brand-navy text-white font-extrabold px-2.5 py-1 rounded text-xs tracking-wide">
                           {inward.inwardNumber}
                         </span>
+                        {inward.status === 'Approved' ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                            <CheckCircle2 size={12} /> Approved
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                            <Clock size={12} /> Pending Approval
+                          </span>
+                        )}
                         <span className="text-xs text-slate-600 flex items-center gap-1 font-semibold">
                           <Calendar size={13} className="text-brand-denim" />
                           {safeFormatDate(inward.inwardDate || inward.createdAt, 'dd MMM yyyy, hh:mm a')}
                         </span>
                       </div>
 
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        {/* Edit Button */}
+                        {inward.status === 'Approved' ? (
+                          <button
+                            type="button"
+                            disabled
+                            title="Approved receipts cannot be edited"
+                            className="flex items-center gap-1 px-2.5 py-1.5 bg-slate-100 text-slate-400 border border-slate-200 text-xs font-semibold rounded-lg cursor-not-allowed opacity-60"
+                          >
+                            <Edit2 size={13} /> Edit
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setEditingInward(inward)}
+                            className="flex items-center gap-1 px-2.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs font-bold rounded-lg transition-all"
+                          >
+                            <Edit2 size={13} /> Edit
+                          </button>
+                        )}
+
+                        {/* Approve Button */}
+                        {inward.status === 'Approved' ? (
+                          <span className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold rounded-lg">
+                            <CheckCircle2 size={13} /> Approved
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setApprovingInward(inward)}
+                            className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-sm transition-all"
+                          >
+                            <CheckCircle2 size={13} /> Approve
+                          </button>
+                        )}
+
                         <button
                           onClick={() => handlePreviewSingleInward(inward)}
                           className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition-all"
@@ -649,6 +697,34 @@ const MaterialInward = () => {
         <InwardHistoryModal
           gatePass={selectedGatePass}
           onClose={() => setShowHistoryModal(false)}
+        />
+      )}
+
+      {/* Confirmation Modal for Approving Material Inward */}
+      {approvingInward && (
+        <ApproveInwardConfirmModal
+          inward={approvingInward}
+          onClose={() => setApprovingInward(null)}
+          onSuccess={() => {
+            setApprovingInward(null);
+            if (selectedGatePass) {
+              loadHistoryForGatePass(selectedGatePass.gatePassNumber || selectedGatePass._id);
+            }
+          }}
+        />
+      )}
+
+      {/* Edit Modal for Material Inward */}
+      {editingInward && (
+        <EditInwardModal
+          inward={editingInward}
+          onClose={() => setEditingInward(null)}
+          onSuccess={() => {
+            setEditingInward(null);
+            if (selectedGatePass) {
+              loadHistoryForGatePass(selectedGatePass.gatePassNumber || selectedGatePass._id);
+            }
+          }}
         />
       )}
     </div>

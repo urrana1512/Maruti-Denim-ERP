@@ -54,23 +54,34 @@ const CorporateReportDocument = ({
   return (
     <div 
       data-ready="true"
-      className="bg-white text-slate-800 font-sans p-4 print:p-0 mx-auto"
+      className="corporate-report-document bg-white text-slate-800 font-sans p-0 print:p-0 mx-auto flex flex-col justify-between"
       style={{
-        width: '100%',
-        maxWidth: '190mm',
+        width: '210mm',
+        minHeight: '280mm',
+        padding: '8mm 10mm',
         boxSizing: 'border-box',
-        margin: '0 auto'
+        margin: '0 auto',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-between'
       }}
     >
       <style>{`
         @media print {
           @page {
             size: A4 portrait;
-            margin: 12mm 10mm 12mm 10mm;
+            margin: 0mm;
           }
           body {
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
+          }
+          thead {
+            display: table-header-group !important;
+          }
+          tr {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
           }
         }
       `}</style>

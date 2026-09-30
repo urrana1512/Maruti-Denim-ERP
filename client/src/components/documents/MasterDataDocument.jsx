@@ -15,8 +15,8 @@ const MasterDataDocument = ({
       className="master-data-document bg-white text-slate-900 mx-auto"
       style={{
         width: '210mm',
-        minHeight: '297mm',
-        padding: '12mm 10mm 12mm 10mm',
+        minHeight: '280mm',
+        padding: '8mm 10mm',
         boxSizing: 'border-box',
         fontFamily: 'Inter, system-ui, -apple-system, sans-serif',
         display: 'flex',
@@ -29,7 +29,7 @@ const MasterDataDocument = ({
         @media print {
           @page {
             size: A4 portrait;
-            margin: 12mm 10mm 12mm 10mm;
+            margin: 0mm;
           }
           body {
             background-color: #ffffff !important;
@@ -37,12 +37,7 @@ const MasterDataDocument = ({
             print-color-adjust: exact !important;
           }
           .master-data-document {
-            width: 100% !important;
-            min-height: auto !important;
-            padding: 0 !important;
-            margin: 0 !important;
             box-shadow: none !important;
-            display: block !important;
           }
           thead {
             display: table-header-group !important;
@@ -161,34 +156,43 @@ const MasterDataDocument = ({
           >
             <thead>
               <tr style={{ backgroundColor: '#0F2A47', color: '#ffffff' }}>
-                <th style={{ padding: '6px 8px', border: '1px solid #0F2A47', fontSize: '11px', fontWeight: 'bold', width: '6%', textAlign: 'center' }}>Sr.</th>
-                <th style={{ padding: '6px 8px', border: '1px solid #0F2A47', fontSize: '11px', fontWeight: 'bold', width: '16%', textAlign: 'left' }}>Vendor Code</th>
-                <th style={{ padding: '6px 8px', border: '1px solid #0F2A47', fontSize: '11px', fontWeight: 'bold', width: '54%', textAlign: 'left' }}>Vendor Name / Company Name</th>
-                <th style={{ padding: '6px 8px', border: '1px solid #0F2A47', fontSize: '11px', fontWeight: 'bold', width: '12%', textAlign: 'center' }}>Status</th>
-                <th style={{ padding: '6px 8px', border: '1px solid #0F2A47', fontSize: '11px', fontWeight: 'bold', width: '12%', textAlign: 'center' }}>Created Date</th>
+                <th style={{ padding: '6px 5px', border: '1px solid #0F2A47', fontSize: '10px', fontWeight: 'bold', width: '5%', textAlign: 'center' }}>Sr.</th>
+                <th style={{ padding: '6px 5px', border: '1px solid #0F2A47', fontSize: '10px', fontWeight: 'bold', width: '13%', textAlign: 'left' }}>Vendor Code</th>
+                <th style={{ padding: '6px 5px', border: '1px solid #0F2A47', fontSize: '10px', fontWeight: 'bold', width: '25%', textAlign: 'left' }}>Vendor / Company Name</th>
+                <th style={{ padding: '6px 5px', border: '1px solid #0F2A47', fontSize: '10px', fontWeight: 'bold', width: '22%', textAlign: 'left' }}>Address / City</th>
+                <th style={{ padding: '6px 5px', border: '1px solid #0F2A47', fontSize: '10px', fontWeight: 'bold', width: '14%', textAlign: 'left' }}>GSTIN</th>
+                <th style={{ padding: '6px 5px', border: '1px solid #0F2A47', fontSize: '10px', fontWeight: 'bold', width: '10%', textAlign: 'left' }}>PAN Card</th>
+                <th style={{ padding: '6px 5px', border: '1px solid #0F2A47', fontSize: '10px', fontWeight: 'bold', width: '5%', textAlign: 'center' }}>Status</th>
+                <th style={{ padding: '6px 5px', border: '1px solid #0F2A47', fontSize: '10px', fontWeight: 'bold', width: '6%', textAlign: 'center' }}>Date</th>
               </tr>
             </thead>
             <tbody>
-              {records.map((vendor, idx) => (
-                <tr key={idx} style={{ backgroundColor: idx % 2 === 0 ? '#ffffff' : '#f8fafc', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
-                  <td style={{ padding: '5px 6px', border: '1px solid #cbd5e1', fontSize: '11px', textAlign: 'center', color: '#334155' }}>{idx + 1}</td>
-                  <td style={{ padding: '5px 6px', border: '1px solid #cbd5e1', fontSize: '11px', fontFamily: 'monospace', fontWeight: 'bold', color: '#0F2A47' }}>{vendor.vendorCode || '-'}</td>
-                  <td style={{ padding: '5px 6px', border: '1px solid #cbd5e1', fontSize: '11px', color: '#1e293b', wordBreak: 'break-word', fontWeight: 'bold' }}>{vendor.vendorName}</td>
-                  <td style={{ padding: '5px 6px', border: '1px solid #cbd5e1', fontSize: '10px', textAlign: 'center', fontWeight: 'bold', color: vendor.status === 'ACTIVE' ? '#059669' : '#64748b' }}>
-                    {vendor.status}
-                  </td>
-                  <td style={{ padding: '5px 6px', border: '1px solid #cbd5e1', fontSize: '10px', textAlign: 'center', color: '#64748b' }}>
-                    {vendor.createdAt ? format(new Date(vendor.createdAt), 'dd/MM/yyyy') : '-'}
-                  </td>
-                </tr>
-              ))}
+              {records.map((vendor, idx) => {
+                const fullAddr = [vendor.address, vendor.city, vendor.pincode].filter(Boolean).join(', ');
+                return (
+                  <tr key={idx} style={{ backgroundColor: idx % 2 === 0 ? '#ffffff' : '#f8fafc', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                    <td style={{ padding: '5px 5px', border: '1px solid #cbd5e1', fontSize: '10px', textAlign: 'center', color: '#334155' }}>{idx + 1}</td>
+                    <td style={{ padding: '5px 5px', border: '1px solid #cbd5e1', fontSize: '10px', fontFamily: 'monospace', fontWeight: 'bold', color: '#0F2A47' }}>{vendor.vendorCode || '-'}</td>
+                    <td style={{ padding: '5px 5px', border: '1px solid #cbd5e1', fontSize: '10px', color: '#1e293b', wordBreak: 'break-word', fontWeight: 'bold' }}>{vendor.vendorName}</td>
+                    <td style={{ padding: '5px 5px', border: '1px solid #cbd5e1', fontSize: '9.5px', color: '#334155', wordBreak: 'break-word' }}>{fullAddr || '-'}</td>
+                    <td style={{ padding: '5px 5px', border: '1px solid #cbd5e1', fontSize: '9.5px', fontFamily: 'monospace', color: '#1e293b' }}>{vendor.gstin || '-'}</td>
+                    <td style={{ padding: '5px 5px', border: '1px solid #cbd5e1', fontSize: '9.5px', fontFamily: 'monospace', color: '#1e293b' }}>{vendor.panCard || '-'}</td>
+                    <td style={{ padding: '5px 5px', border: '1px solid #cbd5e1', fontSize: '9px', textAlign: 'center', fontWeight: 'bold', color: vendor.status === 'ACTIVE' ? '#059669' : '#64748b' }}>
+                      {vendor.status}
+                    </td>
+                    <td style={{ padding: '5px 5px', border: '1px solid #cbd5e1', fontSize: '9px', textAlign: 'center', color: '#64748b' }}>
+                      {vendor.createdAt ? format(new Date(vendor.createdAt), 'dd/MM/yy') : '-'}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}
       </div>
 
       {/* Footer Signatures */}
-      <div className="pt-6 border-t border-slate-300 mt-auto" style={{ pageBreakInside: 'avoid', breakInside: 'avoid', marginTop: '24px' }}>
+      <div className="pt-6 border-t border-slate-300 mt-auto flex-shrink-0" style={{ pageBreakInside: 'avoid', breakInside: 'avoid', marginTop: 'auto' }}>
         <div className="grid grid-cols-3 gap-6 text-center mb-2">
           <div>
             <div className="h-10 border-b border-slate-400 mb-1"></div>

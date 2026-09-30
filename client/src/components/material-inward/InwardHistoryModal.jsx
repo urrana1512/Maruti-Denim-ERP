@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { X, Calendar, Package, Download, Eye, FileText, Clock, CheckCircle2 } from 'lucide-react';
+import { X, Calendar, Package, Download, Eye, FileText, Clock, CheckCircle2, Edit2, Lock } from 'lucide-react';
 import { getInwardHistoryByGatePass } from '../../services/materialInwardService';
 import MaterialInwardPreviewModal from './MaterialInwardPreviewModal';
+import ApproveInwardConfirmModal from './ApproveInwardConfirmModal';
+import EditInwardModal from './EditInwardModal';
 import { formatINR } from '../../utils/gstCalculator';
 import { safeFormatDate } from '../../utils/dateUtils';
 
@@ -10,6 +12,8 @@ const InwardHistoryModal = ({ gatePass, onClose }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedInward, setSelectedInward] = useState(null);
+  const [approvingInward, setApprovingInward] = useState(null);
+  const [editingInward, setEditingInward] = useState(null);
 
   useEffect(() => {
     const fetchHistory = async () => {
@@ -200,18 +204,65 @@ const InwardHistoryModal = ({ gatePass, onClose }) => {
                       <span className="bg-brand-navy text-white font-extrabold px-2.5 py-1 rounded text-xs tracking-wide">
                         {inward.inwardNumber}
                       </span>
+                      {inward.status === 'Approved' ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                          <CheckCircle2 size={12} /> Approved
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                          <Clock size={12} /> Pending Approval
+                        </span>
+                      )}
                       <span className="text-xs text-slate-600 flex items-center gap-1 font-semibold">
                         <Calendar size={13} className="text-brand-denim" />
                         {safeFormatDate(inward.inwardDate || inward.createdAt, 'dd MMM yyyy, hh:mm a')}
                       </span>
                     </div>
 
-                    <button
-                      onClick={() => setSelectedInward(inward)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-denim hover:bg-brand-navy text-white text-xs font-bold rounded-lg shadow-sm transition-all"
-                    >
-                      <Download size={14} /> Preview & Download PDF
-                    </button>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {/* Edit Button */}
+                      {inward.status === 'Approved' ? (
+                        <button
+                          type="button"
+                          disabled
+                          title="Approved receipts cannot be edited"
+                          className="flex items-center gap-1 px-2.5 py-1.5 bg-slate-100 text-slate-400 border border-slate-200 text-xs font-semibold rounded-lg cursor-not-allowed opacity-60"
+                        >
+                          <Edit2 size={13} /> Edit
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setEditingInward(inward)}
+                          className="flex items-center gap-1 px-2.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs font-bold rounded-lg transition-all"
+                        >
+                          <Edit2 size={13} /> Edit
+                        </button>
+                      )}
+
+                      {/* Approve Button */}
+                      {inward.status === 'Approved' ? (
+                        <span className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold rounded-lg">
+                          <CheckCircle2 size={13} /> Approved
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setApprovingInward(inward)}
+                          className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-sm transition-all"
+                        >
+                          <CheckCircle2 size={13} /> Approve
+                        </button>
+                      )}
+
+                      {/* Preview & Download PDF Button */}
+                      <button
+                        onClick={() => setSelectedInward(inward)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-denim hover:bg-brand-navy text-white text-xs font-bold rounded-lg shadow-sm transition-all"
+                      >
+                        <Download size={14} /> Preview & Download PDF
+                      </button>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
@@ -309,6 +360,44 @@ const InwardHistoryModal = ({ gatePass, onClose }) => {
         <MaterialInwardPreviewModal
           materialInward={selectedInward}
           onClose={() => setSelectedInward(null)}
+        />
+      )}
+
+      {/* Confirmation Modal for Approving Material Inward */}
+      {approvingInward && (
+        <ApproveInwardConfirmModal
+          inward={approvingInward}
+          onClose={() => setApprovingInward(null)}
+          onSuccess={() => {
+            setApprovingInward(null);
+            // Refresh list
+            if (gatePass) {
+              getInwardHistoryByGatePass(gatePass.gatePassNumber || gatePass._id)
+                .then(data => {
+                  const list = data.data?.history || data.history || data.data || [];
+                  setHistory(Array.isArray(list) ? list : []);
+                });
+            }
+          }}
+        />
+      )}
+
+      {/* Edit Modal for Material Inward */}
+      {editingInward && (
+        <EditInwardModal
+          inward={editingInward}
+          onClose={() => setEditingInward(null)}
+          onSuccess={() => {
+            setEditingInward(null);
+            // Refresh list
+            if (gatePass) {
+              getInwardHistoryByGatePass(gatePass.gatePassNumber || gatePass._id)
+                .then(data => {
+                  const list = data.data?.history || data.history || data.data || [];
+                  setHistory(Array.isArray(list) ? list : []);
+                });
+            }
+          }}
         />
       )}
     </div>

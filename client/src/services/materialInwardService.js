@@ -16,6 +16,14 @@ export const materialInwardService = {
   getHistory: async (gatePassNumber) => {
     const response = await api.get(`/material-inward/gate-pass/${encodeURIComponent(gatePassNumber)}/history`);
     return response.data;
+  },
+  approve: async (id, data = {}) => {
+    const response = await api.put(`/material-inward/${id}/approve`, data);
+    return response.data;
+  },
+  update: async (id, data) => {
+    const response = await api.put(`/material-inward/${id}`, data);
+    return response.data;
   }
 };
 
@@ -36,5 +44,15 @@ export const getInwardHistoryByGatePass = async (gatePassNumber) => {
 
 export const getMaterialInwardById = async (id) => {
   const response = await api.get(`/material-inward/${id}`);
+  return response.data;
+};
+
+export const approveMaterialInward = async (id, data = {}) => {
+  const response = await api.put(`/material-inward/${id}/approve`, data);
+  return response.data;
+};
+
+export const updateMaterialInward = async (id, data) => {
+  const response = await api.put(`/material-inward/${id}`, data);
   return response.data;
 };

@@ -28,6 +28,11 @@ const gatePassSchema = new mongoose.Schema(
     date: { type: Date, required: true },
     vendorId: { type: mongoose.Schema.Types.ObjectId, ref: 'VendorMaster', default: null },
     companyName: { type: String, required: true },
+    vendorAddress: { type: String, default: '' },
+    vendorCity: { type: String, default: '' },
+    vendorPincode: { type: String, default: '' },
+    vendorGstin: { type: String, default: '' },
+    vendorPanCard: { type: String, default: '' },
     passType: { 
       type: String, 
       enum: ['Returnable', 'Non-Returnable'], 
