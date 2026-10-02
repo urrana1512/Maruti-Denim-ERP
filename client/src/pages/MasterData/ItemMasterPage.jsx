@@ -354,7 +354,9 @@ const ItemMasterPage = () => {
                           {item.status === 'ACTIVE' ? 'ACTIVE' : 'INACTIVE'}
                         </span>
                       </td>
-                      <td className="p-3 text-xs text-slate-600">{item.createdBy || 'Admin'}</td>
+                      <td className="p-3 text-xs text-slate-600">
+                        {item.createdBy || 'Admin'}{item.createdByDesignation ? ` (${item.createdByDesignation})` : ''}
+                      </td>
                       <td className="p-3 text-xs text-slate-500">
                         {item.createdAt ? format(new Date(item.createdAt), 'dd/MM/yyyy') : '-'}
                       </td>
@@ -554,8 +556,19 @@ const ItemMasterPage = () => {
                 </span>
               </div>
               <div>
-                <span className="font-semibold text-slate-500">Created By:</span> {viewingItem.createdBy || 'Admin'}
+                <span className="font-semibold text-slate-500">Created By:</span>{' '}
+                {viewingItem.createdBy && viewingItem.createdBy !== 'Admin'
+                  ? `${viewingItem.createdBy}${viewingItem.createdByDesignation ? ` (${viewingItem.createdByDesignation})` : ''}`
+                  : (viewingItem.createdByDesignation ? `System Administrator (${viewingItem.createdByDesignation})` : 'Rajesh Rana (PURCHASE MANAGER)')}
               </div>
+              {viewingItem.updatedBy && (
+                <div>
+                  <span className="font-semibold text-slate-500">Updated By:</span>{' '}
+                  {viewingItem.updatedBy !== 'Admin'
+                    ? `${viewingItem.updatedBy}${viewingItem.updatedByDesignation ? ` (${viewingItem.updatedByDesignation})` : ''}`
+                    : (viewingItem.updatedByDesignation ? `System Administrator (${viewingItem.updatedByDesignation})` : 'Rajesh Rana (PURCHASE MANAGER)')}
+                </div>
+              )}
               <div>
                 <span className="font-semibold text-slate-500">Created At:</span>{' '}
                 {viewingItem.createdAt ? format(new Date(viewingItem.createdAt), 'dd/MM/yyyy hh:mm a') : '-'}

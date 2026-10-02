@@ -47,6 +47,361 @@ const applyStatusBadge = (cell, statusVal) => {
 };
 
 /**
+ * Build Section-Wise Gate Pass Register Worksheet
+ */
+const buildSectionWiseGatePassSheet = (workbook, reportTitle, records = []) => {
+  const dataSheet = workbook.addWorksheet('Gate Pass Register', {
+    views: [{ showGridLines: true }]
+  });
+
+  // 13 Column Layout (A to M)
+  const columnsConfig = [
+    { key: 'colA', width: 16 }, // Field Label / Sr
+    { key: 'colB', width: 22 }, // GP Value
+    { key: 'colC', width: 16 }, // Field Label 2
+    { key: 'colD', width: 22 }, // GP Value 2
+    { key: 'colE', width: 30 }, // Item Description
+    { key: 'colF', width: 16 }, // Category
+    { key: 'colG', width: 12 }, // GP Qty
+    { key: 'colH', width: 12 }, // Rec/Returned Qty
+    { key: 'colI', width: 12 }, // Bal Qty
+    { key: 'colJ', width: 10 }, // Unit (UOM)
+    { key: 'colK', width: 16 }, // Cost Centre
+    { key: 'colL', width: 14 }, // Returnable
+    { key: 'colM', width: 24 }  // Remarks
+  ];
+
+  dataSheet.columns = columnsConfig.map(c => ({ width: c.width }));
+
+  // Fonts & Fills
+  const fontMainTitle = { name: 'Calibri', size: 14, bold: true, color: { argb: 'FFFFFFFF' } };
+  const fontSecBanner = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+  const fontHeaderLabel = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF334155' } };
+  const fontHeaderValue = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF0F2A47' } };
+  const fontTableHead = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+  const fontSubtotal = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF0F2A47' } };
+
+  const fillMainTitle = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F2A47' } };
+  const fillSecBanner = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
+  const fillLeftHeader = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+  const fillRightHeader = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } };
+  const fillItemHeadLeft = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
+  const fillItemHeadRight = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F2A47' } };
+  const fillSubtotal = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+  const fillGrandTotal = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0F2FE' } };
+
+  const borderThin = {
+    top: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+    left: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+    bottom: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+    right: { style: 'thin', color: { argb: 'FFCBD5E1' } }
+  };
+  const borderDouble = {
+    top: { style: 'double', color: { argb: 'FF0F2A47' } },
+    bottom: { style: 'double', color: { argb: 'FF0F2A47' } },
+    left: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+    right: { style: 'thin', color: { argb: 'FFCBD5E1' } }
+  };
+
+  let currentRow = 1;
+
+  // Sheet Title Banner
+  dataSheet.mergeCells(`A${currentRow}:M${currentRow}`);
+  const titleCell = dataSheet.getCell(`A${currentRow}`);
+  titleCell.value = 'MARUTI NANDAN DENIM PVT LTD — GATE PASS REGISTER (SECTION-WISE REPORT)';
+  titleCell.font = fontMainTitle;
+  titleCell.fill = fillMainTitle;
+  titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+  dataSheet.getRow(currentRow).height = 28;
+  currentRow += 2;
+
+  if (!records || records.length === 0) {
+    dataSheet.addRow(['No Gate Pass records found for the selected filter criteria.']).font = { italic: true };
+    return;
+  }
+
+  let grandTotalGpQty = 0;
+  let grandTotalRecQty = 0;
+  let grandTotalBalQty = 0;
+
+  records.forEach((rec, idx) => {
+    const sectionNum = idx + 1;
+    const items = rec.items && rec.items.length > 0 ? rec.items : [
+      {
+        description: rec.purpose || rec.remarks || 'Gate Pass Material',
+        category: 'OCR',
+        quantity: rec.totalQuantity || 0,
+        receivedQuantity: rec.returnedQuantity || 0,
+        balanceQuantity: rec.balanceReturnableQuantity || 0,
+        unit: 'Nos',
+        costCentre: rec.costCentre || '-',
+        returnable: rec.materialType !== 'Non-Returnable',
+        remarks: rec.remarks || '-'
+      }
+    ];
+
+    const gpNo = rec.gatePassNumber || '-';
+    const partyName = rec.companyName || rec.partyName || '-';
+    const createdByStr = rec.createdBy || 'System Staff';
+
+    // Section Banner Row
+    dataSheet.mergeCells(`A${currentRow}:M${currentRow}`);
+    const bannerCell = dataSheet.getCell(`A${currentRow}`);
+    bannerCell.value = `SECTION #${sectionNum} | GATE PASS NO: ${gpNo} | DATE: ${formatDate(rec.date)} | PARTY: ${partyName.toUpperCase()}`;
+    bannerCell.font = fontSecBanner;
+    bannerCell.fill = fillSecBanner;
+    bannerCell.alignment = { horizontal: 'left', vertical: 'middle', indent: 1 };
+    dataSheet.getRow(currentRow).height = 24;
+    currentRow++;
+
+    // Row 1: GP No & GP Date | Pass Type & Department
+    dataSheet.getCell(`A${currentRow}`).value = 'Gate Pass No.:';
+    dataSheet.getCell(`B${currentRow}`).value = gpNo;
+    dataSheet.getCell(`C${currentRow}`).value = 'GP Date:';
+    dataSheet.getCell(`D${currentRow}`).value = formatDate(rec.date);
+
+    dataSheet.getCell(`E${currentRow}`).value = 'Pass Type:';
+    dataSheet.mergeCells(`F${currentRow}:G${currentRow}`);
+    dataSheet.getCell(`F${currentRow}`).value = rec.materialType || rec.passType || 'Returnable';
+    dataSheet.mergeCells(`H${currentRow}:I${currentRow}`);
+    dataSheet.getCell(`H${currentRow}`).value = 'Department:';
+    dataSheet.mergeCells(`J${currentRow}:M${currentRow}`);
+    dataSheet.getCell(`J${currentRow}`).value = rec.department || 'GENERAL';
+
+    ['A', 'C'].forEach(col => {
+      const cell = dataSheet.getCell(`${col}${currentRow}`);
+      cell.font = fontHeaderLabel; cell.fill = fillLeftHeader; cell.border = borderThin; cell.alignment = { vertical: 'middle' };
+    });
+    ['B', 'D'].forEach(col => {
+      const cell = dataSheet.getCell(`${col}${currentRow}`);
+      cell.font = fontHeaderValue; cell.border = borderThin; cell.alignment = { vertical: 'middle' };
+    });
+    ['E', 'H'].forEach(col => {
+      const cell = dataSheet.getCell(`${col}${currentRow}`);
+      cell.font = fontHeaderLabel; cell.fill = fillRightHeader; cell.border = borderThin; cell.alignment = { vertical: 'middle' };
+    });
+    ['F', 'J'].forEach(col => {
+      const cell = dataSheet.getCell(`${col}${currentRow}`);
+      cell.font = fontHeaderValue; cell.border = borderThin; cell.alignment = { vertical: 'middle' };
+    });
+    dataSheet.getRow(currentRow).height = 20;
+    currentRow++;
+
+    // Row 2: Party & GSTIN | Vendor Address & Vehicle/Driver
+    dataSheet.getCell(`A${currentRow}`).value = 'Party / Vendor:';
+    dataSheet.mergeCells(`B${currentRow}:D${currentRow}`);
+    dataSheet.getCell(`B${currentRow}`).value = `${partyName} ${rec.vendorGstin ? '(GSTIN: ' + rec.vendorGstin + ')' : ''}`;
+
+    dataSheet.getCell(`E${currentRow}`).value = 'Vendor Address:';
+    dataSheet.mergeCells(`F${currentRow}:G${currentRow}`);
+    dataSheet.getCell(`F${currentRow}`).value = rec.vendorAddress || 'Not specified';
+    dataSheet.mergeCells(`H${currentRow}:I${currentRow}`);
+    dataSheet.getCell(`H${currentRow}`).value = 'Vehicle / Driver:';
+    dataSheet.mergeCells(`J${currentRow}:M${currentRow}`);
+    dataSheet.getCell(`J${currentRow}`).value = `${rec.vehicleNumber || '-'} ${rec.driverName ? ' / Driver: ' + rec.driverName : ''}`;
+
+    dataSheet.getCell(`A${currentRow}`).font = fontHeaderLabel;
+    dataSheet.getCell(`A${currentRow}`).fill = fillLeftHeader;
+    dataSheet.getCell(`A${currentRow}`).border = borderThin;
+    dataSheet.getCell(`A${currentRow}`).alignment = { vertical: 'middle' };
+    dataSheet.getCell(`B${currentRow}`).font = fontHeaderValue;
+    dataSheet.getCell(`B${currentRow}`).border = borderThin;
+    dataSheet.getCell(`B${currentRow}`).alignment = { vertical: 'middle' };
+
+    ['E', 'H'].forEach(col => {
+      const cell = dataSheet.getCell(`${col}${currentRow}`);
+      cell.font = fontHeaderLabel; cell.fill = fillRightHeader; cell.border = borderThin; cell.alignment = { vertical: 'middle' };
+    });
+    ['F', 'J'].forEach(col => {
+      const cell = dataSheet.getCell(`${col}${currentRow}`);
+      cell.font = fontHeaderValue; cell.border = borderThin; cell.alignment = { vertical: 'middle' };
+    });
+    dataSheet.getRow(currentRow).height = 20;
+    currentRow++;
+
+    // Row 3: Purpose | Created By & GP Status
+    dataSheet.getCell(`A${currentRow}`).value = 'Purpose:';
+    dataSheet.mergeCells(`B${currentRow}:D${currentRow}`);
+    dataSheet.getCell(`B${currentRow}`).value = rec.purpose || '-';
+
+    dataSheet.getCell(`E${currentRow}`).value = 'Created By:';
+    dataSheet.mergeCells(`F${currentRow}:G${currentRow}`);
+    dataSheet.getCell(`F${currentRow}`).value = createdByStr;
+
+    dataSheet.mergeCells(`H${currentRow}:I${currentRow}`);
+    dataSheet.getCell(`H${currentRow}`).value = 'GP Status:';
+    dataSheet.mergeCells(`J${currentRow}:M${currentRow}`);
+    const statusStr = `${rec.gatePassStatus || 'OPEN'} | Approval: ${rec.approvalStatus || 'Pending'} | Return: ${rec.returnStatus || 'PENDING'}`;
+    dataSheet.getCell(`J${currentRow}`).value = statusStr;
+
+    dataSheet.getCell(`A${currentRow}`).font = fontHeaderLabel;
+    dataSheet.getCell(`A${currentRow}`).fill = fillLeftHeader;
+    dataSheet.getCell(`A${currentRow}`).border = borderThin;
+    dataSheet.getCell(`A${currentRow}`).alignment = { vertical: 'middle' };
+    dataSheet.getCell(`B${currentRow}`).font = fontHeaderValue;
+    dataSheet.getCell(`B${currentRow}`).border = borderThin;
+    dataSheet.getCell(`B${currentRow}`).alignment = { vertical: 'middle' };
+
+    ['E', 'H'].forEach(col => {
+      const cell = dataSheet.getCell(`${col}${currentRow}`);
+      cell.font = fontHeaderLabel; cell.fill = fillRightHeader; cell.border = borderThin; cell.alignment = { vertical: 'middle' };
+    });
+    ['F', 'J'].forEach(col => {
+      const cell = dataSheet.getCell(`${col}${currentRow}`);
+      cell.font = fontHeaderValue; cell.border = borderThin; cell.alignment = { vertical: 'middle' };
+    });
+    dataSheet.getRow(currentRow).height = 20;
+    currentRow++;
+
+    // Row 4: Items Table Header
+    dataSheet.mergeCells(`A${currentRow}:D${currentRow}`);
+    dataSheet.getCell(`A${currentRow}`).value = 'GATE PASS ITEMS SPECIFICATION';
+    dataSheet.getCell(`A${currentRow}`).font = fontTableHead;
+    dataSheet.getCell(`A${currentRow}`).fill = fillItemHeadLeft;
+    dataSheet.getCell(`A${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' };
+
+    const itemHeaders = [
+      { col: 'E', title: 'Item Description', align: 'left' },
+      { col: 'F', title: 'Category', align: 'center' },
+      { col: 'G', title: 'GP Qty', align: 'right' },
+      { col: 'H', title: 'Rec. Qty', align: 'right' },
+      { col: 'I', title: 'Bal. Qty', align: 'right' },
+      { col: 'J', title: 'Unit', align: 'center' },
+      { col: 'K', title: 'Cost Centre', align: 'left' },
+      { col: 'L', title: 'Returnable', align: 'center' },
+      { col: 'M', title: 'Remarks', align: 'left' }
+    ];
+
+    itemHeaders.forEach(h => {
+      const cell = dataSheet.getCell(`${h.col}${currentRow}`);
+      cell.value = h.title;
+      cell.font = fontTableHead;
+      cell.fill = fillItemHeadRight;
+      cell.alignment = { horizontal: h.align, vertical: 'middle' };
+      cell.border = borderThin;
+    });
+    dataSheet.getRow(currentRow).height = 22;
+    currentRow++;
+
+    // Data Rows for Items
+    let secGpQty = 0;
+    let secRecQty = 0;
+    let secBalQty = 0;
+
+    items.forEach((it, itemIdx) => {
+      dataSheet.mergeCells(`A${currentRow}:D${currentRow}`);
+      const itemLabel = dataSheet.getCell(`A${currentRow}`);
+      itemLabel.value = `Item #${itemIdx + 1}`;
+      itemLabel.font = { name: 'Calibri', size: 9, italic: true, color: { argb: 'FF64748B' } };
+      itemLabel.alignment = { horizontal: 'center', vertical: 'middle' };
+      itemLabel.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFAFAFA' } };
+      itemLabel.border = borderThin;
+
+      const q = Number(it.quantity) || 0;
+      const r = Number(it.receivedQuantity) || Number(it.returnedQuantity) || 0;
+      const b = Math.max(0, q - r);
+
+      secGpQty += q;
+      secRecQty += r;
+      secBalQty += b;
+
+      dataSheet.getCell(`E${currentRow}`).value = it.description || it.itemDescription || '-';
+      dataSheet.getCell(`F${currentRow}`).value = it.category || 'OCR';
+      dataSheet.getCell(`G${currentRow}`).value = q;
+      dataSheet.getCell(`H${currentRow}`).value = r;
+      dataSheet.getCell(`I${currentRow}`).value = b;
+      dataSheet.getCell(`J${currentRow}`).value = it.unit || it.uom || 'Nos';
+      dataSheet.getCell(`K${currentRow}`).value = it.costCentre || '-';
+      dataSheet.getCell(`L${currentRow}`).value = it.returnable !== false ? 'Yes' : 'No';
+      dataSheet.getCell(`M${currentRow}`).value = it.remarks || '-';
+
+      ['E', 'K', 'M'].forEach(c => dataSheet.getCell(`${c}${currentRow}`).alignment = { horizontal: 'left', vertical: 'middle' });
+      ['F', 'J', 'L'].forEach(c => dataSheet.getCell(`${c}${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' });
+      ['G', 'H', 'I'].forEach(c => {
+        const cell = dataSheet.getCell(`${c}${currentRow}`);
+        cell.alignment = { horizontal: 'right', vertical: 'middle' };
+        cell.numFmt = '#,##0.00';
+      });
+
+      ['E','F','G','H','I','J','K','L','M'].forEach(c => {
+        dataSheet.getCell(`${c}${currentRow}`).border = borderThin;
+        dataSheet.getCell(`${c}${currentRow}`).font = { name: 'Calibri', size: 10, color: { argb: 'FF1E293B' } };
+      });
+
+      dataSheet.getRow(currentRow).height = 20;
+      currentRow++;
+    });
+
+    // Subtotal Row for Section
+    dataSheet.mergeCells(`A${currentRow}:F${currentRow}`);
+    const subLabel = dataSheet.getCell(`A${currentRow}`);
+    subLabel.value = `SECTION #${sectionNum} TOTALS (${items.length} Items)`;
+    subLabel.font = fontSubtotal;
+    subLabel.alignment = { horizontal: 'right', vertical: 'middle', indent: 1 };
+    subLabel.fill = fillSubtotal;
+
+    ['A','B','C','D','E','F'].forEach(c => dataSheet.getCell(`${c}${currentRow}`).border = borderThin);
+
+    dataSheet.getCell(`G${currentRow}`).value = secGpQty;
+    dataSheet.getCell(`H${currentRow}`).value = secRecQty;
+    dataSheet.getCell(`I${currentRow}`).value = secBalQty;
+
+    ['G', 'H', 'I'].forEach(c => {
+      const cell = dataSheet.getCell(`${c}${currentRow}`);
+      cell.font = fontSubtotal;
+      cell.fill = fillSubtotal;
+      cell.alignment = { horizontal: 'right', vertical: 'middle' };
+      cell.numFmt = '#,##0.00';
+      cell.border = borderThin;
+    });
+
+    dataSheet.mergeCells(`J${currentRow}:M${currentRow}`);
+    const subBlank = dataSheet.getCell(`J${currentRow}`);
+    subBlank.fill = fillSubtotal;
+    ['J','K','L','M'].forEach(c => dataSheet.getCell(`${c}${currentRow}`).border = borderThin);
+
+    dataSheet.getRow(currentRow).height = 22;
+    currentRow++;
+
+    grandTotalGpQty += secGpQty;
+    grandTotalRecQty += secRecQty;
+    grandTotalBalQty += secBalQty;
+
+    currentRow += 1; // Gap between sections
+  });
+
+  // Grand Total Summary Block
+  dataSheet.mergeCells(`A${currentRow}:F${currentRow}`);
+  const gtLabel = dataSheet.getCell(`A${currentRow}`);
+  gtLabel.value = `GRAND TOTAL (${records.length} Gate Passes)`;
+  gtLabel.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF0F2A47' } };
+  gtLabel.alignment = { horizontal: 'right', vertical: 'middle', indent: 1 };
+  gtLabel.fill = fillGrandTotal;
+
+  ['A','B','C','D','E','F'].forEach(c => dataSheet.getCell(`${c}${currentRow}`).border = borderDouble);
+
+  dataSheet.getCell(`G${currentRow}`).value = grandTotalGpQty;
+  dataSheet.getCell(`H${currentRow}`).value = grandTotalRecQty;
+  dataSheet.getCell(`I${currentRow}`).value = grandTotalBalQty;
+
+  ['G', 'H', 'I'].forEach(c => {
+    const cell = dataSheet.getCell(`${c}${currentRow}`);
+    cell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF0F2A47' } };
+    cell.fill = fillGrandTotal;
+    cell.alignment = { horizontal: 'right', vertical: 'middle' };
+    cell.numFmt = '#,##0.00';
+    cell.border = borderDouble;
+  });
+
+  dataSheet.mergeCells(`J${currentRow}:M${currentRow}`);
+  const gtBlank = dataSheet.getCell(`J${currentRow}`);
+  gtBlank.fill = fillGrandTotal;
+  ['J','K','L','M'].forEach(c => dataSheet.getCell(`${c}${currentRow}`).border = borderDouble);
+
+  dataSheet.getRow(currentRow).height = 26;
+};
+
+/**
  * Build Section-Wise Material Inward Register Worksheet
  */
 const buildSectionWiseInwardSheet = (workbook, reportTitle, records = []) => {
@@ -1046,6 +1401,12 @@ const generateReportExcel = async ({ reportType, reportTitle, filters = {}, reco
   // ==========================================
   // SHEET 2: Detailed Data Sheet
   // ==========================================
+  if (reportType === 'gate-pass') {
+    buildSectionWiseGatePassSheet(workbook, reportTitle, records);
+    const buffer = await workbook.xlsx.writeBuffer();
+    return buffer;
+  }
+
   if (reportType === 'material-inward') {
     buildSectionWiseInwardSheet(workbook, reportTitle, records);
     const buffer = await workbook.xlsx.writeBuffer();

@@ -4,12 +4,22 @@ const { logGatePassAudit } = require('../services/auditService');
 
 exports.createGatePass = async (req, res) => {
   try {
-    const gatePass = await gatePassService.createGatePass(req.body);
+    const user = req.user;
+    const createdBy = req.body.createdBy || user?.name || 'Authorized Staff';
+    const createdByDesignation = req.body.createdByDesignation || user?.designation || user?.roleName || '';
+
+    const payload = {
+      ...req.body,
+      createdBy,
+      createdByDesignation
+    };
+
+    const gatePass = await gatePassService.createGatePass(payload);
     await logGatePassAudit({
       action: 'GATE_PASS_CREATED',
       gatePassId: gatePass._id,
-      metadata: { gatePassNumber: gatePass.gatePassNumber },
-      performedBy: req.body.createdBy || 'Admin'
+      metadata: { gatePassNumber: gatePass.gatePassNumber, createdByDesignation },
+      performedBy: `${createdBy}${createdByDesignation ? ` (${createdByDesignation})` : ''}`
     });
     res.status(201).json({ success: true, message: 'Gate pass created successfully', data: gatePass });
   } catch (error) {
@@ -75,16 +85,25 @@ exports.updateGatePass = async (req, res) => {
       });
     }
 
-    // Fetch lock state inside the same update handler for immediate concurrency protection
+    const user = req.user;
+    const updatedBy = req.body.updatedBy || user?.name || 'Authorized Staff';
+    const updatedByDesignation = req.body.updatedByDesignation || user?.designation || user?.roleName || '';
+
+    const payload = {
+      ...req.body,
+      updatedBy,
+      updatedByDesignation
+    };
+
     const lockState = await getGatePassLockState(existingGatePass);
-    const validation = diffAndValidateGatePassUpdate(existingGatePass, lockState, req.body);
+    const validation = diffAndValidateGatePassUpdate(existingGatePass, lockState, payload);
 
     if (!validation.allowed) {
       await logGatePassAudit({
         action: 'GATE_PASS_EDIT_REJECTED_LOCKED',
         gatePassId: existingGatePass._id,
-        metadata: { attemptedPayload: req.body, lockedFields: validation.lockedFields },
-        performedBy: req.body.updatedBy || 'User'
+        metadata: { attemptedPayload: payload, lockedFields: validation.lockedFields },
+        performedBy: `${updatedBy}${updatedByDesignation ? ` (${updatedByDesignation})` : ''}`
       });
 
       return res.status(409).json({
@@ -95,12 +114,12 @@ exports.updateGatePass = async (req, res) => {
       });
     }
 
-    const updated = await gatePassService.updateGatePass(req.params.id, req.body);
+    const updated = await gatePassService.updateGatePass(req.params.id, payload);
     await logGatePassAudit({
       action: 'GATE_PASS_EDITED',
       gatePassId: updated._id,
-      metadata: { updatedFields: Object.keys(req.body) },
-      performedBy: req.body.updatedBy || 'Admin'
+      metadata: { updatedFields: Object.keys(payload) },
+      performedBy: `${updatedBy}${updatedByDesignation ? ` (${updatedByDesignation})` : ''}`
     });
 
     res.status(200).json({ success: true, message: 'Gate pass updated successfully', data: updated });
@@ -118,15 +137,20 @@ exports.approveGatePass = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Cancelled Gate Pass cannot be approved.' });
     }
 
+    const user = req.user;
+    const approvedBy = req.body.approvedBy || user?.name || 'Authorized Staff';
+    const approvedByDesignation = req.body.approvedByDesignation || user?.designation || user?.roleName || '';
+
     const updated = await gatePassService.approveGatePass(req.params.id, {
-      approvedBy: req.body.approvedBy || 'Admin'
+      approvedBy,
+      approvedByDesignation
     });
 
     await logGatePassAudit({
       action: 'GATE_PASS_APPROVED',
       gatePassId: updated._id,
-      metadata: { approvedBy: req.body.approvedBy || 'Admin' },
-      performedBy: req.body.approvedBy || 'Admin'
+      metadata: { approvedBy, approvedByDesignation },
+      performedBy: `${approvedBy}${approvedByDesignation ? ` (${approvedByDesignation})` : ''}`
     });
 
     res.status(200).json({ success: true, message: 'Gate pass approved successfully', data: updated });
@@ -158,16 +182,21 @@ exports.cancelGatePass = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Cancellation reason is required.' });
     }
 
+    const user = req.user;
+    const cancelledBy = req.body.cancelledBy || user?.name || 'Authorized Staff';
+    const cancelledByDesignation = req.body.cancelledByDesignation || user?.designation || user?.roleName || '';
+
     const updated = await gatePassService.cancelGatePass(req.params.id, {
       cancelReason,
-      cancelledBy: req.body.cancelledBy || 'Admin'
+      cancelledBy,
+      cancelledByDesignation
     });
 
     await logGatePassAudit({
       action: 'GATE_PASS_CANCELLED',
       gatePassId: updated._id,
-      metadata: { cancelReason, cancelledBy: req.body.cancelledBy || 'Admin' },
-      performedBy: req.body.cancelledBy || 'Admin'
+      metadata: { cancelReason, cancelledBy, cancelledByDesignation },
+      performedBy: `${cancelledBy}${cancelledByDesignation ? ` (${cancelledByDesignation})` : ''}`
     });
 
     res.status(200).json({ success: true, message: 'Gate pass cancelled successfully', data: updated });
@@ -184,7 +213,7 @@ exports.deleteGatePass = async (req, res) => {
         action: 'GATE_PASS_EDIT_REJECTED_LOCKED',
         gatePassId: req.params.id,
         metadata: { action: 'delete' },
-        performedBy: 'User'
+        performedBy: req.user ? `${req.user.name} (${req.user.designation})` : 'User'
       });
 
       return res.status(409).json({

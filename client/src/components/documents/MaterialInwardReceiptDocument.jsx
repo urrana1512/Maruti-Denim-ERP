@@ -328,7 +328,11 @@ const MaterialInwardReceiptDocument = ({ materialInward: directRecord, data }) =
           <div>
             <div className="h-10 border-b border-slate-400 mb-1"></div>
             <p style={{ fontSize: '12.5px', fontWeight: 'bold', color: '#0F2A47' }}>Prepared By</p>
-            <p style={{ fontSize: '11.5px', color: '#64748b', marginTop: '2px' }}>{materialInward.createdBy || 'Store Incharge'}</p>
+            <p style={{ fontSize: '11.5px', color: '#64748b', marginTop: '2px' }}>
+              {materialInward.createdBy && materialInward.createdBy !== 'Admin'
+                ? `${materialInward.createdBy}${materialInward.createdByDesignation ? ` (${materialInward.createdByDesignation})` : ''}`
+                : (materialInward.createdByDesignation ? `System Administrator (${materialInward.createdByDesignation})` : 'Rajesh Rana (PURCHASE MANAGER)')}
+            </p>
           </div>
           <div>
             <div className="h-10 border-b border-slate-400 mb-1"></div>
@@ -338,7 +342,11 @@ const MaterialInwardReceiptDocument = ({ materialInward: directRecord, data }) =
           <div>
             <div className="h-10 border-b border-slate-400 mb-1"></div>
             <p style={{ fontSize: '12.5px', fontWeight: 'bold', color: '#0F2A47' }}>Authorised By</p>
-            <p style={{ fontSize: '11.5px', color: '#64748b', marginTop: '2px' }}>For Maruti Nandan Denim Pvt Ltd</p>
+            <p style={{ fontSize: '11.5px', color: '#64748b', marginTop: '2px' }}>
+              {materialInward.approvedBy 
+                ? `${materialInward.approvedBy}${materialInward.approvedByDesignation ? ` (${materialInward.approvedByDesignation})` : ''}` 
+                : 'For Maruti Nandan Denim Pvt Ltd'}
+            </p>
           </div>
         </div>
 

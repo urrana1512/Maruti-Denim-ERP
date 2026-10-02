@@ -292,7 +292,11 @@ const GatePassDocument = ({ gatePass: directGatePass, data }) => {
           <div>
             <div className="h-10 border-b border-slate-400 mb-1"></div>
             <p style={{ fontSize: '12.5px', fontWeight: 'bold', color: '#0F2A47' }}>Prepared By</p>
-            <p style={{ fontSize: '11.5px', color: '#64748b', marginTop: '2px' }}>{gatePass.createdBy || 'Authorized Staff'}</p>
+            <p style={{ fontSize: '11.5px', color: '#64748b', marginTop: '2px' }}>
+              {gatePass.createdBy && gatePass.createdBy !== 'Admin'
+                ? `${gatePass.createdBy}${gatePass.createdByDesignation ? ` (${gatePass.createdByDesignation})` : ''}`
+                : (gatePass.createdByDesignation ? `System Administrator (${gatePass.createdByDesignation})` : 'Rajesh Rana (PURCHASE MANAGER)')}
+            </p>
           </div>
           <div>
             <div className="h-10 border-b border-slate-400 mb-1"></div>
@@ -302,7 +306,11 @@ const GatePassDocument = ({ gatePass: directGatePass, data }) => {
           <div>
             <div className="h-10 border-b border-slate-400 mb-1"></div>
             <p style={{ fontSize: '12.5px', fontWeight: 'bold', color: '#0F2A47' }}>Authorised By</p>
-            <p style={{ fontSize: '11.5px', color: '#64748b', marginTop: '2px' }}>For Maruti Nandan Denim Pvt Ltd</p>
+            <p style={{ fontSize: '11.5px', color: '#64748b', marginTop: '2px' }}>
+              {gatePass.approvedBy 
+                ? `${gatePass.approvedBy}${gatePass.approvedByDesignation ? ` (${gatePass.approvedByDesignation})` : ''}` 
+                : 'For Maruti Nandan Denim Pvt Ltd'}
+            </p>
           </div>
         </div>
 

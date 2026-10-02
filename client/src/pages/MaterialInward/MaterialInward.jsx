@@ -15,9 +15,11 @@ import { calculateInwardTotals, formatINR } from '../../utils/gstCalculator';
 import { safeFormatDate } from '../../utils/dateUtils';
 import { createMaterialInward, fetchGatePassByNumber, getInwardHistoryByGatePass } from '../../services/materialInwardService';
 import api from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 
 const MaterialInward = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   // Search / Active Gate Pass State
   const [selectedGatePass, setSelectedGatePass] = useState(null);
@@ -223,7 +225,9 @@ const MaterialInward = () => {
         partyName: selectedGatePass.partyName || selectedGatePass.companyName,
         taxType,
         remarks: inwardDetails.remarks,
-        items: activeItems
+        items: activeItems,
+        createdBy: user?.name || user?.username || 'Store Executive',
+        createdByDesignation: user?.designation || user?.roleName || ''
       };
 
       const res = await createMaterialInward(payload);

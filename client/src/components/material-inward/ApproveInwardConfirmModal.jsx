@@ -4,15 +4,20 @@ import { toast } from 'sonner';
 import { approveMaterialInward } from '../../services/materialInwardService';
 import { formatINR } from '../../utils/gstCalculator';
 import { safeFormatDate } from '../../utils/dateUtils';
+import { useAuth } from '../../context/AuthContext';
 
 const ApproveInwardConfirmModal = ({ inward, onClose, onSuccess }) => {
+  const { user } = useAuth();
   const [submitting, setSubmitting] = useState(false);
 
   const handleConfirmApprove = async () => {
     if (!inward?._id && !inward?.inwardNumber) return;
     try {
       setSubmitting(true);
-      const res = await approveMaterialInward(inward._id || inward.inwardNumber, { approvedBy: 'Admin' });
+      const res = await approveMaterialInward(inward._id || inward.inwardNumber, {
+        approvedBy: user?.name || user?.username || 'Store Manager',
+        approvedByDesignation: user?.designation || user?.roleName || ''
+      });
       if (res.success || res.data) {
         toast.success(`Material Inward ${inward.inwardNumber} approved successfully! Editing is now locked.`);
         if (onSuccess) onSuccess(res.data || res);

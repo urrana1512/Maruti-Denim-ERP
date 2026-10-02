@@ -173,13 +173,17 @@ exports.createItem = async (req, res) => {
 
     const itemCode = await generateNextItemCode();
 
+    const createdBy = req.body.createdBy || (req.user ? (req.user.name || req.user.username) : 'Admin');
+    const createdByDesignation = req.body.createdByDesignation || (req.user ? (req.user.designation || req.user.role) : '');
+
     const newItem = await ItemMaster.create({
       itemCode,
       description: descTrimmed,
       descriptionNormalized: normDesc,
       um: umTrimmed,
       status: status.toUpperCase() === 'INACTIVE' ? 'INACTIVE' : 'ACTIVE',
-      createdBy: req.body.createdBy || 'Admin'
+      createdBy,
+      createdByDesignation
     });
 
     try {
@@ -187,7 +191,7 @@ exports.createItem = async (req, res) => {
         entityType: 'ITEM',
         entityId: newItem._id,
         action: 'CREATED',
-        performedBy: req.body.createdBy || 'Admin',
+        performedBy: createdBy,
         newValue: newItem.toObject()
       });
     } catch (auditErr) {
@@ -242,7 +246,11 @@ exports.updateItem = async (req, res) => {
       item.status = status.toUpperCase() === 'INACTIVE' ? 'INACTIVE' : 'ACTIVE';
     }
 
-    item.updatedBy = req.body.updatedBy || 'Admin';
+    const updatedBy = req.body.updatedBy || (req.user ? (req.user.name || req.user.username) : 'Admin');
+    const updatedByDesignation = req.body.updatedByDesignation || (req.user ? (req.user.designation || req.user.role) : '');
+
+    item.updatedBy = updatedBy;
+    item.updatedByDesignation = updatedByDesignation;
 
     const escapeRegex = (s) => s.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
     const umRegex = new RegExp(`^${escapeRegex(item.um)}$`, 'i');
@@ -616,6 +624,9 @@ exports.createVendor = async (req, res) => {
 
     const vendorCode = await generateNextVendorCode();
 
+    const createdBy = req.body.createdBy || (req.user ? (req.user.name || req.user.username) : 'Admin');
+    const createdByDesignation = req.body.createdByDesignation || (req.user ? (req.user.designation || req.user.role) : '');
+
     const newVendor = await VendorMaster.create({
       vendorCode,
       vendorName: nameTrimmed,
@@ -626,7 +637,8 @@ exports.createVendor = async (req, res) => {
       gstin: gstin ? gstin.trim().toUpperCase() : '',
       panCard: panCard ? panCard.trim().toUpperCase() : '',
       status: status.toUpperCase() === 'INACTIVE' ? 'INACTIVE' : 'ACTIVE',
-      createdBy: req.body.createdBy || 'Admin'
+      createdBy,
+      createdByDesignation
     });
 
     try {
@@ -634,7 +646,7 @@ exports.createVendor = async (req, res) => {
         entityType: 'VENDOR',
         entityId: newVendor._id,
         action: 'CREATED',
-        performedBy: req.body.createdBy || 'Admin',
+        performedBy: createdBy,
         newValue: newVendor.toObject()
       });
     } catch (auditErr) {
@@ -662,7 +674,8 @@ exports.createVendor = async (req, res) => {
             gstin: gstin ? gstin.trim().toUpperCase() : '',
             panCard: panCard ? panCard.trim().toUpperCase() : '',
             status: status.toUpperCase() === 'INACTIVE' ? 'INACTIVE' : 'ACTIVE',
-            createdBy: req.body.createdBy || 'Admin'
+            createdBy,
+            createdByDesignation
           });
           return res.status(201).json({
             success: true,
@@ -709,7 +722,11 @@ exports.updateVendor = async (req, res) => {
       vendor.status = status.toUpperCase() === 'INACTIVE' ? 'INACTIVE' : 'ACTIVE';
     }
 
-    vendor.updatedBy = req.body.updatedBy || 'Admin';
+    const updatedBy = req.body.updatedBy || (req.user ? (req.user.name || req.user.username) : 'Admin');
+    const updatedByDesignation = req.body.updatedByDesignation || (req.user ? (req.user.designation || req.user.role) : '');
+
+    vendor.updatedBy = updatedBy;
+    vendor.updatedByDesignation = updatedByDesignation;
 
     // Duplicate check
     const duplicate = await VendorMaster.findOne({

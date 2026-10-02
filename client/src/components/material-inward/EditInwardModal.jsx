@@ -3,8 +3,10 @@ import { X, Edit3, Save, AlertTriangle, Lock } from 'lucide-react';
 import { toast } from 'sonner';
 import { updateMaterialInward } from '../../services/materialInwardService';
 import { formatINR } from '../../utils/gstCalculator';
+import { useAuth } from '../../context/AuthContext';
 
 const EditInwardModal = ({ inward, onClose, onSuccess }) => {
+  const { user } = useAuth();
   const [gateEntryNumber, setGateEntryNumber] = useState(inward?.gateEntryNumber || '');
   const [inwardDate, setInwardDate] = useState(
     inward?.inwardDate ? new Date(inward.inwardDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]
@@ -70,6 +72,8 @@ const EditInwardModal = ({ inward, onClose, onSuccess }) => {
     try {
       setSubmitting(true);
       const payload = {
+        updatedBy: user?.name || user?.username || 'Store Executive',
+        updatedByDesignation: user?.designation || user?.roleName || '',
         gateEntryNumber: gateEntryNumber.trim(),
         inwardDate,
         challanInvoiceNumber: challanInvoiceNumber.trim(),

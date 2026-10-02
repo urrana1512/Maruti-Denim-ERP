@@ -55,9 +55,13 @@ const materialInwardSchema = new mongoose.Schema(
     grandTotal: { type: Number, default: 0 },
     remarks: { type: String, default: '' },
     createdBy: { type: String, default: 'Admin' },
+    createdByDesignation: { type: String, default: '' },
+    updatedBy: { type: String, default: '' },
+    updatedByDesignation: { type: String, default: '' },
     status: { type: String, enum: ['Pending', 'Approved'], default: 'Pending' },
     approvedAt: { type: Date, default: null },
-    approvedBy: { type: String, default: null }
+    approvedBy: { type: String, default: null },
+    approvedByDesignation: { type: String, default: null }
   },
   { timestamps: true }
 );

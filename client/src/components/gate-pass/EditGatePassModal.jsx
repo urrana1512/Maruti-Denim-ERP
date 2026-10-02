@@ -5,9 +5,8 @@ import { z } from 'zod';
 import { format } from 'date-fns';
 import { X, Trash2, Plus, Edit2, Building2, Lock, AlertTriangle, CheckCircle, Ban } from 'lucide-react';
 import { toast } from 'sonner';
-import { gatePassService } from '../../services/gatePassService';
-import ItemDescriptionSelect from '../common/ItemDescriptionSelect';
 import VendorSelect from '../common/VendorSelect';
+import { useAuth } from '../../context/AuthContext';
 
 const gatePassSchema = z.object({
   date: z.string().nonempty('Date is required'),
@@ -60,6 +59,7 @@ const isCategoryReturnable = (category) => {
 };
 
 const EditGatePassModal = ({ gatePass, onClose, onSuccess }) => {
+  const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [lockState, setLockState] = useState(null);
 
@@ -179,6 +179,8 @@ const EditGatePassModal = ({ gatePass, onClose, onSuccess }) => {
       const isReturnablePass = data.passType === 'Returnable';
       const payload = {
         ...data,
+        updatedBy: user?.name || user?.username || 'Authorized Staff',
+        updatedByDesignation: user?.designation || user?.roleName || '',
         items: data.items.map((item, index) => ({ 
           ...item, 
           serialNumber: index + 1,

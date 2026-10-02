@@ -1,6 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const masterDataController = require('../controllers/masterDataController');
+const { optionalAuth } = require('../middleware/authMiddleware');
+
+router.use(optionalAuth);
 
 // Item Description Master Routes
 router.get('/items', masterDataController.getItems);

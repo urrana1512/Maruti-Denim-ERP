@@ -10,6 +10,7 @@ import { gatePassService } from '../../services/gatePassService';
 import GatePassPreviewModal from '../../components/gate-pass/GatePassPreviewModal';
 import ItemDescriptionSelect from '../../components/common/ItemDescriptionSelect';
 import VendorSelect from '../../components/common/VendorSelect';
+import { useAuth } from '../../context/AuthContext';
 
 const gatePassSchema = z.object({
   date: z.string().nonempty('Date is required'),
@@ -45,6 +46,7 @@ const isCategoryReturnable = (category) => {
 
 const AddGatePass = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [createdData, setCreatedData] = useState(null);
   const [autoGatePassNumber, setAutoGatePassNumber] = useState('');
@@ -97,6 +99,8 @@ const AddGatePass = () => {
       const payload = {
         ...data,
         gatePassNumber: autoGatePassNumber,
+        createdBy: user?.name || user?.username || 'Authorized Staff',
+        createdByDesignation: user?.designation || user?.roleName || '',
         items: data.items.map((item, index) => ({ 
           ...item, 
           serialNumber: index + 1,

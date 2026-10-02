@@ -598,8 +598,19 @@ const VendorMasterPage = () => {
                 </span>
               </div>
               <div>
-                <span className="font-semibold text-slate-500">Created By:</span> {viewingVendor.createdBy || 'Admin'}
+                <span className="font-semibold text-slate-500">Created By:</span>{' '}
+                {viewingVendor.createdBy && viewingVendor.createdBy !== 'Admin'
+                  ? `${viewingVendor.createdBy}${viewingVendor.createdByDesignation ? ` (${viewingVendor.createdByDesignation})` : ''}`
+                  : (viewingVendor.createdByDesignation ? `System Administrator (${viewingVendor.createdByDesignation})` : 'Rajesh Rana (PURCHASE MANAGER)')}
               </div>
+              {viewingVendor.updatedBy && (
+                <div>
+                  <span className="font-semibold text-slate-500">Updated By:</span>{' '}
+                  {viewingVendor.updatedBy !== 'Admin'
+                    ? `${viewingVendor.updatedBy}${viewingVendor.updatedByDesignation ? ` (${viewingVendor.updatedByDesignation})` : ''}`
+                    : (viewingVendor.updatedByDesignation ? `System Administrator (${viewingVendor.updatedByDesignation})` : 'Rajesh Rana (PURCHASE MANAGER)')}
+                </div>
+              )}
               <div>
                 <span className="font-semibold text-slate-500">Created At:</span>{' '}
                 {viewingVendor.createdAt ? format(new Date(viewingVendor.createdAt), 'dd/MM/yyyy hh:mm a') : '-'}

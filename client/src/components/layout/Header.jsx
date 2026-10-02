@@ -1,15 +1,23 @@
 import React from 'react';
-import { Menu, Bell, User } from 'lucide-react';
-import { useLocation } from 'react-router-dom';
+import { Menu, Bell, User, LogOut, Shield } from 'lucide-react';
+import { useLocation, Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 
 const Header = ({ setIsOpen }) => {
   const location = useLocation();
-  
+  const navigate = useNavigate();
+  const { user, logout, isAdmin } = useAuth();
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login');
+  };
+
   const getBreadcrumbs = () => {
     const paths = location.pathname.split('/').filter(Boolean);
     if (paths.length === 0) return 'Home';
-    
-    return ['Home', ...paths.map(p => p.charAt(0).toUpperCase() + p.slice(1).replace('-', ' '))].join(' / ');
+
+    return ['Home', ...paths.map((p) => p.charAt(0).toUpperCase() + p.slice(1).replace('-', ' '))].join(' / ');
   };
 
   return (
@@ -32,25 +40,41 @@ const Header = ({ setIsOpen }) => {
             {getBreadcrumbs()}
           </div>
         </div>
-        <div className="flex items-center gap-x-4 lg:gap-x-6">
-          <button type="button" className="-m-2.5 p-2.5 text-gray-400 hover:text-gray-500">
-            <span className="sr-only">View notifications</span>
-            <Bell className="h-5 w-5" aria-hidden="true" />
-          </button>
+
+        <div className="flex items-center gap-x-4 lg:gap-x-5">
+          {isAdmin && (
+            <Link
+              to="/admin/dashboard"
+              className="text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 shadow-sm"
+            >
+              <Shield size={14} className="text-blue-400" /> Admin Panel
+            </Link>
+          )}
 
           {/* Separator */}
           <div className="hidden lg:block lg:h-6 lg:w-px lg:bg-gray-200" aria-hidden="true" />
 
-          {/* Profile dropdown stub */}
+          {/* Profile Details */}
           <div className="flex items-center gap-x-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-denim text-white">
-              <User size={16} />
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-denim text-white font-bold text-xs">
+              {user?.name ? user.name.charAt(0).toUpperCase() : <User size={16} />}
             </div>
-            <span className="hidden lg:flex lg:items-center">
-              <span className="text-sm font-semibold leading-6 text-slate-700" aria-hidden="true">
-                Admin
+            <div className="hidden lg:block text-left">
+              <span className="text-xs font-bold text-slate-800 block leading-tight">
+                {user?.name || 'Authorized User'}
               </span>
-            </span>
+              <span className="text-[10px] font-semibold text-slate-500 block uppercase">
+                {user?.roleName || user?.department || 'Employee'}
+              </span>
+            </div>
+
+            <button
+              onClick={handleLogout}
+              title="Sign Out"
+              className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all cursor-pointer ml-1"
+            >
+              <LogOut size={16} />
+            </button>
           </div>
         </div>
       </div>

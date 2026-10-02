@@ -11,7 +11,12 @@ exports.fetchGatePassForInward = async (req, res) => {
 
 exports.createMaterialInward = async (req, res) => {
   try {
-    const result = await materialInwardService.createMaterialInward(req.body);
+    const payload = {
+      ...req.body,
+      createdBy: req.body.createdBy || (req.user ? (req.user.name || req.user.username) : 'Admin'),
+      createdByDesignation: req.body.createdByDesignation || (req.user ? (req.user.designation || req.user.role) : '')
+    };
+    const result = await materialInwardService.createMaterialInward(payload);
     res.status(201).json({ success: true, message: result.message, data: result });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
@@ -50,7 +55,8 @@ exports.getConsolidatedInward = async (req, res) => {
 exports.approveMaterialInward = async (req, res) => {
   try {
     const inward = await materialInwardService.approveMaterialInward(req.params.id, {
-      approvedBy: req.body.approvedBy || 'Admin'
+      approvedBy: req.body.approvedBy || (req.user ? (req.user.name || req.user.username) : 'Admin'),
+      approvedByDesignation: req.body.approvedByDesignation || (req.user ? (req.user.designation || req.user.role) : '')
     });
     res.status(200).json({ success: true, message: `Material Inward ${inward.inwardNumber} approved successfully!`, data: inward });
   } catch (error) {
@@ -60,7 +66,12 @@ exports.approveMaterialInward = async (req, res) => {
 
 exports.updateMaterialInward = async (req, res) => {
   try {
-    const inward = await materialInwardService.updateMaterialInward(req.params.id, req.body);
+    const payload = {
+      ...req.body,
+      updatedBy: req.body.updatedBy || (req.user ? (req.user.name || req.user.username) : 'Admin'),
+      updatedByDesignation: req.body.updatedByDesignation || (req.user ? (req.user.designation || req.user.role) : '')
+    };
+    const inward = await materialInwardService.updateMaterialInward(req.params.id, payload);
     res.status(200).json({ success: true, message: `Material Inward ${inward.inwardNumber} updated successfully!`, data: inward });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });

@@ -33,9 +33,17 @@ const itemMasterSchema = new mongoose.Schema(
       type: String, 
       default: 'Admin' 
     },
+    createdByDesignation: {
+      type: String,
+      default: ''
+    },
     updatedBy: { 
       type: String, 
       default: 'Admin' 
+    },
+    updatedByDesignation: {
+      type: String,
+      default: ''
     }
   },
   { timestamps: true }

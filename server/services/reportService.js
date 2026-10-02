@@ -93,7 +93,7 @@ const resolveItemRate = (itemRow, rateMap = {}) => {
   if (descKey && rateMap[descKey]) {
     return rateMap[descKey];
   }
-  return 500; // Default estimated unit rate for reporting valuation
+  return 0;
 };
 
 /**
@@ -154,19 +154,40 @@ const getGatePassRegisterReport = async (params = {}) => {
         return acc + (q * r);
       }, 0);
 
-      const avgRate = totalQuantity > 0 ? (taxableAmount / totalQuantity) : (items.length > 0 ? resolveItemRate(items[0], rateMap) : 500);
-      const gstPercentage = 18;
-      const gstAmount = Math.round(taxableAmount * (gstPercentage / 100) * 100) / 100;
+      const avgRate = totalQuantity > 0 && taxableAmount > 0 ? Math.round((taxableAmount / totalQuantity) * 100) / 100 : 0;
+      const gstPercentage = taxableAmount > 0 ? 18 : 0;
+      const gstAmount = taxableAmount > 0 ? Math.round(taxableAmount * (gstPercentage / 100) * 100) / 100 : 0;
       const grandTotal = Math.round((taxableAmount + gstAmount) * 100) / 100;
+
+      const createdByStr = gp.createdBy
+        ? (gp.createdByDesignation ? `${gp.createdBy} (${gp.createdByDesignation})` : gp.createdBy)
+        : 'System Staff';
 
       return {
         _id: gp._id,
         gatePassNumber: gp.gatePassNumber,
         date: gp.date || gp.createdAt,
         companyName: gp.companyName,
+        vendorAddress: gp.vendorAddress || 'Not specified',
+        vendorGstin: gp.vendorGstin || '-',
+        department: gp.department || 'GENERAL',
+        vehicleNumber: gp.vehicleNumber || '-',
+        driverName: gp.driverName || '-',
         purpose: gp.purpose || '-',
         materialType: gp.passType || 'Returnable',
         itemCount: items.length,
+        items: items.map(it => ({
+          description: it.description || it.itemDescription || 'Material Item',
+          category: it.category || 'OCR',
+          quantity: Number(it.quantity) || 0,
+          receivedQuantity: Number(it.receivedQuantity) || Number(it.returnedQuantity) || 0,
+          returnedQuantity: Number(it.receivedQuantity) || Number(it.returnedQuantity) || 0,
+          balanceQuantity: Math.max(0, (Number(it.quantity) || 0) - (Number(it.receivedQuantity) || Number(it.returnedQuantity) || 0)),
+          unit: it.unit || it.uom || 'Nos',
+          costCentre: it.costCentre || '-',
+          returnable: it.returnable !== false,
+          remarks: it.remarks || '-'
+        })),
         totalQuantity,
         returnableQuantity,
         returnedQuantity,
@@ -180,7 +201,8 @@ const getGatePassRegisterReport = async (params = {}) => {
         approvalStatus: gp.approvalStatus || (gp.gatePassStatus === 'CANCELLED' ? 'Cancelled' : 'Pending'),
         gatePassStatus: gp.gatePassStatus || 'OPEN',
         returnStatus: gp.returnStatus || 'PENDING',
-        createdBy: gp.createdBy || 'Admin',
+        createdBy: createdByStr,
+        createdByDesignation: gp.createdByDesignation || '',
         createdAt: gp.createdAt,
         updatedAt: gp.updatedAt,
         remarks: items.map(i => i.remarks).filter(Boolean).join('; ') || '-'
@@ -392,9 +414,9 @@ const getReturnableMaterialReport = async (params = {}) => {
         const pendingQty = Math.max(0, returnableQty - returnedQty);
 
         const itemRate = resolveItemRate(itemRow, rateMap);
-        const gstPercentage = Number(itemRow.gstPercentage) || 18;
         const taxableAmount = Math.round(returnableQty * itemRate * 100) / 100;
-        const gstAmount = Math.round(taxableAmount * (gstPercentage / 100) * 100) / 100;
+        const gstPercentage = taxableAmount > 0 ? (Number(itemRow.gstPercentage) || 18) : 0;
+        const gstAmount = taxableAmount > 0 ? Math.round(taxableAmount * (gstPercentage / 100) * 100) / 100 : 0;
         const grandTotal = Math.round((taxableAmount + gstAmount) * 100) / 100;
 
         formattedRows.push({
@@ -542,9 +564,9 @@ const getGatePassClosureReport = async (params = {}) => {
         return acc + (q * r);
       }, 0);
 
-      const avgRate = origReturnableQty > 0 ? (taxableAmount / origReturnableQty) : (items.length > 0 ? resolveItemRate(items[0], rateMap) : 500);
-      const gstPercentage = 18;
-      const gstAmount = Math.round(taxableAmount * (gstPercentage / 100) * 100) / 100;
+      const avgRate = origReturnableQty > 0 && taxableAmount > 0 ? Math.round((taxableAmount / origReturnableQty) * 100) / 100 : 0;
+      const gstPercentage = taxableAmount > 0 ? 18 : 0;
+      const gstAmount = taxableAmount > 0 ? Math.round(taxableAmount * (gstPercentage / 100) * 100) / 100 : 0;
       const grandTotal = Math.round((taxableAmount + gstAmount) * 100) / 100;
 
       return {
@@ -646,7 +668,7 @@ const getPartySummaryReport = async (params = {}) => {
         const r = resolveItemRate(it, rateMap);
         return acc + (q * r);
       }, 0);
-      const gpGst = Math.round(gpTaxable * 0.18 * 100) / 100;
+      const gpGst = gpTaxable > 0 ? Math.round(gpTaxable * 0.18 * 100) / 100 : 0;
       p.taxableAmount += gpTaxable;
       p.totalGst += gpGst;
 
@@ -777,10 +799,6 @@ const getCombinedReport = async (params = {}) => {
         }
 
         if (gpItemInwards.length === 0) {
-          const taxableAmount = Math.round(retQty * itemRate * 100) / 100;
-          const gstAmount = Math.round(taxableAmount * (gstPercentage / 100) * 100) / 100;
-          const grandTotal = Math.round((taxableAmount + gstAmount) * 100) / 100;
-
           formattedRows.push({
             gatePassNumber: gp.gatePassNumber,
             date: gp.date || gp.createdAt,
@@ -804,12 +822,12 @@ const getCombinedReport = async (params = {}) => {
             receivedQuantity: 0,
             balanceQuantity: retQty,
             unit: gpItem.uom || 'Nos',
-            rate: itemRate,
-            taxableAmount,
-            gstPercentage,
-            gstAmount,
-            totalGst: gstAmount,
-            grandTotal,
+            rate: Number(gpItem.rate) || 0,
+            taxableAmount: 0,
+            gstPercentage: Number(gpItem.gstPercentage) || 0,
+            gstAmount: 0,
+            totalGst: 0,
+            grandTotal: 0,
             itemReturnStatus: 'PENDING'
           });
         } else {
@@ -818,8 +836,8 @@ const getCombinedReport = async (params = {}) => {
           for (let i = 0; i < gpItemInwards.length; i++) {
             const { inv, matchedInwardItem } = gpItemInwards[i];
             const thisRecQty = Number(matchedInwardItem.receivedQuantity) || 0;
-            const thisRate = matchedInwardItem && Number(matchedInwardItem.rate) > 0 ? Number(matchedInwardItem.rate) : itemRate;
-            const thisGstPct = matchedInwardItem && Number(matchedInwardItem.gstPercentage) > 0 ? Number(matchedInwardItem.gstPercentage) : gstPercentage;
+            const thisRate = matchedInwardItem && Number(matchedInwardItem.rate) > 0 ? Number(matchedInwardItem.rate) : (Number(gpItem.rate) || 0);
+            const thisGstPct = matchedInwardItem && Number(matchedInwardItem.gstPercentage) > 0 ? Number(matchedInwardItem.gstPercentage) : (Number(gpItem.gstPercentage) || 0);
 
             runningReceived += thisRecQty;
             const balanceQty = Math.max(0, retQty - runningReceived);
@@ -828,8 +846,7 @@ const getCombinedReport = async (params = {}) => {
               ? 'FULLY_RETURNED' 
               : (runningReceived > 0 ? 'PARTIALLY_RETURNED' : 'PENDING');
 
-            const qtyForValuation = thisRecQty > 0 ? thisRecQty : (retQty || origQty);
-            const taxableAmount = Math.round(qtyForValuation * thisRate * 100) / 100;
+            const taxableAmount = Math.round(thisRecQty * thisRate * 100) / 100;
             const gstAmount = Math.round(taxableAmount * (thisGstPct / 100) * 100) / 100;
             const grandTotal = Math.round((taxableAmount + gstAmount) * 100) / 100;
 

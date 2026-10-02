@@ -136,7 +136,9 @@ const createMaterialInward = async (data) => {
     documentType,
     challanInvoiceNumber,
     items: inputItems = [],
-    remarks = ''
+    remarks = '',
+    createdBy = 'Admin',
+    createdByDesignation = ''
   } = data;
 
   if (!gatePassId) throw new Error('Gate Pass ID is required.');
@@ -271,7 +273,8 @@ const createMaterialInward = async (data) => {
     totalGst: docTotals.totalGst,
     grandTotal: docTotals.grandTotal,
     remarks,
-    createdBy: 'Admin'
+    createdBy: createdBy || 'Admin',
+    createdByDesignation: createdByDesignation || ''
   };
 
   let savedInward = null;
@@ -460,7 +463,7 @@ const getConsolidatedInwardByGatePass = async (gatePassIdentifier) => {
   };
 };
 
-const approveMaterialInward = async (id, { approvedBy = 'Admin' } = {}) => {
+const approveMaterialInward = async (id, { approvedBy = 'Admin', approvedByDesignation = '' } = {}) => {
   let inward = null;
   if (isDbConnected()) {
     if (mongoose.Types.ObjectId.isValid(id)) {
@@ -479,6 +482,7 @@ const approveMaterialInward = async (id, { approvedBy = 'Admin' } = {}) => {
   inward.status = 'Approved';
   inward.approvedAt = new Date();
   inward.approvedBy = approvedBy;
+  inward.approvedByDesignation = approvedByDesignation;
 
   if (isDbConnected()) {
     await inward.save();
@@ -525,6 +529,8 @@ const updateMaterialInward = async (id, data) => {
 
   if (!gatePass) throw new Error('Associated Gate Pass not found.');
 
+  if (data.updatedBy) inward.updatedBy = data.updatedBy;
+  if (data.updatedByDesignation) inward.updatedByDesignation = data.updatedByDesignation;
   if (data.gateEntryNumber) inward.gateEntryNumber = data.gateEntryNumber.trim();
   if (data.inwardDate) inward.inwardDate = combineDateWithCurrentTime(data.inwardDate);
   if (data.challanInvoiceNumber) inward.challanInvoiceNumber = data.challanInvoiceNumber.trim();

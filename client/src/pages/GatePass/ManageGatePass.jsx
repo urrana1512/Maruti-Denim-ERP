@@ -7,9 +7,11 @@ import { gatePassService } from '../../services/gatePassService';
 import GatePassPreviewModal from '../../components/gate-pass/GatePassPreviewModal';
 import EditGatePassModal from '../../components/gate-pass/EditGatePassModal';
 import InwardHistoryModal from '../../components/material-inward/InwardHistoryModal';
+import { useAuth } from '../../context/AuthContext';
 
 const ManageGatePass = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [gatePasses, setGatePasses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -75,7 +77,10 @@ const ManageGatePass = () => {
     if (!approvingGatePass) return;
     try {
       setIsProcessingAction(true);
-      const res = await gatePassService.approve(approvingGatePass._id);
+      const res = await gatePassService.approve(approvingGatePass._id, {
+        approvedBy: user?.name || user?.username || 'Store Manager',
+        approvedByDesignation: user?.designation || user?.roleName || ''
+      });
       if (res.success) {
         toast.success(`Gate Pass ${approvingGatePass.gatePassNumber} approved successfully.`);
         setApprovingGatePass(null);
@@ -97,7 +102,11 @@ const ManageGatePass = () => {
     }
     try {
       setIsProcessingAction(true);
-      const res = await gatePassService.cancel(cancellingGatePass._id, { cancelReason: cancelReason.trim() });
+      const res = await gatePassService.cancel(cancellingGatePass._id, {
+        cancelReason: cancelReason.trim(),
+        cancelledBy: user?.name || user?.username || 'Store Manager',
+        cancelledByDesignation: user?.designation || user?.roleName || ''
+      });
       if (res.success) {
         toast.success(`Gate Pass ${cancellingGatePass.gatePassNumber} cancelled successfully.`);
         setCancellingGatePass(null);

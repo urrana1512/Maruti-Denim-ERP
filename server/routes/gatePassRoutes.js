@@ -1,6 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const gatePassController = require('../controllers/gatePassController');
+const { optionalAuth } = require('../middleware/authMiddleware');
+
+router.use(optionalAuth);
 
 router.post('/', gatePassController.createGatePass);
 router.get('/', gatePassController.getGatePasses);
