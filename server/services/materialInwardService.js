@@ -73,8 +73,8 @@ const fetchGatePassForInward = async (gatePassNumber) => {
     throw new Error(`Gate Pass ${gatePass.gatePassNumber} has been cancelled.`);
   }
 
-  if (gatePass.approvalStatus !== 'Approved') {
-    throw new Error(`Gate Pass ${gatePass.gatePassNumber} is pending approval. Material Inward can only be processed for approved Gate Passes.`);
+  if (gatePass.approvalStatus === 'Pending') {
+    throw new Error(`Gate Pass ${gatePass.gatePassNumber} is pending approval. Material Inward can only be processed after the Gate Pass is approved.`);
   }
 
   // Filter returnable items (if passType is Returnable, treat all items as returnable unless explicitly returnable: false)
@@ -122,6 +122,13 @@ const fetchGatePassForInward = async (gatePassNumber) => {
       status: gatePass.status,
       gatePassStatus: gatePass.gatePassStatus || (isClosed ? 'CLOSED' : 'OPEN'),
       returnStatus: gatePass.returnStatus || (isClosed ? 'FULLY_RETURNED' : 'PENDING'),
+      approvalStatus: gatePass.approvalStatus || 'Approved',
+      approvedBy: gatePass.approvedBy || '',
+      approvedAt: gatePass.approvedAt || null,
+      approvedByDesignation: gatePass.approvedByDesignation || '',
+      vendorAddress: gatePass.vendorAddress || '',
+      vendorGstin: gatePass.vendorGstin || '',
+      items: gatePass.items || []
     },
     returnableItems,
     isClosed
@@ -159,8 +166,8 @@ const createMaterialInward = async (data) => {
   if (gatePass.status === 'cancelled' || gatePass.gatePassStatus === 'CANCELLED') {
     throw new Error('Gate Pass is cancelled.');
   }
-  if (gatePass.approvalStatus !== 'Approved') {
-    throw new Error(`Gate Pass ${gatePass.gatePassNumber} is pending approval. Material Inward can only be processed for approved Gate Passes.`);
+  if (gatePass.approvalStatus === 'Pending') {
+    throw new Error(`Gate Pass ${gatePass.gatePassNumber} is pending approval. Material Inward can only be processed after the Gate Pass is approved.`);
   }
   if (gatePass.gatePassStatus === 'CLOSED' || gatePass.returnStatus === 'FULLY_RETURNED') {
     throw new Error('Gate Pass is already closed.');
@@ -645,6 +652,27 @@ const updateMaterialInward = async (id, data) => {
   return inward;
 };
 
+const getInwardReceipts = async (params = {}) => {
+  const { search } = params;
+  if (isDbConnected()) {
+    let query = {};
+    if (search && typeof search === 'string' && search.trim()) {
+      const safeStr = search.trim();
+      query = {
+        $or: [
+          { inwardNumber: { $regex: safeStr, $options: 'i' } },
+          { gatePassNumber: { $regex: safeStr, $options: 'i' } },
+          { partyName: { $regex: safeStr, $options: 'i' } },
+          { challanInvoiceNumber: { $regex: safeStr, $options: 'i' } },
+          { gateEntryNumber: { $regex: safeStr, $options: 'i' } }
+        ]
+      };
+    }
+    return await MaterialInward.find(query).sort({ inwardDate: -1, createdAt: -1 }).lean();
+  }
+  return mockInwards;
+};
+
 module.exports = {
   fetchGatePassForInward,
   createMaterialInward,
@@ -652,5 +680,6 @@ module.exports = {
   getInwardHistory,
   getConsolidatedInwardByGatePass,
   approveMaterialInward,
-  updateMaterialInward
+  updateMaterialInward,
+  getInwardReceipts
 };

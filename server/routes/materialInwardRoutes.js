@@ -5,6 +5,7 @@ const { optionalAuth } = require('../middleware/authMiddleware');
 
 router.use(optionalAuth);
 
+router.get('/', materialInwardController.getInwardReceipts);
 router.get('/gate-pass/:gatePassNumber', materialInwardController.fetchGatePassForInward);
 router.post('/', materialInwardController.createMaterialInward);
 router.get('/consolidated/:gatePassNumber', materialInwardController.getConsolidatedInward);

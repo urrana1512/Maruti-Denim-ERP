@@ -101,3 +101,12 @@ exports.downloadMaterialInwardPdf = async (req, res) => {
     res.status(500).json({ success: false, message: 'Failed to generate Material Inward PDF', error: error.message });
   }
 };
+
+exports.getInwardReceipts = async (req, res) => {
+  try {
+    const data = await materialInwardService.getInwardReceipts(req.query);
+    res.status(200).json({ success: true, message: 'Fetched material inward receipts', data });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};

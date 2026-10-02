@@ -1,8 +1,23 @@
 const mongoose = require('mongoose');
+const { format } = require('date-fns');
 const GatePass = require('../models/GatePass');
 const MaterialInward = require('../models/MaterialInward');
 
 const isDbConnected = () => mongoose.connection.readyState === 1;
+
+/**
+ * Format date nicely for report strings & Excel
+ */
+const formatDate = (dateVal, withTime = false) => {
+  if (!dateVal) return '-';
+  try {
+    const d = new Date(dateVal);
+    if (isNaN(d.getTime())) return '-';
+    return format(d, withTime ? 'dd-MM-yyyy HH:mm' : 'dd-MM-yyyy');
+  } catch (err) {
+    return '-';
+  }
+};
 
 /**
  * Escape special regex characters safely
@@ -558,6 +573,10 @@ const getGatePassClosureReport = async (params = {}) => {
       const closeDate = new Date(closureDate);
       const totalDaysToClose = Math.max(0, Math.floor((closeDate.getTime() - gpDate.getTime()) / (1000 * 60 * 60 * 24)));
 
+      const createdByStr = gp.createdBy
+        ? (gp.createdByDesignation ? `${gp.createdBy} (${gp.createdByDesignation})` : gp.createdBy)
+        : 'System Staff';
+
       const taxableAmount = items.reduce((acc, it) => {
         const q = Number(it.quantity) || 0;
         const r = resolveItemRate(it, rateMap);
@@ -569,11 +588,62 @@ const getGatePassClosureReport = async (params = {}) => {
       const gstAmount = taxableAmount > 0 ? Math.round(taxableAmount * (gstPercentage / 100) * 100) / 100 : 0;
       const grandTotal = Math.round((taxableAmount + gstAmount) * 100) / 100;
 
+      const formattedItems = items.map(it => {
+        const q = Number(it.quantity) || 0;
+        const recQ = Number(it.receivedQuantity) || 0;
+        const r = resolveItemRate(it, rateMap);
+        const taxAmt = Math.round(q * r * 100) / 100;
+        const gstPct = taxAmt > 0 ? 18 : 0;
+        const gstAmt = taxAmt > 0 ? Math.round(taxAmt * 0.18 * 100) / 100 : 0;
+        const gTot = Math.round((taxAmt + gstAmt) * 100) / 100;
+
+        const itemInwardStr = gpInwards.length > 0 
+          ? gpInwards.map(mi => `${mi.inwardNumber} (${formatDate(mi.inwardDate || mi.createdAt)})`).join(', ')
+          : '-';
+
+        return {
+          description: it.description || it.itemDescription || 'Material Item',
+          category: it.category || 'OCR',
+          unit: it.uom || it.unit || 'Nos',
+          originalQuantity: q,
+          returnedQuantity: recQ,
+          inwardDetailsStr: itemInwardStr,
+          rate: r,
+          taxableAmount: taxAmt,
+          gstPercentage: gstPct,
+          gstAmount: gstAmt,
+          grandTotal: gTot,
+          remarks: it.remarks || '-'
+        };
+      });
+
+      const formattedInwards = gpInwards.map(mi => ({
+        inwardNumber: mi.inwardNumber,
+        inwardDate: mi.inwardDate || mi.createdAt,
+        gateEntryNumber: mi.gateEntryNumber || '-',
+        challanInvoiceNumber: mi.challanInvoiceNumber || '-',
+        subtotal: Number(mi.subtotal) || 0,
+        totalGst: Number(mi.totalGst) || 0,
+        grandTotal: Number(mi.grandTotal) || 0,
+        createdBy: mi.createdBy ? (mi.createdByDesignation ? `${mi.createdBy} (${mi.createdByDesignation})` : mi.createdBy) : 'Admin',
+        approvedBy: mi.approvedBy ? (mi.approvedByDesignation ? `${mi.approvedBy} (${mi.approvedByDesignation})` : mi.approvedBy) : '-'
+      }));
+
       return {
         gatePassId: gp._id,
         gatePassNumber: gp.gatePassNumber,
         date: gp.date || gp.createdAt,
         companyName: gp.companyName,
+        vendorAddress: gp.vendorAddress || 'Not specified',
+        vendorGstin: gp.vendorGstin || '-',
+        vendorPanCard: gp.vendorPanCard || '-',
+        passType: gp.passType || gp.gatePassType || 'Returnable',
+        department: gp.department || 'GENERAL',
+        purpose: gp.purpose || '-',
+        costCentre: gp.costCentre || '-',
+        vehicleNumber: gp.vehicleNumber || '-',
+        driverName: gp.driverName || '-',
+        createdBy: createdByStr,
         originalReturnableQuantity: origReturnableQty,
         totalReturnedQuantity: totalReturnedQty,
         finalInwardNumber: finalInward ? finalInward.inwardNumber : '-',
@@ -587,7 +657,9 @@ const getGatePassClosureReport = async (params = {}) => {
         totalGst: gstAmount,
         grandTotal,
         gatePassStatus: gp.gatePassStatus || 'CLOSED',
-        returnStatus: gp.returnStatus || 'FULLY_RETURNED'
+        returnStatus: gp.returnStatus || 'FULLY_RETURNED',
+        items: formattedItems,
+        inwards: formattedInwards
       };
     });
 
@@ -642,7 +714,8 @@ const getPartySummaryReport = async (params = {}) => {
           taxableAmount: 0,
           gstPercentage: 18,
           totalGst: 0,
-          totalGrandTotal: 0
+          totalGrandTotal: 0,
+          gatePasses: []
         };
       }
 
@@ -678,6 +751,57 @@ const getPartySummaryReport = async (params = {}) => {
           p.oldestPendingDate = gpDate;
         }
       }
+
+      const createdByStr = gp.createdBy
+        ? (gp.createdByDesignation ? `${gp.createdBy} (${gp.createdByDesignation})` : gp.createdBy)
+        : 'System Staff';
+
+      const gpInwards = inwards.filter(mi => mi.gatePassId?.toString() === gp._id.toString());
+      const inwardDetailsStr = gpInwards.length > 0 
+        ? gpInwards.map(mi => `${mi.inwardNumber} (${formatDate(mi.inwardDate || mi.createdAt)})`).join(', ')
+        : '-';
+
+      const gpItemsFormatted = items.map(it => {
+        const q = Number(it.quantity) || 0;
+        const recQ = Number(it.receivedQuantity) || 0;
+        const isRet = it.returnable !== false;
+        const itemPendQ = Math.max(0, (isRet ? q : 0) - recQ);
+        const r = resolveItemRate(it, rateMap);
+        const taxAmt = Math.round(q * r * 100) / 100;
+        const gstPct = taxAmt > 0 ? 18 : 0;
+        const gstAmt = taxAmt > 0 ? Math.round(taxAmt * 0.18 * 100) / 100 : 0;
+        const gTot = Math.round((taxAmt + gstAmt) * 100) / 100;
+
+        return {
+          description: it.description || it.itemDescription || 'Material Item',
+          category: it.category || 'OCR',
+          unit: it.unit || 'Nos',
+          originalQuantity: q,
+          receivedQuantity: recQ,
+          pendingQuantity: itemPendQ,
+          inwardDetailsStr,
+          rate: r,
+          taxableAmount: taxAmt,
+          gstPercentage: gstPct,
+          gstAmount: gstAmt,
+          grandTotal: gTot,
+          remarks: it.remarks || gp.remarks || '-'
+        };
+      });
+
+      p.gatePasses.push({
+        gatePassId: gp._id,
+        gatePassNumber: gp.gatePassNumber,
+        date: gp.date || gp.createdAt,
+        createdBy: createdByStr,
+        materialType: gp.passType || gp.materialType || 'Returnable',
+        purpose: gp.purpose || '-',
+        gatePassStatus: gp.gatePassStatus || 'OPEN',
+        returnStatus: gp.returnStatus || 'PENDING',
+        vendorAddress: gp.vendorAddress || '-',
+        vendorGstin: gp.vendorGstin || '-',
+        items: gpItemsFormatted
+      });
     }
 
     // Add Inward Grand Totals

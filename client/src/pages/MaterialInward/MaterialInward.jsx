@@ -159,7 +159,7 @@ const MaterialInward = () => {
       return false;
     }
 
-    if (selectedGatePass.approvalStatus !== 'Approved') {
+    if (selectedGatePass.approvalStatus === 'Pending') {
       toast.error(`Gate Pass ${selectedGatePass.gatePassNumber} is pending approval. Please approve it first.`);
       return false;
     }
@@ -380,7 +380,7 @@ const MaterialInward = () => {
   );
 
   const isGatePassUnapproved = Boolean(
-    selectedGatePass && selectedGatePass.approvalStatus !== 'Approved' && !isGatePassCancelled
+    selectedGatePass && selectedGatePass.approvalStatus === 'Pending' && !isGatePassCancelled
   );
 
   const isGatePassClosed = Boolean(

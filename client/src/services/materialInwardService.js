@@ -24,6 +24,14 @@ export const materialInwardService = {
   update: async (id, data) => {
     const response = await api.put(`/material-inward/${id}`, data);
     return response.data;
+  },
+  getInwardReceipts: async (params) => {
+    const response = await api.get('/material-inward', { params });
+    return response.data;
+  },
+  getAll: async (params) => {
+    const response = await api.get('/material-inward', { params });
+    return response.data;
   }
 };
 

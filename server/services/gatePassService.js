@@ -215,10 +215,11 @@ const deleteGatePass = async (id) => {
   }
 };
 
-const approveGatePass = async (id, { approvedBy = 'Admin' } = {}) => {
+const approveGatePass = async (id, { approvedBy = 'Admin', approvedByDesignation = '' } = {}) => {
   const payload = {
     approvalStatus: 'Approved',
     approvedBy,
+    approvedByDesignation,
     approvedAt: new Date()
   };
 

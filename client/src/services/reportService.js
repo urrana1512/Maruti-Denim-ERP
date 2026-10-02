@@ -1,6 +1,7 @@
 import api from './api';
 import ExcelJS from 'exceljs';
 import { safeFormatDate } from '../utils/dateUtils';
+import { buildDonutChartSvg, buildBarChartSvg, svgToPngBase64 } from './chartGenerator';
 
 /**
  * Client-side fallback helpers in case backend server instance is not yet restarted
@@ -350,19 +351,93 @@ const fallbackReport = async (reportType, params) => {
         const closeDate = new Date(closureDate);
         const totalDaysToClose = Math.max(0, Math.floor((closeDate.getTime() - gpDate.getTime()) / (1000 * 60 * 60 * 24)));
 
+        const createdByStr = gp.createdBy
+          ? (gp.createdByDesignation ? `${gp.createdBy} (${gp.createdByDesignation})` : gp.createdBy)
+          : 'System Staff';
+
+        const taxableAmount = items.reduce((acc, it) => {
+          const q = Number(it.quantity) || 0;
+          const r = Number(it.rate) || 500;
+          return acc + (q * r);
+        }, 0);
+
+        const avgRate = origReturnableQty > 0 && taxableAmount > 0 ? Math.round((taxableAmount / origReturnableQty) * 100) / 100 : 0;
+        const gstPercentage = taxableAmount > 0 ? 18 : 0;
+        const gstAmount = taxableAmount > 0 ? Math.round(taxableAmount * (gstPercentage / 100) * 100) / 100 : 0;
+        const grandTotal = Math.round((taxableAmount + gstAmount) * 100) / 100;
+
+        const formattedItems = items.map(it => {
+          const q = Number(it.quantity) || 0;
+          const recQ = Number(it.receivedQuantity) || 0;
+          const r = Number(it.rate) || 500;
+          const taxAmt = Math.round(q * r * 100) / 100;
+          const gstPct = taxAmt > 0 ? 18 : 0;
+          const gstAmt = taxAmt > 0 ? Math.round(taxAmt * 0.18 * 100) / 100 : 0;
+          const gTot = Math.round((taxAmt + gstAmt) * 100) / 100;
+
+          const itemInwardStr = gpInwards.length > 0 
+            ? gpInwards.map(mi => `${mi.inwardNumber} (${safeFormatDate(mi.inwardDate || mi.createdAt)})`).join(', ')
+            : '-';
+
+          return {
+            description: it.description || it.itemDescription || 'Material Item',
+            category: it.category || 'OCR',
+            unit: it.uom || it.unit || 'Nos',
+            originalQuantity: q,
+            returnedQuantity: recQ,
+            inwardDetailsStr: itemInwardStr,
+            rate: r,
+            taxableAmount: taxAmt,
+            gstPercentage: gstPct,
+            gstAmount: gstAmt,
+            grandTotal: gTot,
+            remarks: it.remarks || '-'
+          };
+        });
+
+        const formattedInwards = gpInwards.map(mi => ({
+          inwardNumber: mi.inwardNumber,
+          inwardDate: mi.inwardDate || mi.createdAt,
+          gateEntryNumber: mi.gateEntryNumber || '-',
+          challanInvoiceNumber: mi.challanInvoiceNumber || '-',
+          subtotal: Number(mi.subtotal) || 0,
+          totalGst: Number(mi.totalGst) || 0,
+          grandTotal: Number(mi.grandTotal) || 0,
+          createdBy: mi.createdBy ? (mi.createdByDesignation ? `${mi.createdBy} (${mi.createdByDesignation})` : mi.createdBy) : 'Admin',
+          approvedBy: mi.approvedBy ? (mi.approvedByDesignation ? `${mi.approvedBy} (${mi.approvedByDesignation})` : mi.approvedBy) : '-'
+        }));
+
         return {
           gatePassId: gp._id,
           gatePassNumber: gp.gatePassNumber,
           date: gp.date || gp.createdAt,
           companyName: gp.companyName,
+          vendorAddress: gp.vendorAddress || 'Not specified',
+          vendorGstin: gp.vendorGstin || '-',
+          vendorPanCard: gp.vendorPanCard || '-',
+          passType: gp.passType || gp.gatePassType || 'Returnable',
+          department: gp.department || 'GENERAL',
+          purpose: gp.purpose || '-',
+          costCentre: gp.costCentre || '-',
+          vehicleNumber: gp.vehicleNumber || '-',
+          driverName: gp.driverName || '-',
+          createdBy: createdByStr,
           originalReturnableQuantity: origReturnableQty,
           totalReturnedQuantity: totalReturnedQty,
           finalInwardNumber: finalInward ? finalInward.inwardNumber : '-',
           finalInwardDate: finalInward ? finalInward.inwardDate : null,
           closureDate,
           totalDaysToClose,
+          rate: Math.round(avgRate * 100) / 100,
+          taxableAmount: Math.round(taxableAmount * 100) / 100,
+          gstPercentage,
+          gstAmount,
+          totalGst: gstAmount,
+          grandTotal,
           gatePassStatus: gp.gatePassStatus || 'CLOSED',
-          returnStatus: gp.returnStatus || 'FULLY_RETURNED'
+          returnStatus: gp.returnStatus || 'FULLY_RETURNED',
+          items: formattedItems,
+          inwards: formattedInwards
         };
       });
 
@@ -393,7 +468,11 @@ const fallbackReport = async (reportType, params) => {
             totalReturnedQuantity: 0,
             totalPendingQuantity: 0,
             oldestPendingDate: null,
-            totalGrandTotal: 0
+            taxableAmount: 0,
+            gstPercentage: 18,
+            totalGst: 0,
+            totalGrandTotal: 0,
+            gatePasses: []
           };
         }
 
@@ -420,6 +499,58 @@ const fallbackReport = async (reportType, params) => {
             p.oldestPendingDate = gpDate;
           }
         }
+
+        const createdByStr = gp.createdBy
+          ? (gp.createdByDesignation ? `${gp.createdBy} (${gp.createdByDesignation})` : gp.createdBy)
+          : 'System Staff';
+
+        const gpInwards = rawMis.filter(mi => mi.gatePassNumber === gp.gatePassNumber || (mi.gatePassId && gp._id && mi.gatePassId.toString() === gp._id.toString()));
+        const inwardDetailsStr = gpInwards.length > 0 
+          ? gpInwards.map(mi => `${mi.inwardNumber} (${safeFormatDate(mi.inwardDate || mi.createdAt)})`).join(', ')
+          : '-';
+
+        const rateMap = buildInwardRateMapClient(rawMis);
+        const gpItemsFormatted = items.map(it => {
+          const q = Number(it.quantity) || 0;
+          const recQ = Number(it.receivedQuantity) || 0;
+          const isRet = it.returnable !== false;
+          const itemPendQ = Math.max(0, (isRet ? q : 0) - recQ);
+          const r = resolveItemRateClient(it, rateMap);
+          const taxAmt = Math.round(q * r * 100) / 100;
+          const gstPct = taxAmt > 0 ? 18 : 0;
+          const gstAmt = taxAmt > 0 ? Math.round(taxAmt * 0.18 * 100) / 100 : 0;
+          const gTot = Math.round((taxAmt + gstAmt) * 100) / 100;
+
+          return {
+            description: it.description || it.itemDescription || 'Material Item',
+            category: it.category || 'OCR',
+            unit: it.unit || 'Nos',
+            originalQuantity: q,
+            receivedQuantity: recQ,
+            pendingQuantity: itemPendQ,
+            inwardDetailsStr,
+            rate: r,
+            taxableAmount: taxAmt,
+            gstPercentage: gstPct,
+            gstAmount: gstAmt,
+            grandTotal: gTot,
+            remarks: it.remarks || gp.remarks || '-'
+          };
+        });
+
+        p.gatePasses.push({
+          gatePassId: gp._id,
+          gatePassNumber: gp.gatePassNumber,
+          date: gp.date || gp.createdAt,
+          createdBy: createdByStr,
+          materialType: gp.passType || gp.materialType || 'Returnable',
+          purpose: gp.purpose || '-',
+          gatePassStatus: gp.gatePassStatus || 'OPEN',
+          returnStatus: gp.returnStatus || 'PENDING',
+          vendorAddress: gp.vendorAddress || '-',
+          vendorGstin: gp.vendorGstin || '-',
+          items: gpItemsFormatted
+        });
       }
 
       for (const mi of rawMis) {
@@ -1004,6 +1135,1206 @@ const buildSectionWiseGatePassSheet = (workbook, reportTitle, records = []) => {
   dataSheet.getRow(currentRow).height = 26;
 };
 
+const buildSectionWisePartySummarySheet = (workbook, reportTitle, records = []) => {
+  const dataSheet = workbook.addWorksheet('Party Wise Summary', {
+    views: [{ showGridLines: true }]
+  });
+
+  const columnsConfig = [
+    { key: 'colA', width: 10 },
+    { key: 'colB', width: 20 },
+    { key: 'colC', width: 14 },
+    { key: 'colD', width: 26 },
+    { key: 'colE', width: 30 },
+    { key: 'colF', width: 14 },
+    { key: 'colG', width: 12 },
+    { key: 'colH', width: 12 },
+    { key: 'colI', width: 12 },
+    { key: 'colJ', width: 10 },
+    { key: 'colK', width: 24 },
+    { key: 'colL', width: 14 },
+    { key: 'colM', width: 16 },
+    { key: 'colN', width: 18 }
+  ];
+
+  dataSheet.columns = columnsConfig.map(c => ({ width: c.width }));
+
+  const fontMainTitle = { name: 'Calibri', size: 14, bold: true, color: { argb: 'FFFFFFFF' } };
+  const fontSecBanner = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+  const fontGpBanner = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+  const fontHeaderLabel = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF334155' } };
+  const fontHeaderValue = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF0F2A47' } };
+  const fontTableHead = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+  const fontDataCell = { name: 'Calibri', size: 10, color: { argb: 'FF1E293B' } };
+  const fontSubtotal = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF0F2A47' } };
+  const fontPartyTotal = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF0F2A47' } };
+
+  const fillMainTitle = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F2A47' } };
+  const fillSecBanner = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
+  const fillGpBanner = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF334155' } };
+  const fillLeftHeader = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+  const fillTableHead = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F2A47' } };
+  const fillSubtotal = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+  const fillPartyTotal = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0F2FE' } };
+  const fillGrandTotal = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFBAE6FD' } };
+
+  const borderThin = {
+    top: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+    left: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+    bottom: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+    right: { style: 'thin', color: { argb: 'FFCBD5E1' } }
+  };
+  const borderDouble = {
+    top: { style: 'double', color: { argb: 'FF0F2A47' } },
+    bottom: { style: 'double', color: { argb: 'FF0F2A47' } },
+    left: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+    right: { style: 'thin', color: { argb: 'FFCBD5E1' } }
+  };
+
+  let currentRow = 1;
+
+  dataSheet.mergeCells(`A${currentRow}:N${currentRow}`);
+  const titleCell = dataSheet.getCell(`A${currentRow}`);
+  titleCell.value = 'MARUTI NANDAN DENIM PVT LTD — PARTY-WISE SUMMARY & DETAILED REGISTER';
+  titleCell.font = fontMainTitle;
+  titleCell.fill = fillMainTitle;
+  titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+  dataSheet.getRow(currentRow).height = 28;
+  currentRow += 2;
+
+  if (!records || records.length === 0) {
+    dataSheet.addRow(['No Party records found for the selected filter criteria.']).font = { italic: true };
+    return;
+  }
+
+  let grandTotalGpQty = 0;
+  let grandTotalRecQty = 0;
+  let grandTotalPendQty = 0;
+  let grandTotalTaxable = 0;
+  let grandTotalAmount = 0;
+
+  records.forEach((party, pIdx) => {
+    const partyNum = pIdx + 1;
+    const partyName = party.partyName || party.companyName || 'Unknown Party';
+    const gatePasses = party.gatePasses && party.gatePasses.length > 0 ? party.gatePasses : [];
+
+    dataSheet.mergeCells(`A${currentRow}:N${currentRow}`);
+    const partyBannerCell = dataSheet.getCell(`A${currentRow}`);
+    partyBannerCell.value = `SECTION #${partyNum} | PARTY: ${partyName.toUpperCase()} | TOTAL GATE PASSES: ${party.totalGatePasses || gatePasses.length} (OPEN: ${party.openGatePasses || 0}, CLOSED: ${party.closedGatePasses || 0})`;
+    partyBannerCell.font = fontSecBanner;
+    partyBannerCell.fill = fillSecBanner;
+    partyBannerCell.alignment = { horizontal: 'left', vertical: 'middle', indent: 1 };
+    dataSheet.getRow(currentRow).height = 24;
+    currentRow++;
+
+    dataSheet.getCell(`A${currentRow}`).value = 'Party Name:';
+    dataSheet.mergeCells(`B${currentRow}:D${currentRow}`);
+    dataSheet.getCell(`B${currentRow}`).value = partyName;
+    dataSheet.getCell(`E${currentRow}`).value = 'Tot. Ret Qty:';
+    dataSheet.getCell(`F${currentRow}`).value = party.totalReturnableQuantity || 0;
+    dataSheet.getCell(`G${currentRow}`).value = 'Tot. Rec Qty:';
+    dataSheet.getCell(`H${currentRow}`).value = party.totalReturnedQuantity || 0;
+    dataSheet.getCell(`I${currentRow}`).value = 'Tot. Pend Qty:';
+    dataSheet.getCell(`J${currentRow}`).value = party.totalPendingQuantity || 0;
+    dataSheet.getCell(`K${currentRow}`).value = 'Taxable Amt:';
+    dataSheet.getCell(`L${currentRow}`).value = party.taxableAmount || 0;
+    dataSheet.getCell(`M${currentRow}`).value = 'Grand Total:';
+    dataSheet.getCell(`N${currentRow}`).value = party.grandTotal || 0;
+
+    ['A', 'E', 'G', 'I', 'K', 'M'].forEach(c => {
+      const cell = dataSheet.getCell(`${c}${currentRow}`);
+      cell.font = fontHeaderLabel; cell.fill = fillLeftHeader; cell.border = borderThin; cell.alignment = { vertical: 'middle' };
+    });
+    ['B', 'F', 'H', 'J', 'L', 'N'].forEach(c => {
+      const cell = dataSheet.getCell(`${c}${currentRow}`);
+      cell.font = fontHeaderValue; cell.border = borderThin; cell.alignment = { vertical: 'middle' };
+      if (['F','H','J'].includes(c)) cell.numFmt = '#,##0.00';
+      if (['L','N'].includes(c)) cell.numFmt = '"₹" #,##0.00';
+    });
+    dataSheet.getRow(currentRow).height = 20;
+    currentRow++;
+
+    let partyGpQty = 0;
+    let partyRecQty = 0;
+    let partyPendQty = 0;
+    let partyTaxable = 0;
+    let partyGrandTotal = 0;
+
+    if (gatePasses.length === 0) {
+      dataSheet.mergeCells(`A${currentRow}:N${currentRow}`);
+      const emptyCell = dataSheet.getCell(`A${currentRow}`);
+      emptyCell.value = 'No Gate Pass records found for this party.';
+      emptyCell.font = { italic: true, size: 10, color: { argb: 'FF64748B' } };
+      dataSheet.getRow(currentRow).height = 20;
+      currentRow++;
+    } else {
+      gatePasses.forEach((gp, gpIdx) => {
+        const gpNo = gp.gatePassNumber || '-';
+        const gpDateVal = gp.date ? safeFormatDate(gp.date) : '-';
+        const createdBy = gp.createdBy || 'System Staff';
+        const matType = gp.materialType || 'Returnable';
+        const status = gp.returnStatus || gp.gatePassStatus || 'OPEN';
+
+        dataSheet.mergeCells(`A${currentRow}:N${currentRow}`);
+        const gpBannerCell = dataSheet.getCell(`A${currentRow}`);
+        gpBannerCell.value = `  GATE PASS #${gpIdx + 1}: ${gpNo}  |  DATE: ${gpDateVal}  |  CREATED BY: ${createdBy}  |  TYPE: ${matType}  |  STATUS: ${status}`;
+        gpBannerCell.font = fontGpBanner;
+        gpBannerCell.fill = fillGpBanner;
+        gpBannerCell.alignment = { horizontal: 'left', vertical: 'middle' };
+        dataSheet.getRow(currentRow).height = 22;
+        currentRow++;
+
+        const itemHeaders = [
+          'Sr.', 'Gate Pass No.', 'GP Date', 'Created By (Designation)',
+          'Item Description', 'Category', 'Orig Qty', 'Rec Qty', 'Pend Qty',
+          'Unit', 'Inward Receipts (No. & Date)', 'Rate (₹)', 'Taxable Amt (₹)', 'Total Amt (₹)'
+        ];
+
+        const itemCols = ['A','B','C','D','E','F','G','H','I','J','K','L','M','N'];
+        itemCols.forEach((col, idx) => {
+          const cell = dataSheet.getCell(`${col}${currentRow}`);
+          cell.value = itemHeaders[idx];
+          cell.font = fontTableHead;
+          cell.fill = fillTableHead;
+          cell.alignment = { horizontal: ['G','H','I','L','M','N'].includes(col) ? 'right' : 'left', vertical: 'middle' };
+          cell.border = borderThin;
+        });
+        dataSheet.getRow(currentRow).height = 22;
+        currentRow++;
+
+        let gpSubGpQty = 0;
+        let gpSubRecQty = 0;
+        let gpSubPendQty = 0;
+        let gpSubTaxable = 0;
+        let gpSubGrandTotal = 0;
+
+        const items = gp.items && gp.items.length > 0 ? gp.items : [
+          {
+            description: gp.purpose || 'Gate Pass Item',
+            category: 'OCR',
+            originalQuantity: 0,
+            receivedQuantity: 0,
+            pendingQuantity: 0,
+            unit: 'Nos',
+            inwardDetailsStr: '-',
+            rate: 0,
+            taxableAmount: 0,
+            grandTotal: 0
+          }
+        ];
+
+        items.forEach((it, itIdx) => {
+          dataSheet.getCell(`A${currentRow}`).value = itIdx + 1;
+          dataSheet.getCell(`B${currentRow}`).value = gpNo;
+          dataSheet.getCell(`C${currentRow}`).value = gpDateVal;
+          dataSheet.getCell(`D${currentRow}`).value = createdBy;
+          dataSheet.getCell(`E${currentRow}`).value = it.description || 'Material Item';
+          dataSheet.getCell(`F${currentRow}`).value = it.category || 'OCR';
+          dataSheet.getCell(`G${currentRow}`).value = Number(it.originalQuantity) || 0;
+          dataSheet.getCell(`H${currentRow}`).value = Number(it.receivedQuantity) || 0;
+          dataSheet.getCell(`I${currentRow}`).value = Number(it.pendingQuantity) || 0;
+          dataSheet.getCell(`J${currentRow}`).value = it.unit || 'Nos';
+          dataSheet.getCell(`K${currentRow}`).value = it.inwardDetailsStr || '-';
+          dataSheet.getCell(`L${currentRow}`).value = Number(it.rate) || 0;
+          dataSheet.getCell(`M${currentRow}`).value = Number(it.taxableAmount) || 0;
+          dataSheet.getCell(`N${currentRow}`).value = Number(it.grandTotal) || 0;
+
+          itemCols.forEach(col => {
+            const cell = dataSheet.getCell(`${col}${currentRow}`);
+            cell.font = fontDataCell;
+            cell.border = borderThin;
+            cell.alignment = { horizontal: ['A','G','H','I','L','M','N'].includes(col) ? 'right' : 'left', vertical: 'middle' };
+            if (['G','H','I'].includes(col)) cell.numFmt = '#,##0.00';
+            if (['L','M','N'].includes(col)) cell.numFmt = '"₹" #,##0.00';
+          });
+          dataSheet.getRow(currentRow).height = 19;
+          currentRow++;
+
+          gpSubGpQty += Number(it.originalQuantity) || 0;
+          gpSubRecQty += Number(it.receivedQuantity) || 0;
+          gpSubPendQty += Number(it.pendingQuantity) || 0;
+          gpSubTaxable += Number(it.taxableAmount) || 0;
+          gpSubGrandTotal += Number(it.grandTotal) || 0;
+        });
+
+        dataSheet.mergeCells(`A${currentRow}:F${currentRow}`);
+        const subLabel = dataSheet.getCell(`A${currentRow}`);
+        subLabel.value = `SUBTOTAL (GP NO: ${gpNo})`;
+        subLabel.font = fontSubtotal;
+        subLabel.alignment = { horizontal: 'right', vertical: 'middle', indent: 1 };
+        subLabel.fill = fillSubtotal;
+
+        ['A','B','C','D','E','F'].forEach(c => dataSheet.getCell(`${c}${currentRow}`).border = borderThin);
+
+        dataSheet.getCell(`G${currentRow}`).value = gpSubGpQty;
+        dataSheet.getCell(`H${currentRow}`).value = gpSubRecQty;
+        dataSheet.getCell(`I${currentRow}`).value = gpSubPendQty;
+        dataSheet.getCell(`J${currentRow}`).value = '';
+        dataSheet.getCell(`K${currentRow}`).value = '';
+        dataSheet.getCell(`L${currentRow}`).value = '';
+        dataSheet.getCell(`M${currentRow}`).value = gpSubTaxable;
+        dataSheet.getCell(`N${currentRow}`).value = gpSubGrandTotal;
+
+        ['G','H','I','J','K','L','M','N'].forEach(c => {
+          const cell = dataSheet.getCell(`${c}${currentRow}`);
+          cell.font = fontSubtotal;
+          cell.fill = fillSubtotal;
+          cell.border = borderThin;
+          cell.alignment = { horizontal: 'right', vertical: 'middle' };
+          if (['G','H','I'].includes(c)) cell.numFmt = '#,##0.00';
+          if (['M','N'].includes(c)) cell.numFmt = '"₹" #,##0.00';
+        });
+
+        dataSheet.getRow(currentRow).height = 21;
+        currentRow++;
+
+        partyGpQty += gpSubGpQty;
+        partyRecQty += gpSubRecQty;
+        partyPendQty += gpSubPendQty;
+        partyTaxable += gpSubTaxable;
+        partyGrandTotal += gpSubGrandTotal;
+      });
+
+      dataSheet.mergeCells(`A${currentRow}:F${currentRow}`);
+      const partyTotLabel = dataSheet.getCell(`A${currentRow}`);
+      partyTotLabel.value = `PARTY TOTAL (${partyName.toUpperCase()})`;
+      partyTotLabel.font = fontPartyTotal;
+      partyTotLabel.alignment = { horizontal: 'right', vertical: 'middle', indent: 1 };
+      partyTotLabel.fill = fillPartyTotal;
+
+      ['A','B','C','D','E','F'].forEach(c => dataSheet.getCell(`${c}${currentRow}`).border = borderDouble);
+
+      dataSheet.getCell(`G${currentRow}`).value = partyGpQty;
+      dataSheet.getCell(`H${currentRow}`).value = partyRecQty;
+      dataSheet.getCell(`I${currentRow}`).value = partyPendQty;
+      dataSheet.getCell(`J${currentRow}`).value = '';
+      dataSheet.getCell(`K${currentRow}`).value = '';
+      dataSheet.getCell(`L${currentRow}`).value = '';
+      dataSheet.getCell(`M${currentRow}`).value = partyTaxable;
+      dataSheet.getCell(`N${currentRow}`).value = partyGrandTotal;
+
+      ['G','H','I','J','K','L','M','N'].forEach(c => {
+        const cell = dataSheet.getCell(`${c}${currentRow}`);
+        cell.font = fontPartyTotal;
+        cell.fill = fillPartyTotal;
+        cell.border = borderDouble;
+        cell.alignment = { horizontal: 'right', vertical: 'middle' };
+        if (['G','H','I'].includes(c)) cell.numFmt = '#,##0.00';
+        if (['M','N'].includes(c)) cell.numFmt = '"₹" #,##0.00';
+      });
+
+      dataSheet.getRow(currentRow).height = 24;
+      currentRow++;
+    }
+
+    grandTotalGpQty += partyGpQty;
+    grandTotalRecQty += partyRecQty;
+    grandTotalPendQty += partyPendQty;
+    grandTotalTaxable += partyTaxable;
+    grandTotalAmount += partyGrandTotal;
+
+    currentRow += 1;
+  });
+
+  dataSheet.mergeCells(`A${currentRow}:F${currentRow}`);
+  const gtLabel = dataSheet.getCell(`A${currentRow}`);
+  gtLabel.value = `GRAND TOTAL ALL PARTIES (${records.length} Parties)`;
+  gtLabel.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF0F2A47' } };
+  gtLabel.alignment = { horizontal: 'right', vertical: 'middle', indent: 1 };
+  gtLabel.fill = fillGrandTotal;
+
+  ['A','B','C','D','E','F'].forEach(c => dataSheet.getCell(`${c}${currentRow}`).border = borderDouble);
+
+  dataSheet.getCell(`G${currentRow}`).value = grandTotalGpQty;
+  dataSheet.getCell(`H${currentRow}`).value = grandTotalRecQty;
+  dataSheet.getCell(`I${currentRow}`).value = grandTotalPendQty;
+  dataSheet.getCell(`J${currentRow}`).value = '';
+  dataSheet.getCell(`K${currentRow}`).value = '';
+  dataSheet.getCell(`L${currentRow}`).value = '';
+  dataSheet.getCell(`M${currentRow}`).value = grandTotalTaxable;
+  dataSheet.getCell(`N${currentRow}`).value = grandTotalAmount;
+
+  ['G','H','I','J','K','L','M','N'].forEach(c => {
+    const cell = dataSheet.getCell(`${c}${currentRow}`);
+    cell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF0F2A47' } };
+    cell.fill = fillGrandTotal;
+    cell.border = borderDouble;
+    cell.alignment = { horizontal: 'right', vertical: 'middle' };
+    if (['G','H','I'].includes(c)) cell.numFmt = '#,##0.00';
+    if (['M','N'].includes(c)) cell.numFmt = '"₹" #,##0.00';
+  });
+
+  dataSheet.getRow(currentRow).height = 26;
+};
+
+/**
+ * Build Section-Wise Gate Pass Closure Register Worksheet (Client)
+ */
+const buildSectionWiseClosureSheet = (workbook, reportTitle, records = []) => {
+  const dataSheet = workbook.addWorksheet('Gate Pass Closure Register', {
+    views: [{ showGridLines: true }]
+  });
+
+  const columnsConfig = [
+    { key: 'colA', width: 14 },
+    { key: 'colB', width: 22 },
+    { key: 'colC', width: 14 },
+    { key: 'colD', width: 22 },
+    { key: 'colE', width: 28 },
+    { key: 'colF', width: 14 },
+    { key: 'colG', width: 14 },
+    { key: 'colH', width: 14 },
+    { key: 'colI', width: 10 },
+    { key: 'colJ', width: 26 },
+    { key: 'colK', width: 14 },
+    { key: 'colL', width: 16 },
+    { key: 'colM', width: 10 },
+    { key: 'colN', width: 14 },
+    { key: 'colO', width: 18 }
+  ];
+
+  dataSheet.columns = columnsConfig.map(c => ({ width: c.width }));
+
+  const fontMainTitle = { name: 'Calibri', size: 14, bold: true, color: { argb: 'FFFFFFFF' } };
+  const fontSecBanner = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+  const fontHeaderLabel = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF334155' } };
+  const fontHeaderValue = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF0F2A47' } };
+  const fontTableHead = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+  const fontDataCell = { name: 'Calibri', size: 10, color: { argb: 'FF1E293B' } };
+  const fontTotalCell = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF0F2A47' } };
+
+  const fillMainTitle = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F2A47' } };
+  const fillSecBanner = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
+  const fillLeftHeader = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+  const fillRightHeader = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } };
+  const fillItemHeadLeft = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
+  const fillItemHeadRight = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F2A47' } };
+  const fillSubtotal = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+  const fillGrandTotal = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0F2FE' } };
+
+  const borderThin = {
+    top: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+    left: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+    bottom: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+    right: { style: 'thin', color: { argb: 'FFCBD5E1' } }
+  };
+  const borderDouble = {
+    top: { style: 'double', color: { argb: 'FF0F2A47' } },
+    bottom: { style: 'double', color: { argb: 'FF0F2A47' } },
+    left: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+    right: { style: 'thin', color: { argb: 'FFCBD5E1' } }
+  };
+
+  let currentRow = 1;
+
+  dataSheet.mergeCells(`A${currentRow}:O${currentRow}`);
+  const titleCell = dataSheet.getCell(`A${currentRow}`);
+  titleCell.value = 'MARUTI NANDAN DENIM PVT LTD — GATE PASS CLOSURE & INWARD AUDIT REPORT (SECTION-WISE)';
+  titleCell.font = fontMainTitle;
+  titleCell.fill = fillMainTitle;
+  titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+  dataSheet.getRow(currentRow).height = 28;
+  currentRow += 2;
+
+  if (!records || records.length === 0) {
+    dataSheet.addRow(['No Closed Gate Pass records found for the selected filter criteria.']).font = { italic: true };
+    return;
+  }
+
+  let grandOrigQty = 0;
+  let grandRetQty = 0;
+  let grandTaxable = 0;
+  let grandGst = 0;
+  let grandAmount = 0;
+
+  records.forEach((gp, idx) => {
+    const sectionNum = idx + 1;
+    const gpNo = gp.gatePassNumber || 'UNKNOWN';
+    const partyName = gp.companyName || '-';
+
+    dataSheet.mergeCells(`A${currentRow}:O${currentRow}`);
+    const bannerCell = dataSheet.getCell(`A${currentRow}`);
+    bannerCell.value = `SECTION #${sectionNum} | CLOSED GATE PASS NO: ${gpNo} | PARTY: ${partyName.toUpperCase()} | CLOSURE DATE: ${safeFormatDate(gp.closureDate || gp.finalInwardDate)}`;
+    bannerCell.font = fontSecBanner;
+    bannerCell.fill = fillSecBanner;
+    bannerCell.alignment = { horizontal: 'left', vertical: 'middle', indent: 1 };
+    dataSheet.getRow(currentRow).height = 24;
+    currentRow++;
+
+    // Row 1
+    dataSheet.getCell(`A${currentRow}`).value = 'Gate Pass No.:';
+    dataSheet.mergeCells(`B${currentRow}:D${currentRow}`);
+    dataSheet.getCell(`B${currentRow}`).value = `${gpNo} (Date: ${safeFormatDate(gp.date)})`;
+
+    dataSheet.getCell(`E${currentRow}`).value = 'Pass Type / Dept:';
+    dataSheet.mergeCells(`F${currentRow}:O${currentRow}`);
+    dataSheet.getCell(`F${currentRow}`).value = `${gp.passType || 'Returnable'} | Department: ${gp.department || 'GENERAL'}`;
+
+    dataSheet.getCell(`A${currentRow}`).font = fontHeaderLabel;
+    dataSheet.getCell(`A${currentRow}`).fill = fillLeftHeader;
+    dataSheet.getCell(`A${currentRow}`).border = borderThin;
+    dataSheet.getCell(`A${currentRow}`).alignment = { vertical: 'middle' };
+    dataSheet.getCell(`B${currentRow}`).font = fontHeaderValue;
+    dataSheet.getCell(`B${currentRow}`).border = borderThin;
+    dataSheet.getCell(`B${currentRow}`).alignment = { vertical: 'middle' };
+
+    dataSheet.getCell(`E${currentRow}`).font = fontHeaderLabel;
+    dataSheet.getCell(`E${currentRow}`).fill = fillRightHeader;
+    dataSheet.getCell(`E${currentRow}`).border = borderThin;
+    dataSheet.getCell(`E${currentRow}`).alignment = { vertical: 'middle' };
+    dataSheet.getCell(`F${currentRow}`).font = fontHeaderValue;
+    dataSheet.getCell(`F${currentRow}`).border = borderThin;
+    dataSheet.getCell(`F${currentRow}`).alignment = { vertical: 'middle' };
+
+    dataSheet.getRow(currentRow).height = 20;
+    currentRow++;
+
+    // Row 2
+    dataSheet.getCell(`A${currentRow}`).value = 'Party / Vendor:';
+    dataSheet.mergeCells(`B${currentRow}:D${currentRow}`);
+    dataSheet.getCell(`B${currentRow}`).value = `${partyName} ${gp.vendorGstin && gp.vendorGstin !== '-' ? '(GSTIN: ' + gp.vendorGstin + ')' : ''}`;
+
+    dataSheet.getCell(`E${currentRow}`).value = 'Vendor Address:';
+    dataSheet.mergeCells(`F${currentRow}:O${currentRow}`);
+    dataSheet.getCell(`F${currentRow}`).value = gp.vendorAddress || 'Not specified';
+
+    dataSheet.getCell(`A${currentRow}`).font = fontHeaderLabel;
+    dataSheet.getCell(`A${currentRow}`).fill = fillLeftHeader;
+    dataSheet.getCell(`A${currentRow}`).border = borderThin;
+    dataSheet.getCell(`A${currentRow}`).alignment = { vertical: 'middle' };
+    dataSheet.getCell(`B${currentRow}`).font = fontHeaderValue;
+    dataSheet.getCell(`B${currentRow}`).border = borderThin;
+    dataSheet.getCell(`B${currentRow}`).alignment = { vertical: 'middle' };
+
+    dataSheet.getCell(`E${currentRow}`).font = fontHeaderLabel;
+    dataSheet.getCell(`E${currentRow}`).fill = fillRightHeader;
+    dataSheet.getCell(`E${currentRow}`).border = borderThin;
+    dataSheet.getCell(`E${currentRow}`).alignment = { vertical: 'middle' };
+    dataSheet.getCell(`F${currentRow}`).font = fontHeaderValue;
+    dataSheet.getCell(`F${currentRow}`).border = borderThin;
+    dataSheet.getCell(`F${currentRow}`).alignment = { vertical: 'middle' };
+
+    dataSheet.getRow(currentRow).height = 20;
+    currentRow++;
+
+    // Row 3
+    dataSheet.getCell(`A${currentRow}`).value = 'Created By:';
+    dataSheet.mergeCells(`B${currentRow}:D${currentRow}`);
+    dataSheet.getCell(`B${currentRow}`).value = gp.createdBy || 'System Staff';
+
+    dataSheet.getCell(`E${currentRow}`).value = 'Vehicle / Driver:';
+    dataSheet.mergeCells(`F${currentRow}:H${currentRow}`);
+    dataSheet.getCell(`F${currentRow}`).value = `${gp.vehicleNumber || '-'} ${gp.driverName && gp.driverName !== '-' ? ' / Driver: ' + gp.driverName : ''}`;
+
+    dataSheet.mergeCells(`I${currentRow}:J${currentRow}`);
+    dataSheet.getCell(`I${currentRow}`).value = 'Purpose / Cost Ctr:';
+    dataSheet.mergeCells(`K${currentRow}:O${currentRow}`);
+    dataSheet.getCell(`K${currentRow}`).value = `${gp.purpose || '-'} | Cost Ctr: ${gp.costCentre || '-'}`;
+
+    dataSheet.getCell(`A${currentRow}`).font = fontHeaderLabel;
+    dataSheet.getCell(`A${currentRow}`).fill = fillLeftHeader;
+    dataSheet.getCell(`A${currentRow}`).border = borderThin;
+    dataSheet.getCell(`A${currentRow}`).alignment = { vertical: 'middle' };
+    dataSheet.getCell(`B${currentRow}`).font = fontHeaderValue;
+    dataSheet.getCell(`B${currentRow}`).border = borderThin;
+    dataSheet.getCell(`B${currentRow}`).alignment = { vertical: 'middle' };
+
+    ['E', 'I'].forEach(c => {
+      const cell = dataSheet.getCell(`${c}${currentRow}`);
+      cell.font = fontHeaderLabel; cell.fill = fillRightHeader; cell.border = borderThin; cell.alignment = { vertical: 'middle' };
+    });
+    ['F', 'K'].forEach(c => {
+      const cell = dataSheet.getCell(`${c}${currentRow}`);
+      cell.font = fontHeaderValue; cell.border = borderThin; cell.alignment = { vertical: 'middle' };
+    });
+
+    dataSheet.getRow(currentRow).height = 20;
+    currentRow++;
+
+    // Row 4
+    dataSheet.getCell(`A${currentRow}`).value = 'Days to Close:';
+    dataSheet.mergeCells(`B${currentRow}:D${currentRow}`);
+    dataSheet.getCell(`B${currentRow}`).value = `${gp.totalDaysToClose || 0} Days (Closed: ${safeFormatDate(gp.closureDate)})`;
+
+    dataSheet.getCell(`E${currentRow}`).value = 'Final Inward No.:';
+    dataSheet.mergeCells(`F${currentRow}:H${currentRow}`);
+    dataSheet.getCell(`F${currentRow}`).value = gp.finalInwardNumber || '-';
+
+    dataSheet.mergeCells(`I${currentRow}:J${currentRow}`);
+    dataSheet.getCell(`I${currentRow}`).value = 'Return Status:';
+    dataSheet.mergeCells(`K${currentRow}:O${currentRow}`);
+    const badgeCell = dataSheet.getCell(`K${currentRow}`);
+    badgeCell.value = gp.returnStatus || 'FULLY_RETURNED';
+    badgeCell.font = { name: 'Calibri', size: 9, bold: true, color: { argb: 'FF065F46' } };
+    badgeCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDCFCE7' } };
+    badgeCell.alignment = { horizontal: 'center', vertical: 'middle' };
+    badgeCell.border = borderThin;
+
+    dataSheet.getCell(`A${currentRow}`).font = fontHeaderLabel;
+    dataSheet.getCell(`A${currentRow}`).fill = fillLeftHeader;
+    dataSheet.getCell(`A${currentRow}`).border = borderThin;
+    dataSheet.getCell(`A${currentRow}`).alignment = { vertical: 'middle' };
+    dataSheet.getCell(`B${currentRow}`).font = fontHeaderValue;
+    dataSheet.getCell(`B${currentRow}`).border = borderThin;
+    dataSheet.getCell(`B${currentRow}`).alignment = { vertical: 'middle' };
+
+    ['E', 'I'].forEach(c => {
+      const cell = dataSheet.getCell(`${c}${currentRow}`);
+      cell.font = fontHeaderLabel; cell.fill = fillRightHeader; cell.border = borderThin; cell.alignment = { vertical: 'middle' };
+    });
+    dataSheet.getCell(`F${currentRow}`).font = fontHeaderValue;
+    dataSheet.getCell(`F${currentRow}`).border = borderThin;
+    dataSheet.getCell(`F${currentRow}`).alignment = { vertical: 'middle' };
+
+    dataSheet.getRow(currentRow).height = 20;
+    currentRow++;
+
+    // Items table header
+    dataSheet.mergeCells(`A${currentRow}:D${currentRow}`);
+    dataSheet.getCell(`A${currentRow}`).value = 'GATE PASS ITEMS & INWARD AUDIT SPECIFICATION';
+    dataSheet.getCell(`A${currentRow}`).font = fontTableHead;
+    dataSheet.getCell(`A${currentRow}`).fill = fillItemHeadLeft;
+    dataSheet.getCell(`A${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' };
+
+    const itemHeaders = [
+      { col: 'E', title: 'Item Description', align: 'left' },
+      { col: 'F', title: 'Category', align: 'center' },
+      { col: 'G', title: 'Orig. Return Qty', align: 'right' },
+      { col: 'H', title: 'Total Rec. Qty', align: 'right' },
+      { col: 'I', title: 'Unit', align: 'center' },
+      { col: 'J', title: 'Inward Receipts (Voucher & Date)', align: 'left' },
+      { col: 'K', title: 'Rate (₹)', align: 'right' },
+      { col: 'L', title: 'Taxable Amt (₹)', align: 'right' },
+      { col: 'M', title: 'GST %', align: 'center' },
+      { col: 'N', title: 'GST Amt (₹)', align: 'right' },
+      { col: 'O', title: 'Total Amount (₹)', align: 'right' }
+    ];
+
+    itemHeaders.forEach(h => {
+      const cell = dataSheet.getCell(`${h.col}${currentRow}`);
+      cell.value = h.title;
+      cell.font = fontTableHead;
+      cell.fill = fillItemHeadRight;
+      cell.alignment = { horizontal: h.align, vertical: 'middle' };
+      cell.border = borderThin;
+    });
+    dataSheet.getRow(currentRow).height = 22;
+    currentRow++;
+
+    let secOrigQty = 0;
+    let secRetQty = 0;
+    let secTaxable = 0;
+    let secGst = 0;
+    let secTotal = 0;
+
+    const items = gp.items || [];
+    items.forEach((it, itemIdx) => {
+      dataSheet.mergeCells(`A${currentRow}:D${currentRow}`);
+      const itemLabel = dataSheet.getCell(`A${currentRow}`);
+      itemLabel.value = `Item #${itemIdx + 1}`;
+      itemLabel.font = { name: 'Calibri', size: 9, italic: true, color: { argb: 'FF64748B' } };
+      itemLabel.alignment = { horizontal: 'center', vertical: 'middle' };
+      itemLabel.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFAFAFA' } };
+      itemLabel.border = borderThin;
+
+      const origQ = Number(it.originalQuantity) || Number(it.quantity) || 0;
+      const recQ = Number(it.returnedQuantity) || Number(it.receivedQuantity) || 0;
+      const rateVal = Number(it.rate) || 0;
+      const taxableVal = Number(it.taxableAmount) || (origQ * rateVal);
+      const gstPct = Number(it.gstPercentage) || (taxableVal > 0 ? 18 : 0);
+      const gstVal = Number(it.gstAmount) || (taxableVal * (gstPct / 100));
+      const totalVal = Number(it.grandTotal || it.totalAmount) || (taxableVal + gstVal);
+
+      secOrigQty += origQ;
+      secRetQty += recQ;
+      secTaxable += taxableVal;
+      secGst += gstVal;
+      secTotal += totalVal;
+
+      dataSheet.getCell(`E${currentRow}`).value = it.description || it.itemDescription || '-';
+      dataSheet.getCell(`F${currentRow}`).value = it.category || 'OCR';
+      dataSheet.getCell(`G${currentRow}`).value = origQ;
+      dataSheet.getCell(`H${currentRow}`).value = recQ;
+      dataSheet.getCell(`I${currentRow}`).value = it.unit || it.uom || 'Nos';
+      dataSheet.getCell(`J${currentRow}`).value = it.inwardDetailsStr || '-';
+      dataSheet.getCell(`K${currentRow}`).value = rateVal;
+      dataSheet.getCell(`L${currentRow}`).value = taxableVal;
+      dataSheet.getCell(`M${currentRow}`).value = `${gstPct}%`;
+      dataSheet.getCell(`N${currentRow}`).value = gstVal;
+      dataSheet.getCell(`O${currentRow}`).value = totalVal;
+
+      ['E', 'F', 'J'].forEach(c => dataSheet.getCell(`${c}${currentRow}`).alignment = { horizontal: c === 'F' ? 'center' : 'left', vertical: 'middle' });
+      ['G', 'H'].forEach(c => {
+        const cell = dataSheet.getCell(`${c}${currentRow}`);
+        cell.alignment = { horizontal: 'right', vertical: 'middle' };
+        cell.numFmt = '#,##0.00';
+      });
+      ['I', 'M'].forEach(c => dataSheet.getCell(`${c}${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' });
+      ['K', 'L', 'N', 'O'].forEach(c => {
+        const cell = dataSheet.getCell(`${c}${currentRow}`);
+        cell.alignment = { horizontal: 'right', vertical: 'middle' };
+        cell.numFmt = '"₹" #,##0.00';
+      });
+
+      ['E','F','G','H','I','J','K','L','M','N','O'].forEach(c => {
+        dataSheet.getCell(`${c}${currentRow}`).font = fontDataCell;
+        dataSheet.getCell(`${c}${currentRow}`).border = borderThin;
+      });
+
+      dataSheet.getRow(currentRow).height = 20;
+      currentRow++;
+    });
+
+    grandOrigQty += secOrigQty;
+    grandRetQty += secRetQty;
+    grandTaxable += secTaxable;
+    grandGst += secGst;
+    grandAmount += secTotal;
+
+    // Section Summary
+    dataSheet.mergeCells(`A${currentRow}:F${currentRow}`);
+    const secTotalLabel = dataSheet.getCell(`A${currentRow}`);
+    secTotalLabel.value = `SECTION TOTALS (${gpNo}):`;
+    secTotalLabel.font = fontTotalCell;
+    secTotalLabel.alignment = { horizontal: 'right', vertical: 'middle' };
+    secTotalLabel.fill = fillSubtotal;
+    secTotalLabel.border = borderDouble;
+
+    const cellG = dataSheet.getCell(`G${currentRow}`);
+    cellG.value = secOrigQty;
+    cellG.font = fontTotalCell;
+    cellG.alignment = { horizontal: 'right', vertical: 'middle' };
+    cellG.numFmt = '#,##0.00';
+    cellG.fill = fillSubtotal;
+    cellG.border = borderDouble;
+
+    const cellH = dataSheet.getCell(`H${currentRow}`);
+    cellH.value = secRetQty;
+    cellH.font = fontTotalCell;
+    cellH.alignment = { horizontal: 'right', vertical: 'middle' };
+    cellH.numFmt = '#,##0.00';
+    cellH.fill = fillSubtotal;
+    cellH.border = borderDouble;
+
+    ['I', 'J', 'K'].forEach(c => {
+      const cell = dataSheet.getCell(`${c}${currentRow}`);
+      cell.value = '-'; cell.alignment = { horizontal: 'center', vertical: 'middle' };
+      cell.fill = fillSubtotal; cell.border = borderDouble;
+    });
+
+    const cellL = dataSheet.getCell(`L${currentRow}`);
+    cellL.value = secTaxable;
+    cellL.font = fontTotalCell;
+    cellL.alignment = { horizontal: 'right', vertical: 'middle' };
+    cellL.numFmt = '"₹" #,##0.00';
+    cellL.fill = fillSubtotal;
+    cellL.border = borderDouble;
+
+    const cellM = dataSheet.getCell(`M${currentRow}`);
+    cellM.value = '-'; cellM.alignment = { horizontal: 'center', vertical: 'middle' };
+    cellM.fill = fillSubtotal; cellM.border = borderDouble;
+
+    const cellN = dataSheet.getCell(`N${currentRow}`);
+    cellN.value = secGst;
+    cellN.font = fontTotalCell;
+    cellN.alignment = { horizontal: 'right', vertical: 'middle' };
+    cellN.numFmt = '"₹" #,##0.00';
+    cellN.fill = fillSubtotal;
+    cellN.border = borderDouble;
+
+    const cellO = dataSheet.getCell(`O${currentRow}`);
+    cellO.value = secTotal;
+    cellO.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF0F2A47' } };
+    cellO.alignment = { horizontal: 'right', vertical: 'middle' };
+    cellO.numFmt = '"₹" #,##0.00';
+    cellO.fill = fillGrandTotal;
+    cellO.border = borderDouble;
+
+    dataSheet.getRow(currentRow).height = 22;
+    currentRow++;
+
+    // Inward Vouchers Log
+    const inwards = gp.inwards || [];
+    if (inwards.length > 0) {
+      currentRow++;
+      dataSheet.mergeCells(`A${currentRow}:O${currentRow}`);
+      const invHead = dataSheet.getCell(`A${currentRow}`);
+      invHead.value = `INWARD RECEIPT VOUCHERS AUDIT LOG FOR ${gpNo} (${inwards.length} RECEIPT VOUCHERS)`;
+      invHead.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+      invHead.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF3B82F6' } };
+      invHead.alignment = { horizontal: 'left', vertical: 'middle', indent: 1 };
+      dataSheet.getRow(currentRow).height = 22;
+      currentRow++;
+
+      dataSheet.mergeCells(`A${currentRow}:D${currentRow}`);
+      dataSheet.getCell(`A${currentRow}`).value = 'Inward Voucher No. & Date';
+      dataSheet.mergeCells(`E${currentRow}:H${currentRow}`);
+      dataSheet.getCell(`E${currentRow}`).value = 'Gate Entry & Invoice No.';
+      dataSheet.mergeCells(`I${currentRow}:J${currentRow}`);
+      dataSheet.getCell(`I${currentRow}`).value = 'Subtotal Taxable (₹)';
+      dataSheet.mergeCells(`K${currentRow}:L${currentRow}`);
+      dataSheet.getCell(`K${currentRow}`).value = 'Total GST (₹)';
+      dataSheet.mergeCells(`M${currentRow}:N${currentRow}`);
+      dataSheet.getCell(`M${currentRow}`).value = 'Grand Total (₹)';
+      dataSheet.getCell(`O${currentRow}`).value = 'Created & Approved By';
+
+      ['A', 'E', 'I', 'K', 'M', 'O'].forEach(c => {
+        const cell = dataSheet.getCell(`${c}${currentRow}`);
+        cell.font = { name: 'Calibri', size: 9, bold: true, color: { argb: 'FF1E293B' } };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEFF6FF' } };
+        cell.alignment = { horizontal: ['I','K','M'].includes(c) ? 'right' : 'center', vertical: 'middle' };
+        cell.border = borderThin;
+      });
+      dataSheet.getRow(currentRow).height = 20;
+      currentRow++;
+
+      inwards.forEach(mi => {
+        dataSheet.mergeCells(`A${currentRow}:D${currentRow}`);
+        dataSheet.getCell(`A${currentRow}`).value = `${mi.inwardNumber} (${safeFormatDate(mi.inwardDate)})`;
+        dataSheet.mergeCells(`E${currentRow}:H${currentRow}`);
+        dataSheet.getCell(`E${currentRow}`).value = `GE: ${mi.gateEntryNumber} | Inv: ${mi.challanInvoiceNumber}`;
+        dataSheet.mergeCells(`I${currentRow}:J${currentRow}`);
+        const cI = dataSheet.getCell(`I${currentRow}`);
+        cI.value = Number(mi.subtotal) || 0;
+        cI.numFmt = '"₹" #,##0.00';
+        dataSheet.mergeCells(`K${currentRow}:L${currentRow}`);
+        const cK = dataSheet.getCell(`K${currentRow}`);
+        cK.value = Number(mi.totalGst) || 0;
+        cK.numFmt = '"₹" #,##0.00';
+        dataSheet.mergeCells(`M${currentRow}:N${currentRow}`);
+        const cM = dataSheet.getCell(`M${currentRow}`);
+        cM.value = Number(mi.grandTotal) || 0;
+        cM.numFmt = '"₹" #,##0.00';
+        dataSheet.getCell(`O${currentRow}`).value = `Created: ${mi.createdBy} | Appr: ${mi.approvedBy}`;
+
+        ['A', 'E', 'I', 'K', 'M', 'O'].forEach(c => {
+          const cell = dataSheet.getCell(`${c}${currentRow}`);
+          cell.font = fontDataCell;
+          cell.border = borderThin;
+          cell.alignment = { horizontal: ['I','K','M'].includes(c) ? 'right' : 'left', vertical: 'middle' };
+        });
+        dataSheet.getRow(currentRow).height = 18;
+        currentRow++;
+      });
+    }
+
+    currentRow += 2;
+  });
+
+  // Grand Summary Banner Row
+  dataSheet.mergeCells(`A${currentRow}:F${currentRow}`);
+  const grandLabel = dataSheet.getCell(`A${currentRow}`);
+  grandLabel.value = `GRAND TOTAL (ALL ${records.length} CLOSED GATE PASS SECTIONS):`;
+  grandLabel.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+  grandLabel.alignment = { horizontal: 'right', vertical: 'middle' };
+  grandLabel.fill = fillSecBanner;
+
+  const gCellG = dataSheet.getCell(`G${currentRow}`);
+  gCellG.value = grandOrigQty;
+  gCellG.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+  gCellG.alignment = { horizontal: 'right', vertical: 'middle' };
+  gCellG.numFmt = '#,##0.00';
+  gCellG.fill = fillSecBanner;
+
+  const gCellH = dataSheet.getCell(`H${currentRow}`);
+  gCellH.value = grandRetQty;
+  gCellH.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+  gCellH.alignment = { horizontal: 'right', vertical: 'middle' };
+  gCellH.numFmt = '#,##0.00';
+  gCellH.fill = fillSecBanner;
+
+  ['I', 'J', 'K'].forEach(c => {
+    const cell = dataSheet.getCell(`${c}${currentRow}`);
+    cell.value = '-'; cell.alignment = { horizontal: 'center', vertical: 'middle' };
+    cell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+    cell.fill = fillSecBanner;
+  });
+
+  const gCellL = dataSheet.getCell(`L${currentRow}`);
+  gCellL.value = grandTaxable;
+  gCellL.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+  gCellL.alignment = { horizontal: 'right', vertical: 'middle' };
+  gCellL.numFmt = '"₹" #,##0.00';
+  gCellL.fill = fillSecBanner;
+
+  const gCellM = dataSheet.getCell(`M${currentRow}`);
+  gCellM.value = '-'; gCellM.alignment = { horizontal: 'center', vertical: 'middle' };
+  gCellM.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+  gCellM.fill = fillSecBanner;
+
+  const gCellN = dataSheet.getCell(`N${currentRow}`);
+  gCellN.value = grandGst;
+  gCellN.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+  gCellN.alignment = { horizontal: 'right', vertical: 'middle' };
+  gCellN.numFmt = '"₹" #,##0.00';
+  gCellN.fill = fillSecBanner;
+
+  const gCellO = dataSheet.getCell(`O${currentRow}`);
+  gCellO.value = grandAmount;
+  gCellO.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+  gCellO.alignment = { horizontal: 'right', vertical: 'middle' };
+  gCellO.numFmt = '"₹" #,##0.00';
+  gCellO.fill = fillSecBanner;
+
+  dataSheet.getRow(currentRow).height = 25;
+};
+
+/**
+ * Helper: Build Visual Charts & Information Callouts on Report Summary Sheet (Client Browser)
+ */
+const attachVisualDashboardToClientSummarySheet = async (workbook, summarySheet, reportType, reportTitle, records) => {
+  let chart1Svg = null;
+  let chart2Svg = null;
+  let sectionTitle = 'EXECUTIVE SUMMARY & OPERATIONAL INSIGHTS';
+  let insightsData = [];
+
+  const safeRecords = Array.isArray(records) ? records : [];
+
+  if (reportType === 'gate-pass') {
+    const returnableCount = safeRecords.filter(r => (r.passType || r.materialType) === 'Returnable' || (Number(r.returnableQuantity) || 0) > 0).length;
+    const nonReturnableCount = safeRecords.length - returnableCount;
+
+    chart1Svg = buildDonutChartSvg({
+      title: 'Gate Pass Type Distribution',
+      subtitle: 'Returnable vs Non-Returnable Material Passes',
+      centerText: String(safeRecords.length),
+      centerSub: 'TOTAL PASSES',
+      items: [
+        { label: 'Returnable Passes', value: returnableCount, color: '#10B981' },
+        { label: 'Non-Returnable Passes', value: nonReturnableCount, color: '#3B82F6' }
+      ]
+    });
+
+    const partyCounts = {};
+    safeRecords.forEach(r => {
+      const p = r.companyName || r.partyName || 'Unknown';
+      partyCounts[p] = (partyCounts[p] || 0) + 1;
+    });
+    const topParties = Object.entries(partyCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([label, value], idx) => ({
+        label,
+        value,
+        color: ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899'][idx % 5]
+      }));
+
+    chart2Svg = buildBarChartSvg({
+      title: 'Top Vendors / Parties',
+      subtitle: 'By Total Gate Passes Created',
+      items: topParties,
+      valueSuffix: ' Passes'
+    });
+
+    sectionTitle = 'GATE PASS OPERATIONAL & FULFILLMENT INSIGHTS';
+    const totRetQty = safeRecords.reduce((sum, r) => sum + (Number(r.returnableQuantity) || Number(r.totalQuantity) || 0), 0);
+    const totRecQty = safeRecords.reduce((sum, r) => sum + (Number(r.returnedQuantity) || 0), 0);
+    const totBalQty = safeRecords.reduce((sum, r) => sum + (Number(r.balanceReturnableQuantity) || Number(r.pendingQuantity) || 0), 0);
+
+    insightsData = [
+      { metric: 'Total Gate Passes', value: safeRecords.length, note: 'Total gate passes generated in selected period' },
+      { metric: 'Returnable Ratio', value: `${safeRecords.length > 0 ? Math.round((returnableCount / safeRecords.length) * 100) : 0}%`, note: `${returnableCount} Returnable / ${nonReturnableCount} Non-Returnable` },
+      { metric: 'Total Issued Quantity', value: totRetQty.toLocaleString('en-IN'), note: 'Cumulative returnable material quantity issued' },
+      { metric: 'Total Returned Quantity', value: totRecQty.toLocaleString('en-IN'), note: 'Material successfully inwarded and verified at security gate' },
+      { metric: 'Outstanding Balance Qty', value: totBalQty.toLocaleString('en-IN'), note: 'Remaining material pending return from parties' },
+      { metric: 'Primary Vendor Partner', value: topParties[0]?.label || 'N/A', note: `Highest activity partner with ${topParties[0]?.value || 0} gate passes` }
+    ];
+  } else if (reportType === 'material-inward') {
+    const totRecQty = safeRecords.reduce((sum, r) => sum + (Number(r.receivedQuantity) || 0), 0);
+    const totTaxable = safeRecords.reduce((sum, r) => sum + (Number(r.subtotal) || Number(r.taxableAmount) || 0), 0);
+    const totGst = safeRecords.reduce((sum, r) => sum + (Number(r.totalGst) || Number(r.gstAmount) || 0), 0);
+    const totGrand = safeRecords.reduce((sum, r) => sum + (Number(r.grandTotal) || 0), 0);
+
+    const partyAmounts = {};
+    safeRecords.forEach(r => {
+      const p = r.partyName || r.companyName || 'Unknown Party';
+      partyAmounts[p] = (partyAmounts[p] || 0) + (Number(r.grandTotal) || Number(r.subtotal) || 1);
+    });
+    const topInwardParties = Object.entries(partyAmounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([label, value], idx) => ({
+        label,
+        value,
+        color: ['#10B981', '#3B82F6', '#8B5CF6', '#F59E0B', '#EC4899'][idx % 5],
+        prefix: '₹'
+      }));
+
+    chart1Svg = buildDonutChartSvg({
+      title: 'Top Inward Vendors by Value',
+      subtitle: 'Share of Material Grand Total (₹)',
+      centerText: `₹${Math.round(totGrand / 1000)}k`,
+      centerSub: 'NET VALUE',
+      items: topInwardParties
+    });
+
+    const partyVouchers = {};
+    safeRecords.forEach(r => {
+      const p = r.partyName || r.companyName || 'Unknown Party';
+      partyVouchers[p] = (partyVouchers[p] || 0) + 1;
+    });
+    const topVoucherParties = Object.entries(partyVouchers)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([label, value], idx) => ({
+        label,
+        value,
+        color: ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899'][idx % 5]
+      }));
+
+    chart2Svg = buildBarChartSvg({
+      title: 'Inward Receipt Vouchers',
+      subtitle: 'Voucher count per vendor',
+      items: topVoucherParties,
+      valueSuffix: ' Receipts'
+    });
+
+    sectionTitle = 'MATERIAL INWARD AUDIT & VENDOR VALUATION INSIGHTS';
+    insightsData = [
+      { metric: 'Total Inward Vouchers', value: safeRecords.length, note: 'Total material inward receipts logged at gate' },
+      { metric: 'Total Material Received', value: totRecQty.toLocaleString('en-IN'), note: 'Physical material quantity verified and accepted' },
+      { metric: 'Taxable Inward Amount', value: `₹${totTaxable.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, note: 'Subtotal before GST taxes' },
+      { metric: 'GST Tax Amount', value: `₹${totGst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, note: 'Input Tax Credit (ITC) GST component' },
+      { metric: 'Grand Total Value', value: `₹${totGrand.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, note: 'Net inward financial valuation' },
+      { metric: 'Top Vendor Supplier', value: topInwardParties[0]?.label || 'N/A', note: `Highest valuation supplier at ₹${(topInwardParties[0]?.value || 0).toLocaleString('en-IN')}` }
+    ];
+  } else if (reportType === 'combined' || reportType === 'gate-pass-closure') {
+    const closedCount = safeRecords.filter(r => ['CLOSED', 'FULLY_RETURNED'].includes(String(r.returnStatus || r.gatePassStatus).toUpperCase())).length;
+    const partialCount = safeRecords.filter(r => String(r.returnStatus).toUpperCase() === 'PARTIALLY_RETURNED').length;
+    const pendingCount = safeRecords.length - closedCount - partialCount;
+
+    chart1Svg = buildDonutChartSvg({
+      title: 'Gate Pass Closure Ratio',
+      subtitle: 'Fulfillment ratio across all gate passes',
+      centerText: `${safeRecords.length > 0 ? Math.round((closedCount / safeRecords.length) * 100) : 0}%`,
+      centerSub: 'CLOSED RATE',
+      items: [
+        { label: 'Fully Closed / Returned', value: closedCount, color: '#10B981' },
+        { label: 'Partially Returned', value: partialCount, color: '#F59E0B' },
+        { label: 'Open / Pending Return', value: pendingCount, color: '#EF4444' }
+      ]
+    });
+
+    const totTaxable = safeRecords.reduce((sum, r) => sum + (Number(r.taxableAmount) || Number(r.subtotal) || 0), 0);
+    const totGst = safeRecords.reduce((sum, r) => sum + (Number(r.gstAmount) || Number(r.totalGst) || 0), 0);
+    const totGrand = safeRecords.reduce((sum, r) => sum + (Number(r.grandTotal) || 0), 0);
+
+    chart2Svg = buildBarChartSvg({
+      title: 'Financial Valuation Breakdown',
+      subtitle: 'Taxable Amount, GST & Net Valuation (₹)',
+      items: [
+        { label: 'Taxable Amount (₹)', value: totTaxable, color: '#3B82F6', prefix: '₹' },
+        { label: 'Total GST Amount (₹)', value: totGst, color: '#8B5CF6', prefix: '₹' },
+        { label: 'Grand Total Value (₹)', value: totGrand, color: '#10B981', prefix: '₹' }
+      ]
+    });
+
+    sectionTitle = 'GATE PASS CLOSURE & FINANCIAL VALUATION INSIGHTS';
+    insightsData = [
+      { metric: 'Total Gate Passes Analyzed', value: safeRecords.length, note: 'Complete ledger records analyzed' },
+      { metric: 'Closure Compliance Rate', value: `${safeRecords.length > 0 ? Math.round((closedCount / safeRecords.length) * 100) : 0}%`, note: `${closedCount} Fully Closed / ${pendingCount} Open` },
+      { metric: 'Taxable Asset Valuation', value: `₹${totTaxable.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, note: 'Taxable base of gate pass items' },
+      { metric: 'Cumulative GST Value', value: `₹${totGst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, note: 'Applicable GST on gate pass materials' },
+      { metric: 'Grand Total Asset Value', value: `₹${totGrand.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, note: 'Total material financial liability' },
+      { metric: 'Operational Status', value: pendingCount === 0 ? 'Optimal (0 Open)' : `${pendingCount} Open Passes Require Follow-up`, note: 'Actionable return tracking status' }
+    ];
+  } else if (reportType === 'party-summary') {
+    const top5PartiesByGps = [...safeRecords]
+      .sort((a, b) => (Number(b.totalGatePasses) || 0) - (Number(a.totalGatePasses) || 0))
+      .slice(0, 5)
+      .map((r, idx) => ({
+        label: r.partyName || r.companyName || 'Party',
+        value: Number(r.totalGatePasses) || 0,
+        color: ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899'][idx % 5]
+      }));
+
+    chart1Svg = buildBarChartSvg({
+      title: 'Top Parties by Gate Pass Volume',
+      subtitle: 'Most active vendors & contractors',
+      items: top5PartiesByGps,
+      valueSuffix: ' Passes'
+    });
+
+    const totRetQty = safeRecords.reduce((sum, r) => sum + (Number(r.totalReturnedQuantity) || 0), 0);
+    const totPendQty = safeRecords.reduce((sum, r) => sum + (Number(r.totalPendingQuantity) || 0), 0);
+
+    chart2Svg = buildDonutChartSvg({
+      title: 'Party Material Return Ratio',
+      subtitle: 'Returned Quantity vs Outstanding Pending Quantity',
+      centerText: `${(totRetQty + totPendQty) > 0 ? Math.round((totRetQty / (totRetQty + totPendQty)) * 100) : 0}%`,
+      centerSub: 'RETURNED %',
+      items: [
+        { label: 'Returned Quantity', value: totRetQty, color: '#10B981' },
+        { label: 'Pending Quantity', value: totPendQty, color: '#EF4444' }
+      ]
+    });
+
+    sectionTitle = 'PARTY-WISE OPERATIONAL & RETURN COMPLIANCE INSIGHTS';
+    const totGrandVal = safeRecords.reduce((sum, r) => sum + (Number(r.totalGrandTotal) || Number(r.grandTotal) || 0), 0);
+    insightsData = [
+      { metric: 'Total Active Parties', value: safeRecords.length, note: 'Registered party ledger accounts' },
+      { metric: 'Top Volume Party', value: top5PartiesByGps[0]?.label || 'N/A', note: `Highest gate passes created (${top5PartiesByGps[0]?.value || 0})` },
+      { metric: 'Cumulative Returned Qty', value: totRetQty.toLocaleString('en-IN'), note: 'Total material returned across all parties' },
+      { metric: 'Cumulative Pending Qty', value: totPendQty.toLocaleString('en-IN'), note: 'Total material currently held by parties' },
+      { metric: 'Grand Financial Value', value: `₹${totGrandVal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, note: 'Combined material valuation (₹)' },
+      { metric: 'Party Compliance', value: `${(totRetQty + totPendQty) > 0 ? Math.round((totRetQty / (totRetQty + totPendQty)) * 100) : 100}% Return Ratio`, note: 'Ratio of returned vs issued materials' }
+    ];
+  } else {
+    // Default / Pending Returns
+    const over30 = safeRecords.filter(r => (Number(r.daysPending) || 0) > 30).length;
+    const days15to30 = safeRecords.filter(r => (Number(r.daysPending) || 0) >= 15 && (Number(r.daysPending) || 0) <= 30).length;
+    const under15 = safeRecords.filter(r => (Number(r.daysPending) || 0) < 15).length;
+
+    chart1Svg = buildDonutChartSvg({
+      title: 'Pending Return Aging Breakdown',
+      subtitle: 'Aging risk classification for unreturned items',
+      centerText: String(safeRecords.length),
+      centerSub: 'PENDING ITEMS',
+      items: [
+        { label: '0 - 14 Days (Low Risk)', value: under15, color: '#10B981' },
+        { label: '15 - 30 Days (Moderate)', value: days15to30, color: '#F59E0B' },
+        { label: '30+ Days (High Risk)', value: over30, color: '#EF4444' }
+      ]
+    });
+
+    const partyPendMap = {};
+    safeRecords.forEach(r => {
+      const p = r.companyName || r.partyName || 'Unknown Party';
+      partyPendMap[p] = (partyPendMap[p] || 0) + (Number(r.pendingQuantity) || 1);
+    });
+    const topPendingParties = Object.entries(partyPendMap)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([label, value], idx) => ({
+        label,
+        value,
+        color: ['#EF4444', '#F59E0B', '#3B82F6', '#8B5CF6', '#EC4899'][idx % 5]
+      }));
+
+    chart2Svg = buildBarChartSvg({
+      title: 'Parties with Highest Pending Quantities',
+      subtitle: 'Top vendors by outstanding unreturned items',
+      items: topPendingParties,
+      valueSuffix: ' Units'
+    });
+
+    sectionTitle = 'PENDING RETURNS & AGING RISK AUDIT';
+    const totPendQty = safeRecords.reduce((sum, r) => sum + (Number(r.pendingQuantity) || 0), 0);
+    const totGrandVal = safeRecords.reduce((sum, r) => sum + (Number(r.grandTotal) || 0), 0);
+
+    insightsData = [
+      { metric: 'Total Pending Line Items', value: safeRecords.length, note: 'Active pending returnable material entries' },
+      { metric: 'Critical Overdue (>30 Days)', value: `${over30} Items`, note: `${safeRecords.length > 0 ? Math.round((over30 / safeRecords.length) * 100) : 0}% of all pending items require immediate follow-up` },
+      { metric: 'Total Pending Material Qty', value: totPendQty.toLocaleString('en-IN'), note: 'Outstanding material volume with external vendors' },
+      { metric: 'Pending Asset Valuation', value: `₹${totGrandVal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, note: 'Total capital value of unreturned assets' },
+      { metric: 'Highest Pending Vendor', value: topPendingParties[0]?.label || 'N/A', note: `Holds ${topPendingParties[0]?.value || 0} pending units` },
+      { metric: 'Recommended Action', value: over30 > 0 ? 'Issue Urgent Vendor Return Reminders' : 'Normal Operations (Low Aging Risk)', note: 'Vendor follow-up operational alert' }
+    ];
+  }
+
+  // Convert SVG to PNG Base64 strings using Browser HTML5 Canvas
+  const base64_1 = chart1Svg ? await svgToPngBase64(chart1Svg, 680, 360) : null;
+  const base64_2 = chart2Svg ? await svgToPngBase64(chart2Svg, 680, 360) : null;
+
+  // Add Chart 1 to Summary Sheet
+  if (base64_1) {
+    const imgId1 = workbook.addImage({ base64: base64_1, extension: 'png' });
+    summarySheet.addImage(imgId1, {
+      tl: { col: 0, row: 17 }, // A18
+      ext: { width: 540, height: 280 }
+    });
+  }
+
+  // Add Chart 2 to Summary Sheet
+  if (base64_2) {
+    const imgId2 = workbook.addImage({ base64: base64_2, extension: 'png' });
+    summarySheet.addImage(imgId2, {
+      tl: { col: 6, row: 17 }, // G18
+      ext: { width: 540, height: 280 }
+    });
+  }
+
+  // Add Executive Summary & Information Callouts Table under the charts
+  const startRow = 36;
+  
+  // Section Banner Row
+  summarySheet.mergeCells(`A${startRow}:F${startRow}`);
+  const bannerCell = summarySheet.getCell(`A${startRow}`);
+  bannerCell.value = `📊 ${sectionTitle.toUpperCase()}`;
+  bannerCell.font = { name: 'Calibri', size: 12, bold: true, color: { argb: 'FFFFFFFF' } };
+  bannerCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F2A47' } };
+  bannerCell.alignment = { horizontal: 'center', vertical: 'middle' };
+  summarySheet.getRow(startRow).height = 28;
+
+  // Subtitle / Description Row
+  summarySheet.mergeCells(`A${startRow + 1}:F${startRow + 1}`);
+  const descCell = summarySheet.getCell(`A${startRow + 1}`);
+  descCell.value = 'Operational summary callouts and automated audit findings generated from actual database records.';
+  descCell.font = { name: 'Calibri', size: 10, italic: true, color: { argb: 'FF64748B' } };
+  descCell.alignment = { horizontal: 'center', vertical: 'middle' };
+  summarySheet.getRow(startRow + 1).height = 20;
+
+  // Table Header Row
+  const headRowIdx = startRow + 2;
+  summarySheet.mergeCells(`A${headRowIdx}:B${headRowIdx}`);
+  summarySheet.mergeCells(`D${headRowIdx}:F${headRowIdx}`);
+  
+  const cellHeadA = summarySheet.getCell(`A${headRowIdx}`);
+  cellHeadA.value = 'KEY OPERATIONAL METRIC';
+  cellHeadA.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+  cellHeadA.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
+  cellHeadA.alignment = { horizontal: 'left', vertical: 'middle' };
+
+  const cellHeadC = summarySheet.getCell(`C${headRowIdx}`);
+  cellHeadC.value = 'VALUE / STATISTIC';
+  cellHeadC.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+  cellHeadC.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
+  cellHeadC.alignment = { horizontal: 'center', vertical: 'middle' };
+
+  const cellHeadD = summarySheet.getCell(`D${headRowIdx}`);
+  cellHeadD.value = 'MANAGEMENT AUDIT & ANALYSIS NOTE';
+  cellHeadD.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+  cellHeadD.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
+  cellHeadD.alignment = { horizontal: 'left', vertical: 'middle' };
+
+  summarySheet.getRow(headRowIdx).height = 24;
+
+  // Render Insight Rows
+  insightsData.forEach((item, idx) => {
+    const rIdx = headRowIdx + 1 + idx;
+    summarySheet.mergeCells(`A${rIdx}:B${rIdx}`);
+    summarySheet.mergeCells(`D${rIdx}:F${rIdx}`);
+
+    const cellA = summarySheet.getCell(`A${rIdx}`);
+    cellA.value = item.metric;
+    cellA.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF0F2A47' } };
+
+    const cellC = summarySheet.getCell(`C${rIdx}`);
+    cellC.value = typeof item.value === 'number' ? item.value : String(item.value);
+    cellC.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF059669' } };
+    cellC.alignment = { horizontal: 'center', vertical: 'middle' };
+
+    const cellD = summarySheet.getCell(`D${rIdx}`);
+    cellD.value = item.note;
+    cellD.font = { name: 'Calibri', size: 10, color: { argb: 'FF334155' } };
+
+    const row = summarySheet.getRow(rIdx);
+    row.height = 22;
+
+    const bgArgb = idx % 2 === 0 ? 'FFF8FAFC' : 'FFFFFFFF';
+    ['A', 'B', 'C', 'D', 'E', 'F'].forEach(col => {
+      const cell = summarySheet.getCell(`${col}${rIdx}`);
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgArgb } };
+      cell.border = {
+        top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+        bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+        left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+        right: { style: 'thin', color: { argb: 'FFE2E8F0' } }
+      };
+    });
+  });
+};
+
 /**
  * Client-Side ExcelJS Workbook Generator
  */
@@ -1068,10 +2399,29 @@ const generateClientExcel = async ({ reportType, reportTitle, filters = {}, reco
 
   summarySheet.getColumn(1).width = 30;
   summarySheet.getColumn(2).width = 40;
+  summarySheet.getColumn(3).width = 24;
+  summarySheet.getColumn(4).width = 24;
+  summarySheet.getColumn(5).width = 24;
+  summarySheet.getColumn(6).width = 32;
+
+  // Attach Visual Dashboard (Graphs, Donut Charts & Executive Insight Callouts)
+  await attachVisualDashboardToClientSummarySheet(workbook, summarySheet, reportType, reportTitle, records);
 
   // SHEET 2: Data Sheet
   if (reportType === 'gate-pass') {
     buildSectionWiseGatePassSheet(workbook, reportTitle, records);
+    const buffer = await workbook.xlsx.writeBuffer();
+    return new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  }
+
+  if (reportType === 'party-summary') {
+    buildSectionWisePartySummarySheet(workbook, reportTitle, records);
+    const buffer = await workbook.xlsx.writeBuffer();
+    return new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  }
+
+  if (reportType === 'gate-pass-closure') {
+    buildSectionWiseClosureSheet(workbook, reportTitle, records);
     const buffer = await workbook.xlsx.writeBuffer();
     return new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   }
