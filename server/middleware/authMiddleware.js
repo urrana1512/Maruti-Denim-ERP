@@ -27,6 +27,16 @@ const protect = async (req, res, next) => {
       return res.status(401).json({ success: false, message: 'User account no longer exists.' });
     }
 
+    // Session invalidation check (e.g. password reset or admin status toggle)
+    if (decoded.tokenVersion !== undefined && user.tokenVersion !== undefined) {
+      if (decoded.tokenVersion < user.tokenVersion) {
+        return res.status(401).json({
+          success: false,
+          message: 'Session has been invalidated due to password update or admin action. Please log in again.'
+        });
+      }
+    }
+
     // Account status check
     if (user.status === 'PENDING_APPROVAL') {
       return res.status(403).json({ 

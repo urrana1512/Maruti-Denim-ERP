@@ -5,6 +5,7 @@ const MaterialInward = require('../models/MaterialInward');
 const AuditLog = require('../models/AuditLog');
 const ItemMaster = require('../models/ItemMaster');
 const VendorMaster = require('../models/VendorMaster');
+const { sendAccountApprovedEmail } = require('../services/emailService');
 
 // @desc    Get Admin Dashboard Stats & Activity Feed
 // @route   GET /api/admin/dashboard-stats
@@ -136,6 +137,9 @@ exports.approveUser = async (req, res) => {
     user.rejectionReason = '';
     await user.save();
 
+    // Notify user via email
+    await sendAccountApprovedEmail(user.email, user.name);
+
     await AuditLog.create({
       userId: req.user._id,
       userName: req.user.name,
@@ -147,7 +151,7 @@ exports.approveUser = async (req, res) => {
       details: { targetName: user.name, targetEmail: user.email, assignedRole: user.roleName }
     });
 
-    res.status(200).json({ success: true, message: `User ${user.name} has been approved successfully.`, user });
+    res.status(200).json({ success: true, message: `User ${user.name} has been approved successfully. Email notification sent.`, user });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error approving user.', error: error.message });
   }
@@ -168,6 +172,7 @@ exports.rejectUser = async (req, res) => {
 
     user.status = 'REJECTED';
     user.rejectionReason = rejectionReason;
+    user.tokenVersion = (user.tokenVersion || 0) + 1; // Kill active sessions
     await user.save();
 
     await AuditLog.create({
@@ -203,6 +208,7 @@ exports.toggleUserStatus = async (req, res) => {
     }
 
     user.status = targetStatus;
+    user.tokenVersion = (user.tokenVersion || 0) + 1; // Kill active sessions immediately on status change
     await user.save();
 
     await AuditLog.create({
