@@ -8,7 +8,39 @@ export const AuthProvider = ({ children }) => {
     const saved = localStorage.getItem('maruti_user_data');
     return saved ? JSON.parse(saved) : null;
   });
+
+  const [selectedCompany, setSelectedCompanyState] = useState(() => {
+    const saved = localStorage.getItem('maruti_selected_company');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        // Fallback default
+      }
+    }
+    return {
+      code: 'MARUTI_NANDAN',
+      name: 'MARUTI NANDAN DENIM PVT LTD',
+      shortCode: 'MND',
+      dbName: 'maruti_nandan_db'
+    };
+  });
+
+  const [superAdmin, setSuperAdmin] = useState(() => {
+    const saved = localStorage.getItem('maruti_superadmin_user');
+    return saved ? JSON.parse(saved) : null;
+  });
+
   const [loading, setLoading] = useState(true);
+
+  const setSelectedCompany = (companyObj) => {
+    setSelectedCompanyState(companyObj);
+    if (companyObj) {
+      localStorage.setItem('maruti_selected_company', JSON.stringify(companyObj));
+    } else {
+      localStorage.removeItem('maruti_selected_company');
+    }
+  };
 
   // Hydrate user profile on page reload
   useEffect(() => {
@@ -20,6 +52,9 @@ export const AuthProvider = ({ children }) => {
           if (res.success && res.user) {
             setUser(res.user);
             localStorage.setItem('maruti_user_data', JSON.stringify(res.user));
+            if (res.user.company) {
+              setSelectedCompany(res.user.company);
+            }
           }
         } catch (err) {
           console.warn('Session hydration failed:', err.message);
@@ -40,6 +75,9 @@ export const AuthProvider = ({ children }) => {
     const res = await authService.login(email, password);
     if (res.success && res.user) {
       setUser(res.user);
+      if (res.user.company) {
+        setSelectedCompany(res.user.company);
+      }
     }
     return res;
   };
@@ -48,8 +86,24 @@ export const AuthProvider = ({ children }) => {
     const res = await authService.adminLogin(email, password);
     if (res.success && res.user) {
       setUser(res.user);
+      if (res.user.company) {
+        setSelectedCompany(res.user.company);
+      }
     }
     return res;
+  };
+
+  const superAdminLogin = async (email, password) => {
+    const res = await authService.superAdminLogin(email, password);
+    if (res.success && res.user) {
+      setSuperAdmin(res.user);
+    }
+    return res;
+  };
+
+  const superAdminLogout = () => {
+    authService.superAdminLogout();
+    setSuperAdmin(null);
   };
 
   const register = async (userData) => {
@@ -80,6 +134,11 @@ export const AuthProvider = ({ children }) => {
         loading,
         isAuthenticated: !!user,
         isAdmin,
+        selectedCompany,
+        setSelectedCompany,
+        superAdmin,
+        superAdminLogin,
+        superAdminLogout,
         login,
         adminLogin,
         register,

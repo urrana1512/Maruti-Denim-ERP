@@ -1,6 +1,5 @@
 const jwt = require('jsonwebtoken');
-const User = require('../models/User');
-const Role = require('../models/Role');
+const { getTenantModels } = require('../config/connectionManager');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'maruti_denim_gate_pass_enterprise_secret_key_2026';
 
@@ -22,10 +21,15 @@ const protect = async (req, res, next) => {
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
 
-    const user = await User.findById(decoded.id).populate('role');
+    const companyCode = (decoded.companyCode || req.headers['x-company-code'] || 'maruti_nandan').toLowerCase().trim();
+    const tenantModels = getTenantModels(companyCode);
+
+    const user = await tenantModels.User.findById(decoded.id).populate('role');
     if (!user) {
       return res.status(401).json({ success: false, message: 'User account no longer exists.' });
     }
+
+    user.companyCode = companyCode;
 
     // Session invalidation check (e.g. password reset or admin status toggle)
     if (decoded.tokenVersion !== undefined && user.tokenVersion !== undefined) {
@@ -126,8 +130,11 @@ const optionalAuth = async (req, res, next) => {
   if (token) {
     try {
       const decoded = jwt.verify(token, JWT_SECRET);
-      const user = await User.findById(decoded.id).populate('role');
+      const companyCode = (decoded.companyCode || req.headers['x-company-code'] || 'maruti_nandan').toLowerCase().trim();
+      const tenantModels = getTenantModels(companyCode);
+      const user = await tenantModels.User.findById(decoded.id).populate('role');
       if (user) {
+        user.companyCode = companyCode;
         req.user = user;
       }
     } catch (e) {

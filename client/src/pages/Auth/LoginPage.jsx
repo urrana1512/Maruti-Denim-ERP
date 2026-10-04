@@ -1,17 +1,62 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { authService } from '../../services/authService';
 import { toast } from 'sonner';
-import { Lock, Mail, Eye, EyeOff, ShieldCheck, ArrowRight } from 'lucide-react';
+import { Lock, Mail, Eye, EyeOff, ShieldCheck, ArrowRight, Building2, CheckCircle2, ArrowLeft } from 'lucide-react';
+import BrandPanel from '../../components/auth/BrandPanel';
 
 const LoginPage = () => {
+  const { login, selectedCompany, setSelectedCompany } = useAuth();
+  const navigate = useNavigate();
+
+  const [step, setStep] = useState(1); // 1: Select Company, 2: Login Details
+  const [companies, setCompanies] = useState([]);
+  const [loadingCompanies, setLoadingCompanies] = useState(true);
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const { login } = useAuth();
-  const navigate = useNavigate();
+  // Load public active companies on mount
+  useEffect(() => {
+    const fetchCompanies = async () => {
+      try {
+        const res = await authService.getPublicCompanies();
+        if (res.success && res.data) {
+          setCompanies(res.data);
+          if (!selectedCompany && res.data.length > 0) {
+            setSelectedCompany(res.data[0]);
+          }
+        }
+      } catch (err) {
+        setCompanies([
+          { code: 'MARUTI_NANDAN', name: 'MARUTI NANDAN DENIM PVT LTD', shortCode: 'MND', status: 'ACTIVE' },
+          { code: 'SHRI_RAM_COT_FAB', name: 'SHRI RAM COT FAB', shortCode: 'SRCF', status: 'ACTIVE' },
+          { code: 'BALAJI_POLYCOT', name: 'BALAJI POLYCOT PVT. LTD.', shortCode: 'BPPL', status: 'ACTIVE' }
+        ]);
+      } finally {
+        setLoadingCompanies(false);
+      }
+    };
+
+    fetchCompanies();
+  }, []);
+
+  const handleSelectCompany = (comp) => {
+    setSelectedCompany(comp);
+    toast.success(`Selected ${comp.name}`);
+  };
+
+  const handleProceedToCredentials = () => {
+    if (!selectedCompany) {
+      toast.error('Please select a company to continue.');
+      return;
+    }
+    setStep(2);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -40,107 +85,247 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
-        <div className="flex justify-center mb-4">
-          <img src="/Maruti denim logo.png" alt="Maruti Denim Logo" className="h-16 w-auto object-contain filter drop-shadow" />
-        </div>
-        <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Maruti Denim Gate Pass System</h2>
-        <p className="mt-1 text-sm text-slate-600">Enterprise Operations & Security Portal</p>
-      </div>
+    <div className="min-h-screen bg-slate-50 flex w-full">
+      {/* Left Side — Brand Experience Panel */}
+      <BrandPanel />
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-6 shadow-xl rounded-2xl border border-slate-200/80 sm:px-10">
-          <div className="mb-6 flex items-center justify-between border-b border-slate-100 pb-4">
+      {/* Right Side — Authentication Workspace */}
+      <div className="flex-1 flex flex-col justify-between p-6 sm:p-10 lg:p-12 xl:p-16 overflow-y-auto animate-fade-right">
+        {/* Mobile Compact Branding Header */}
+        <div className="lg:hidden flex items-center justify-between mb-8 pb-4 border-b border-slate-200">
+          <div className="flex items-center gap-3">
+            <img
+              src="/Maruti denim logo.png"
+              alt="Maruti Denim Logo"
+              className="h-10 w-auto object-contain filter drop-shadow"
+            />
             <div>
-              <h3 className="text-lg font-semibold text-slate-800">User Sign In</h3>
-              <p className="text-xs text-slate-500">Authorized Employee Access</p>
-            </div>
-            <div className="h-9 w-9 rounded-full bg-blue-50 border border-blue-100 flex items-center justify-center text-brand-denim">
-              <ShieldCheck size={20} />
+              <h1 className="text-base font-bold text-slate-900 leading-tight">Maruti Denim</h1>
+              <p className="text-xs text-slate-500">Gate Pass Management System</p>
             </div>
           </div>
+        </div>
 
-          <form className="space-y-5" onSubmit={handleSubmit}>
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-                Email Address
-              </label>
-              <div className="relative rounded-lg shadow-sm">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-                  <Mail size={18} />
-                </div>
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="name@marutidenim.com"
-                  className="block w-full pl-10 pr-3 py-2.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-denim focus:border-brand-denim transition-all"
-                />
-              </div>
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                  Password
-                </label>
-                <Link to="/forgot-password" className="text-xs text-brand-denim hover:underline font-medium">
-                  Forgot Password?
-                </Link>
-              </div>
-              <div className="relative rounded-lg shadow-sm">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-                  <Lock size={18} />
-                </div>
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="block w-full pl-10 pr-10 py-2.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-denim focus:border-brand-denim transition-all"
-                />
+        <div className="max-w-md w-full mx-auto my-auto space-y-6">
+          {/* Active Company Badge Header Banner */}
+          {selectedCompany && (
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-900 text-white text-xs font-semibold shadow-sm border border-slate-800">
+              <Building2 size={14} className="text-amber-400 shrink-0" />
+              <span className="truncate max-w-[240px] sm:max-w-xs">{selectedCompany.name}</span>
+              {step === 2 && (
                 <button
                   type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600"
+                  onClick={() => setStep(1)}
+                  className="text-amber-300 hover:underline font-normal text-[11px] ml-1 shrink-0 cursor-pointer"
                 >
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  (Change)
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Workspace Title & Subtitle */}
+          <div>
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+              {step === 1 ? 'Welcome Back' : 'Sign In to Workspace'}
+            </h2>
+            <p className="mt-1 text-xs sm:text-sm text-slate-600">
+              {step === 1
+                ? 'Select your operating company workspace to continue.'
+                : `Enter your employee credentials for ${selectedCompany?.name || 'your company'}.`}
+            </p>
+          </div>
+
+          {/* STEP 1: Select Operating Company */}
+          {step === 1 && (
+            <div className="space-y-5">
+              <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+                <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                  Step 1: Select Company
+                </span>
+                <span className="text-xs font-bold text-brand-denim bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-100">
+                  1 of 2
+                </span>
+              </div>
+
+              {loadingCompanies ? (
+                <div className="py-12 flex justify-center items-center">
+                  <div className="w-8 h-8 border-4 border-brand-denim border-t-transparent rounded-full animate-spin"></div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {companies.map((comp) => {
+                    const isSelected = selectedCompany?.code === comp.code;
+                    return (
+                      <div
+                        key={comp.code}
+                        onClick={() => handleSelectCompany(comp)}
+                        className={`relative p-4 rounded-xl border-2 transition-all duration-200 cursor-pointer flex items-center justify-between ${
+                          isSelected
+                            ? 'border-slate-900 bg-slate-900 text-white shadow-md scale-[1.01]'
+                            : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm text-slate-800'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3.5">
+                          <div
+                            className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 ${
+                              isSelected ? 'bg-white/10 text-white' : 'bg-slate-100 text-brand-navy'
+                            }`}
+                          >
+                            {comp.shortCode}
+                          </div>
+                          <div>
+                            <h4 className="font-bold text-sm leading-snug">{comp.name}</h4>
+                            <p className={`text-xs ${isSelected ? 'text-slate-300' : 'text-slate-500'}`}>
+                              Code: {comp.code}
+                            </p>
+                          </div>
+                        </div>
+
+                        {isSelected && (
+                          <div className="text-emerald-400 shrink-0">
+                            <CheckCircle2 size={20} />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={handleProceedToCredentials}
+                disabled={!selectedCompany}
+                className="w-full flex justify-center items-center py-3 px-4 rounded-xl shadow-md text-sm font-semibold text-white bg-slate-900 hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2 disabled:opacity-50 active:scale-[0.98] transition-all cursor-pointer"
+              >
+                Continue to Sign In Credentials ({selectedCompany?.shortCode || 'Select'})
+                <ArrowRight size={16} className="ml-2" />
+              </button>
+            </div>
+          )}
+
+          {/* STEP 2: Enter Sign In Credentials */}
+          {step === 2 && (
+            <form className="space-y-5" onSubmit={handleSubmit}>
+              <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+                <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                  Step 2: Sign In Credentials
+                </span>
+                <span className="text-xs font-bold text-brand-denim bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-100">
+                  2 of 2
+                </span>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                  Email Address
+                </label>
+                <div className="relative rounded-xl shadow-sm">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                    <Mail size={18} />
+                  </div>
+                  <input
+                    type="email"
+                    required
+                    autoComplete="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="name@marutidenim.com"
+                    className="block w-full pl-10 pr-3.5 py-2.5 text-sm bg-white border border-slate-300 rounded-xl text-slate-900 focus:ring-2 focus:ring-brand-denim focus:border-brand-denim transition-all"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                    Password
+                  </label>
+                  <Link to="/forgot-password" className="text-xs text-brand-denim hover:underline font-semibold">
+                    Forgot Password?
+                  </Link>
+                </div>
+                <div className="relative rounded-xl shadow-sm">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                    <Lock size={18} />
+                  </div>
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    autoComplete="current-password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="block w-full pl-10 pr-10 py-2.5 text-sm bg-white border border-slate-300 rounded-xl text-slate-900 focus:ring-2 focus:ring-brand-denim focus:border-brand-denim transition-all"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 cursor-pointer transition-colors"
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-center">
+                <input
+                  id="remember-me"
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="h-4 w-4 text-brand-denim focus:ring-brand-denim border-slate-300 rounded cursor-pointer"
+                />
+                <label htmlFor="remember-me" className="ml-2.5 block text-xs font-medium text-slate-700 cursor-pointer">
+                  Remember me on this device
+                </label>
+              </div>
+
+              <div className="pt-2 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setStep(1)}
+                  className="w-1/3 py-3 px-3 border border-slate-300 rounded-xl text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 transition-all inline-flex items-center justify-center cursor-pointer"
+                >
+                  <ArrowLeft size={14} className="mr-1.5" /> Change Company
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-2/3 flex justify-center items-center py-3 px-4 border border-transparent rounded-xl shadow-md text-sm font-semibold text-white bg-slate-900 hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2 disabled:opacity-50 active:scale-[0.98] transition-all cursor-pointer"
+                >
+                  {loading ? (
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      <span>Signing in...</span>
+                    </div>
+                  ) : (
+                    <>
+                      Sign In Workspace <ArrowRight size={16} className="ml-2" />
+                    </>
+                  )}
                 </button>
               </div>
-            </div>
+            </form>
+          )}
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full flex justify-center items-center py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-sm font-semibold text-white bg-brand-navy hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-denim disabled:opacity-50 transition-all cursor-pointer"
-            >
-              {loading ? (
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-              ) : (
-                <>
-                  Sign In <ArrowRight size={16} className="ml-2" />
-                </>
-              )}
-            </button>
-          </form>
-
-          <div className="mt-6 pt-6 border-t border-slate-100 flex flex-col gap-3 text-center">
+          {/* Footer - No mention of Admin Panel Login */}
+          <div className="pt-6 border-t border-slate-200 text-center">
             <p className="text-xs text-slate-600">
-              New employee?{' '}
-              <Link to="/register" className="font-semibold text-brand-denim hover:underline">
+              Don't have an account?{' '}
+              <Link to="/register" className="font-bold text-brand-denim hover:underline">
                 Register for an account
               </Link>
             </p>
-            <div className="text-xs text-slate-400 bg-slate-50 p-2.5 rounded-lg border border-slate-200">
-              System Admin?{' '}
-              <Link to="/admin/login" className="font-semibold text-slate-700 hover:underline">
-                Admin Panel Login
-              </Link>
-            </div>
           </div>
+        </div>
+
+        {/* Workspace Footer Copyright */}
+        <div className="text-center text-[11px] text-slate-400 pt-6">
+          © {new Date().getFullYear()} Maruti Denim Group. All rights reserved.
         </div>
       </div>
     </div>

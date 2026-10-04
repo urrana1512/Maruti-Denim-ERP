@@ -1,6 +1,14 @@
 import React, { useRef, useEffect } from 'react';
 
-const OtpInput = ({ length = 6, value = '', onChange, disabled = false, autoFocus = true }) => {
+const OtpInput = ({
+  length = 6,
+  value = '',
+  onChange,
+  disabled = false,
+  autoFocus = true,
+  isError = false,
+  isSuccess = false
+}) => {
   const inputsRef = useRef([]);
 
   useEffect(() => {
@@ -59,7 +67,7 @@ const OtpInput = ({ length = 6, value = '', onChange, disabled = false, autoFocu
   };
 
   return (
-    <div className="flex items-center justify-center gap-2 sm:gap-3 my-4">
+    <div className={`flex items-center justify-center gap-2 sm:gap-3 my-5 ${isError ? 'animate-shake' : ''}`}>
       {Array.from({ length }).map((_, idx) => (
         <input
           key={idx}
@@ -68,15 +76,20 @@ const OtpInput = ({ length = 6, value = '', onChange, disabled = false, autoFocu
           inputMode="numeric"
           pattern="[0-9]*"
           maxLength={1}
+          autoComplete="one-time-code"
           value={digits[idx] || ''}
           disabled={disabled}
           onChange={(e) => handleChange(e, idx)}
           onKeyDown={(e) => handleKeyDown(e, idx)}
           onPaste={handlePaste}
           className={`w-11 h-12 sm:w-12 sm:h-14 text-center text-xl font-bold font-mono rounded-xl border-2 transition-all shadow-sm focus:outline-none ${
-            digits[idx]
-              ? 'border-brand-denim bg-blue-50/50 text-slate-900 focus:ring-2 focus:ring-brand-denim'
-              : 'border-slate-200 bg-white text-slate-900 focus:border-brand-denim focus:ring-2 focus:ring-brand-denim'
+            isSuccess
+              ? 'border-emerald-500 bg-emerald-50 text-emerald-900 ring-2 ring-emerald-400'
+              : isError
+              ? 'border-rose-500 bg-rose-50 text-rose-900 ring-2 ring-rose-400'
+              : digits[idx]
+              ? 'border-brand-navy bg-slate-900 text-white shadow-md scale-[1.02]'
+              : 'border-slate-200 bg-white text-slate-900 focus:border-brand-navy focus:ring-2 focus:ring-brand-navy/20'
           } ${disabled ? 'bg-slate-100 opacity-60 cursor-not-allowed' : ''}`}
         />
       ))}

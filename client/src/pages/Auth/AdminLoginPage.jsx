@@ -10,7 +10,7 @@ const AdminLoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const { adminLogin } = useAuth();
+  const { adminLogin, selectedCompany } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
@@ -42,7 +42,10 @@ const AdminLoginPage = () => {
           <img src="/Maruti denim logo.png" alt="Maruti Denim Logo" className="h-16 w-auto object-contain filter drop-shadow" />
         </div>
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-900 text-white text-xs font-semibold uppercase tracking-wider mb-2">
-          <Shield size={12} className="text-blue-400" /> Security Administration
+          <Shield size={12} className="text-blue-400" /> {selectedCompany?.name || 'MARUTI NANDAN DENIM PVT LTD'}
+          <Link to="/select-company" className="text-amber-300 hover:underline font-normal text-[11px] ml-1 lowercase">
+            (change)
+          </Link>
         </div>
         <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Admin Control Panel</h2>
         <p className="mt-1 text-sm text-slate-600">Authorized System Administration Access Only</p>

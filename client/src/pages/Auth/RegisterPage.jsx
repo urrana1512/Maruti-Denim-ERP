@@ -1,10 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import { authService } from '../../services/authService';
 import { toast } from 'sonner';
-import { User, Mail, Phone, Building2, Briefcase, Lock, CheckCircle2, ArrowRight, ShieldCheck, RefreshCw, ArrowLeft } from 'lucide-react';
+import {
+  User,
+  Mail,
+  Phone,
+  Building2,
+  Briefcase,
+  Lock,
+  CheckCircle2,
+  ArrowRight,
+  ShieldCheck,
+  RefreshCw,
+  ArrowLeft,
+  Check
+} from 'lucide-react';
 import OtpInput from '../../components/common/OtpInput';
 import PasswordStrengthMeter from '../../components/common/PasswordStrengthMeter';
+import BrandPanel from '../../components/auth/BrandPanel';
 
 const DEPARTMENTS = [
   'Store',
@@ -18,7 +33,12 @@ const DEPARTMENTS = [
 ];
 
 const RegisterPage = () => {
-  const [step, setStep] = useState(1); // 1: Details, 2: OTP, 3: Create Password, 4: Success
+  const { selectedCompany, setSelectedCompany } = useAuth();
+
+  const [step, setStep] = useState(1); // 1: Select Company, 2: Details, 3: OTP, 4: Password, 5: Success
+  const [companies, setCompanies] = useState([]);
+  const [loadingCompanies, setLoadingCompanies] = useState(true);
+
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -34,6 +54,10 @@ const RegisterPage = () => {
   const [maskedEmail, setMaskedEmail] = useState('');
   const [otpValue, setOtpValue] = useState('');
 
+  // OTP Error/Success Animation States
+  const [otpError, setOtpError] = useState(false);
+  const [otpSuccess, setOtpSuccess] = useState(false);
+
   // Timers
   const [otpTimer, setOtpTimer] = useState(600); // 10 min OTP expiry
   const [cooldownTimer, setCooldownTimer] = useState(60); // 60s resend cooldown
@@ -43,10 +67,35 @@ const RegisterPage = () => {
   const [errorMessage, setErrorMessage] = useState('');
   const navigate = useNavigate();
 
+  // Load companies for Step 1
+  useEffect(() => {
+    const fetchCompanies = async () => {
+      try {
+        const res = await authService.getPublicCompanies();
+        if (res.success && res.data) {
+          setCompanies(res.data);
+          if (!selectedCompany && res.data.length > 0) {
+            setSelectedCompany(res.data[0]);
+          }
+        }
+      } catch (err) {
+        setCompanies([
+          { code: 'MARUTI_NANDAN', name: 'MARUTI NANDAN DENIM PVT LTD', shortCode: 'MND', status: 'ACTIVE' },
+          { code: 'SHRI_RAM_COT_FAB', name: 'SHRI RAM COT FAB', shortCode: 'SRCF', status: 'ACTIVE' },
+          { code: 'BALAJI_POLYCOT', name: 'BALAJI POLYCOT PVT. LTD.', shortCode: 'BPPL', status: 'ACTIVE' }
+        ]);
+      } finally {
+        setLoadingCompanies(false);
+      }
+    };
+
+    fetchCompanies();
+  }, []);
+
   // OTP Countdown Timer
   useEffect(() => {
     let timer;
-    if (step === 2 && otpTimer > 0) {
+    if (step === 3 && otpTimer > 0) {
       timer = setInterval(() => {
         setOtpTimer((prev) => prev - 1);
       }, 1000);
@@ -57,7 +106,7 @@ const RegisterPage = () => {
   // Resend Cooldown Timer
   useEffect(() => {
     let timer;
-    if (step === 2 && cooldownTimer > 0) {
+    if (step === 3 && cooldownTimer > 0) {
       timer = setInterval(() => {
         setCooldownTimer((prev) => prev - 1);
       }, 1000);
@@ -72,6 +121,19 @@ const RegisterPage = () => {
     setErrorMessage('');
   };
 
+  const handleSelectCompany = (comp) => {
+    setSelectedCompany(comp);
+    toast.success(`Selected ${comp.name}`);
+  };
+
+  const handleProceedToDetails = () => {
+    if (!selectedCompany) {
+      toast.error('Please select a company to continue.');
+      return;
+    }
+    setStep(2);
+  };
+
   // Format seconds into MM:SS
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60);
@@ -79,8 +141,8 @@ const RegisterPage = () => {
     return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
 
-  // STEP 1: Submit Registration Details -> Send OTP
-  const handleStep1Submit = async (e) => {
+  // STEP 2: Submit Registration Details -> Send OTP
+  const handleStep2Submit = async (e) => {
     e.preventDefault();
     setErrorMessage('');
 
@@ -105,7 +167,9 @@ const RegisterPage = () => {
         setOtpTimer(res.expiresInSeconds || 600);
         setCooldownTimer(60);
         setIsCooldownActive(true);
-        setStep(2);
+        setOtpError(false);
+        setOtpSuccess(false);
+        setStep(3);
         toast.success(res.message);
       }
     } catch (err) {
@@ -117,8 +181,8 @@ const RegisterPage = () => {
     }
   };
 
-  // STEP 2: Verify OTP
-  const handleStep2VerifyOtp = async (e) => {
+  // STEP 3: Verify OTP
+  const handleStep3VerifyOtp = async (e) => {
     e.preventDefault();
     setErrorMessage('');
 
@@ -128,28 +192,36 @@ const RegisterPage = () => {
     }
 
     setLoading(true);
+    setOtpError(false);
+
     try {
       const res = await authService.registerStep2VerifyOtp(registrationToken, otpValue);
 
       if (res.success) {
+        setOtpSuccess(true);
         setVerifiedToken(res.verifiedRegistrationToken);
-        setStep(3);
-        toast.success('Email verified successfully! Please set a strong password.');
+        toast.success('Email verified successfully!');
+        setTimeout(() => {
+          setStep(4);
+        }, 400);
       }
     } catch (err) {
+      setOtpError(true);
       const msg = err.response?.data?.message || 'Invalid verification code.';
       setErrorMessage(msg);
       toast.error(msg);
+      setTimeout(() => setOtpError(false), 1000);
     } finally {
       setLoading(false);
     }
   };
 
-  // STEP 2 Resend OTP
+  // STEP 3 Resend OTP
   const handleResendOtp = async () => {
     if (isCooldownActive) return;
     setErrorMessage('');
     setLoading(true);
+    setOtpError(false);
 
     try {
       const res = await authService.registerResendOtp(registrationToken);
@@ -169,8 +241,8 @@ const RegisterPage = () => {
     }
   };
 
-  // STEP 3: Create Password & Finish Registration
-  const handleStep3CreatePassword = async (e) => {
+  // STEP 4: Create Password & Finish Registration
+  const handleStep4CreatePassword = async (e) => {
     e.preventDefault();
     setErrorMessage('');
 
@@ -200,7 +272,7 @@ const RegisterPage = () => {
       );
 
       if (res.success) {
-        setStep(4);
+        setStep(5);
         toast.success('Account created! Awaiting Admin Approval.');
       }
     } catch (err) {
@@ -212,59 +284,196 @@ const RegisterPage = () => {
     }
   };
 
-  return (
-    <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-lg text-center">
-        <img src="/Maruti denim logo.png" alt="Maruti Denim Logo" className="h-16 w-auto mx-auto object-contain mb-3 filter drop-shadow" />
-        <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Employee Registration Portal</h2>
-        <p className="mt-1 text-sm text-slate-600">Register to access the Maruti Denim Gate Pass Management System</p>
-      </div>
+  const stepsList = [
+    { num: 1, label: 'Company' },
+    { num: 2, label: 'Details' },
+    { num: 3, label: 'Verify Email' },
+    { num: 4, label: 'Password' }
+  ];
 
-      {/* Wizard Progress Indicator */}
-      {step <= 3 && (
-        <div className="mt-6 sm:mx-auto sm:w-full sm:max-w-lg px-4">
-          <div className="flex items-center justify-between text-xs font-semibold text-slate-500 mb-2">
-            <span className={step >= 1 ? 'text-brand-denim font-bold' : ''}>1. Personal Info</span>
-            <span className={step >= 2 ? 'text-brand-denim font-bold' : ''}>2. Email Verification</span>
-            <span className={step >= 3 ? 'text-brand-denim font-bold' : ''}>3. Create Password</span>
-          </div>
-          <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
-            <div
-              className="bg-brand-navy h-full transition-all duration-500 ease-out"
-              style={{ width: `${(step / 3) * 100}%` }}
+  return (
+    <div className="min-h-screen bg-slate-50 flex w-full">
+      {/* Left Side — Brand Experience Panel */}
+      <BrandPanel />
+
+      {/* Right Side — Authentication Workspace */}
+      <div className="flex-1 flex flex-col justify-between p-6 sm:p-10 lg:p-12 xl:p-16 overflow-y-auto animate-fade-right">
+        {/* Mobile Compact Branding Header */}
+        <div className="lg:hidden flex items-center justify-between mb-6 pb-4 border-b border-slate-200">
+          <div className="flex items-center gap-3">
+            <img
+              src="/Maruti denim logo.png"
+              alt="Maruti Denim Logo"
+              className="h-10 w-auto object-contain filter drop-shadow"
             />
+            <div>
+              <h1 className="text-base font-bold text-slate-900 leading-tight">Maruti Denim</h1>
+              <p className="text-xs text-slate-500">Gate Pass Management System</p>
+            </div>
           </div>
         </div>
-      )}
 
-      <div className="mt-6 sm:mx-auto sm:w-full sm:max-w-lg">
-        <div className="bg-white py-8 px-6 shadow-xl rounded-2xl border border-slate-200/80 sm:px-10">
+        <div className="max-w-md w-full mx-auto my-auto space-y-6">
+          {/* Active Company Badge Header Banner */}
+          {selectedCompany && (
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-900 text-white text-xs font-semibold shadow-sm border border-slate-800">
+              <Building2 size={14} className="text-amber-400 shrink-0" />
+              <span className="truncate max-w-[240px] sm:max-w-xs">{selectedCompany.name}</span>
+              {step > 1 && (
+                <button
+                  type="button"
+                  onClick={() => setStep(1)}
+                  className="text-amber-300 hover:underline font-normal text-[11px] ml-1 shrink-0 cursor-pointer"
+                >
+                  (Change)
+                </button>
+              )}
+            </div>
+          )}
 
-          {/* STEP 1: Personal Registration Details */}
+          <div>
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+              Employee Registration
+            </h2>
+            <p className="mt-1 text-xs sm:text-sm text-slate-600">
+              Register for authorized access to the Maruti Denim Gate Pass Portal.
+            </p>
+          </div>
+
+          {/* Connected Step Indicator */}
+          {step <= 4 && (
+            <div className="py-2">
+              <div className="flex items-center justify-between relative">
+                {/* Connecting Progress Bar Line */}
+                <div className="absolute top-1/2 left-0 right-0 -translate-y-1/2 h-0.5 bg-slate-200 z-0" />
+                <div
+                  className="absolute top-1/2 left-0 -translate-y-1/2 h-0.5 bg-slate-900 z-0 transition-all duration-500 ease-out"
+                  style={{ width: `${((step - 1) / 3) * 100}%` }}
+                />
+
+                {stepsList.map((s) => {
+                  const isDone = step > s.num;
+                  const isCurrent = step === s.num;
+                  return (
+                    <div key={s.num} className="relative z-10 flex flex-col items-center">
+                      <div
+                        className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs transition-all duration-300 ${
+                          isDone
+                            ? 'bg-slate-900 text-white ring-2 ring-slate-900'
+                            : isCurrent
+                            ? 'bg-brand-denim text-white ring-4 ring-blue-100 shadow-md animate-pulse-glow'
+                            : 'bg-white text-slate-400 border-2 border-slate-300'
+                        }`}
+                      >
+                        {isDone ? <Check size={14} /> : s.num}
+                      </div>
+                      <span
+                        className={`text-[10px] font-semibold mt-1 hidden sm:block ${
+                          isCurrent ? 'text-slate-900 font-bold' : isDone ? 'text-slate-700' : 'text-slate-400'
+                        }`}
+                      >
+                        {s.label}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* STEP 1: Select Operating Company */}
           {step === 1 && (
-            <form className="space-y-4" onSubmit={handleStep1Submit}>
-              <div className="mb-4 flex items-center justify-between border-b border-slate-100 pb-3">
-                <div>
-                  <h3 className="text-base font-bold text-slate-800">Step 1: Account Information</h3>
-                  <p className="text-xs text-slate-500">Provide your official employee details</p>
+            <div className="space-y-5">
+              <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+                <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                  Step 1: Select Company
+                </span>
+                <span className="text-xs font-bold text-brand-denim bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-100">
+                  1 of 4
+                </span>
+              </div>
+
+              {loadingCompanies ? (
+                <div className="py-12 flex justify-center items-center">
+                  <div className="w-8 h-8 border-4 border-brand-denim border-t-transparent rounded-full animate-spin"></div>
                 </div>
-                <div className="h-8 w-8 rounded-full bg-blue-50 border border-blue-100 flex items-center justify-center text-brand-denim">
-                  <User size={18} />
+              ) : (
+                <div className="space-y-3">
+                  {companies.map((comp) => {
+                    const isSelected = selectedCompany?.code === comp.code;
+                    return (
+                      <div
+                        key={comp.code}
+                        onClick={() => handleSelectCompany(comp)}
+                        className={`relative p-4 rounded-xl border-2 transition-all duration-200 cursor-pointer flex items-center justify-between ${
+                          isSelected
+                            ? 'border-slate-900 bg-slate-900 text-white shadow-md scale-[1.01]'
+                            : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm text-slate-800'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3.5">
+                          <div
+                            className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 ${
+                              isSelected ? 'bg-white/10 text-white' : 'bg-slate-100 text-brand-navy'
+                            }`}
+                          >
+                            {comp.shortCode}
+                          </div>
+                          <div>
+                            <h4 className="font-bold text-sm leading-snug">{comp.name}</h4>
+                            <p className={`text-xs ${isSelected ? 'text-slate-300' : 'text-slate-500'}`}>
+                              Code: {comp.code}
+                            </p>
+                          </div>
+                        </div>
+
+                        {isSelected && (
+                          <div className="text-emerald-400 shrink-0">
+                            <CheckCircle2 size={20} />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
+              )}
+
+              <button
+                type="button"
+                onClick={handleProceedToDetails}
+                disabled={!selectedCompany}
+                className="w-full flex justify-center items-center py-3 px-4 rounded-xl shadow-md text-sm font-semibold text-white bg-slate-900 hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2 disabled:opacity-50 active:scale-[0.98] transition-all cursor-pointer"
+              >
+                Next: Enter Employee Details ({selectedCompany?.shortCode || 'Select'})
+                <ArrowRight size={16} className="ml-2" />
+              </button>
+            </div>
+          )}
+
+          {/* STEP 2: Personal Registration Details */}
+          {step === 2 && (
+            <form className="space-y-4" onSubmit={handleStep2Submit}>
+              <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+                <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                  Step 2: Employee Account Details
+                </span>
+                <span className="text-xs font-bold text-brand-denim bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-100">
+                  2 of 4
+                </span>
               </div>
 
               {errorMessage && (
-                <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-xs font-medium text-rose-700">
+                <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs font-medium text-rose-700">
                   {errorMessage}
                 </div>
               )}
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-                  Full Name
+                  Full Name *
                 </label>
-                <div className="relative rounded-lg shadow-sm">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                <div className="relative rounded-xl shadow-sm">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                     <User size={18} />
                   </div>
                   <input
@@ -274,7 +483,7 @@ const RegisterPage = () => {
                     value={formData.name}
                     onChange={handleChange}
                     placeholder="e.g. Rajesh Sharma"
-                    className="block w-full pl-10 pr-3 py-2.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-denim"
+                    className="block w-full pl-10 pr-3.5 py-2.5 text-sm bg-white border border-slate-300 rounded-xl text-slate-900 focus:ring-2 focus:ring-brand-denim"
                   />
                 </div>
               </div>
@@ -282,30 +491,31 @@ const RegisterPage = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-                    Gmail / Corporate Email
+                    Gmail / Email *
                   </label>
-                  <div className="relative rounded-lg shadow-sm">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                  <div className="relative rounded-xl shadow-sm">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                       <Mail size={18} />
                     </div>
                     <input
                       type="email"
                       name="email"
                       required
+                      autoComplete="email"
                       value={formData.email}
                       onChange={handleChange}
                       placeholder="rajesh@gmail.com"
-                      className="block w-full pl-10 pr-3 py-2.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-denim"
+                      className="block w-full pl-10 pr-3.5 py-2.5 text-sm bg-white border border-slate-300 rounded-xl text-slate-900 focus:ring-2 focus:ring-brand-denim"
                     />
                   </div>
                 </div>
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-                    Phone Number
+                    Phone Number *
                   </label>
-                  <div className="relative rounded-lg shadow-sm">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                  <div className="relative rounded-xl shadow-sm">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                       <Phone size={18} />
                     </div>
                     <input
@@ -315,7 +525,7 @@ const RegisterPage = () => {
                       value={formData.phone}
                       onChange={handleChange}
                       placeholder="9876543210"
-                      className="block w-full pl-10 pr-3 py-2.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-denim"
+                      className="block w-full pl-10 pr-3.5 py-2.5 text-sm bg-white border border-slate-300 rounded-xl text-slate-900 focus:ring-2 focus:ring-brand-denim"
                     />
                   </div>
                 </div>
@@ -324,17 +534,17 @@ const RegisterPage = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-                    Department
+                    Department *
                   </label>
-                  <div className="relative rounded-lg shadow-sm">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                  <div className="relative rounded-xl shadow-sm">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                       <Building2 size={18} />
                     </div>
                     <select
                       name="department"
                       value={formData.department}
                       onChange={handleChange}
-                      className="block w-full pl-10 pr-3 py-2.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-denim bg-white"
+                      className="block w-full pl-10 pr-3.5 py-2.5 text-sm bg-white border border-slate-300 rounded-xl text-slate-900 focus:ring-2 focus:ring-brand-denim"
                     >
                       {DEPARTMENTS.map((dept) => (
                         <option key={dept} value={dept}>
@@ -347,10 +557,10 @@ const RegisterPage = () => {
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-                    Designation
+                    Designation *
                   </label>
-                  <div className="relative rounded-lg shadow-sm">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                  <div className="relative rounded-xl shadow-sm">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                       <Briefcase size={18} />
                     </div>
                     <input
@@ -360,23 +570,30 @@ const RegisterPage = () => {
                       value={formData.designation}
                       onChange={handleChange}
                       placeholder="e.g. Purchase Officer"
-                      className="block w-full pl-10 pr-3 py-2.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-denim"
+                      className="block w-full pl-10 pr-3.5 py-2.5 text-sm bg-white border border-slate-300 rounded-xl text-slate-900 focus:ring-2 focus:ring-brand-denim"
                     />
                   </div>
                 </div>
               </div>
 
-              <div className="pt-2">
+              <div className="pt-3 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setStep(1)}
+                  className="w-1/3 py-2.5 px-3 border border-slate-300 rounded-xl text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 transition-all inline-flex items-center justify-center cursor-pointer"
+                >
+                  <ArrowLeft size={14} className="mr-1" /> Back
+                </button>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full flex justify-center items-center py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-sm font-semibold text-white bg-brand-navy hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-denim disabled:opacity-50 transition-all cursor-pointer"
+                  className="w-2/3 flex justify-center items-center py-2.5 px-4 border border-transparent rounded-xl shadow-md text-sm font-semibold text-white bg-slate-900 hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900 disabled:opacity-50 active:scale-[0.98] transition-all cursor-pointer"
                 >
                   {loading ? (
                     <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                   ) : (
                     <>
-                      Verify Email & Continue <ArrowRight size={16} className="ml-2" />
+                      Verify Email OTP <ArrowRight size={16} className="ml-2" />
                     </>
                   )}
                 </button>
@@ -384,27 +601,41 @@ const RegisterPage = () => {
             </form>
           )}
 
-          {/* STEP 2: Email OTP Verification */}
-          {step === 2 && (
-            <form className="space-y-4 text-center" onSubmit={handleStep2VerifyOtp}>
-              <div className="flex justify-center mb-2">
-                <div className="h-12 w-12 rounded-full bg-blue-50 border border-blue-100 flex items-center justify-center text-brand-denim">
+          {/* STEP 3: Email OTP Verification */}
+          {step === 3 && (
+            <form className="space-y-4 text-center" onSubmit={handleStep3VerifyOtp}>
+              <div className="flex items-center justify-between border-b border-slate-200 pb-3 text-left">
+                <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                  Step 3: Enter Verification Code
+                </span>
+                <span className="text-xs font-bold text-brand-denim bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-100">
+                  3 of 4
+                </span>
+              </div>
+
+              <div className="flex justify-center my-1">
+                <div className="h-12 w-12 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center text-brand-denim shadow-sm">
                   <ShieldCheck size={24} />
                 </div>
               </div>
 
-              <h3 className="text-lg font-bold text-slate-900">Step 2: Enter Verification Code</h3>
-              <p className="text-xs text-slate-600">
-                We sent a 6-digit OTP code to <strong className="text-slate-900">{maskedEmail}</strong>.
+              <p className="text-xs text-slate-600 max-w-xs mx-auto">
+                We sent a 6-digit OTP code to <strong className="text-slate-900">{maskedEmail}</strong> for {selectedCompany?.name}.
               </p>
 
               {errorMessage && (
-                <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-xs font-medium text-rose-700 text-left">
+                <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs font-medium text-rose-700 text-left">
                   {errorMessage}
                 </div>
               )}
 
-              <OtpInput value={otpValue} onChange={setOtpValue} disabled={loading} />
+              <OtpInput
+                value={otpValue}
+                onChange={setOtpValue}
+                disabled={loading}
+                isError={otpError}
+                isSuccess={otpSuccess}
+              />
 
               <div className="flex items-center justify-between text-xs text-slate-500 px-2">
                 <span>Code expires in: <strong className="font-mono text-slate-800">{formatTime(otpTimer)}</strong></span>
@@ -422,86 +653,92 @@ const RegisterPage = () => {
               <div className="pt-3 flex gap-3">
                 <button
                   type="button"
-                  onClick={() => setStep(1)}
-                  className="w-1/3 py-2.5 px-3 border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-all inline-flex items-center justify-center"
+                  onClick={() => setStep(2)}
+                  className="w-1/3 py-2.5 px-3 border border-slate-300 rounded-xl text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 transition-all inline-flex items-center justify-center cursor-pointer"
                 >
-                  <ArrowLeft size={14} className="mr-1" /> Edit Info
+                  <ArrowLeft size={14} className="mr-1" /> Edit Details
                 </button>
 
                 <button
                   type="submit"
                   disabled={loading || otpValue.length < 6}
-                  className="w-2/3 py-2.5 px-4 bg-brand-navy text-white text-sm font-semibold rounded-lg shadow-sm hover:bg-slate-800 disabled:opacity-50 transition-all cursor-pointer flex justify-center items-center"
+                  className="w-2/3 py-2.5 px-4 bg-slate-900 text-white text-sm font-semibold rounded-xl shadow-md hover:bg-slate-800 disabled:opacity-50 active:scale-[0.98] transition-all cursor-pointer flex justify-center items-center"
                 >
                   {loading ? (
                     <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                   ) : (
-                    'Verify Code'
+                    'Verify Code & Continue'
                   )}
                 </button>
               </div>
             </form>
           )}
 
-          {/* STEP 3: Create Password */}
-          {step === 3 && (
-            <form className="space-y-4" onSubmit={handleStep3CreatePassword}>
-              <div className="mb-4 flex items-center justify-between border-b border-slate-100 pb-3">
-                <div>
-                  <h3 className="text-base font-bold text-slate-800">Step 3: Create Account Password</h3>
-                  <p className="text-xs text-slate-500">Email verified! Set your account password.</p>
-                </div>
-                <div className="h-8 w-8 rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600">
-                  <Lock size={18} />
-                </div>
+          {/* STEP 4: Create Password */}
+          {step === 4 && (
+            <form className="space-y-4" onSubmit={handleStep4CreatePassword}>
+              <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+                <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                  Step 4: Create Password
+                </span>
+                <span className="text-xs font-bold text-brand-denim bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-100">
+                  4 of 4
+                </span>
               </div>
 
               {errorMessage && (
-                <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-xs font-medium text-rose-700">
+                <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs font-medium text-rose-700">
                   {errorMessage}
                 </div>
               )}
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-                  Create Password
+                  Create Password *
                 </label>
-                <div className="relative rounded-lg shadow-sm">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                <div className="relative rounded-xl shadow-sm">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                     <Lock size={18} />
                   </div>
                   <input
                     type="password"
                     name="password"
                     required
+                    autoComplete="new-password"
                     value={formData.password}
                     onChange={handleChange}
                     placeholder="Min 10 chars, uppercase, number, symbol"
-                    className="block w-full pl-10 pr-3 py-2.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-denim"
+                    className="block w-full pl-10 pr-3.5 py-2.5 text-sm bg-white border border-slate-300 rounded-xl text-slate-900 focus:ring-2 focus:ring-brand-denim"
                   />
                 </div>
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-                  Confirm Password
+                  Confirm Password *
                 </label>
-                <div className="relative rounded-lg shadow-sm">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                <div className="relative rounded-xl shadow-sm">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                     <Lock size={18} />
                   </div>
                   <input
                     type="password"
                     name="confirmPassword"
                     required
+                    autoComplete="new-password"
                     value={formData.confirmPassword}
                     onChange={handleChange}
                     placeholder="Re-enter created password"
-                    className="block w-full pl-10 pr-3 py-2.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-denim"
+                    className="block w-full pl-10 pr-3.5 py-2.5 text-sm bg-white border border-slate-300 rounded-xl text-slate-900 focus:ring-2 focus:ring-brand-denim"
                   />
                 </div>
                 {formData.confirmPassword && formData.password !== formData.confirmPassword && (
                   <p className="text-[11px] text-rose-600 mt-1 font-medium">Passwords do not match</p>
+                )}
+                {formData.confirmPassword && formData.password === formData.confirmPassword && (
+                  <p className="text-[11px] text-emerald-600 mt-1 font-medium flex items-center gap-1">
+                    <Check size={12} /> Passwords match
+                  </p>
                 )}
               </div>
 
@@ -511,7 +748,7 @@ const RegisterPage = () => {
                 <button
                   type="submit"
                   disabled={loading || formData.password !== formData.confirmPassword}
-                  className="w-full flex justify-center items-center py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 disabled:opacity-50 transition-all cursor-pointer"
+                  className="w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-xl shadow-md text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50 active:scale-[0.98] transition-all cursor-pointer"
                 >
                   {loading ? (
                     <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -523,38 +760,45 @@ const RegisterPage = () => {
             </form>
           )}
 
-          {/* STEP 4: Success Screen */}
-          {step === 4 && (
+          {/* STEP 5: Success Screen */}
+          {step === 5 && (
             <div className="text-center py-4 space-y-4">
-              <CheckCircle2 className="w-16 h-16 text-emerald-500 mx-auto" />
-              <h3 className="text-xl font-bold text-slate-900">Email Verified Successfully!</h3>
-              <p className="text-sm text-slate-600">Your account registration is now <strong className="text-amber-700 font-bold">Pending Admin Approval</strong>.</p>
+              <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-inner">
+                <CheckCircle2 size={36} />
+              </div>
+              <h3 className="text-xl font-bold text-slate-900">Registration Submitted!</h3>
+              <p className="text-xs sm:text-sm text-slate-600">
+                Your employee account under <strong className="text-slate-900">{selectedCompany?.name}</strong> is now <strong className="text-amber-700">Pending Admin Approval</strong>.
+              </p>
 
-              <div className="p-4 bg-amber-50 rounded-xl border border-amber-200 text-left text-xs text-amber-900 space-y-1.5">
+              <div className="p-4 bg-amber-50/80 rounded-2xl border border-amber-200 text-left text-xs text-amber-900 space-y-1.5 shadow-sm">
                 <p className="font-bold text-amber-950">Next Steps:</p>
-                <p>• An Administrator has been notified of your registration request.</p>
-                <p>• Once an Admin reviews and approves your account, your access will be activated.</p>
-                <p>• You will receive an email notification when your account is ready for sign in.</p>
+                <p>• Company Administrators have been notified of your registration request.</p>
+                <p>• Once approved, your account will be activated and an email notification sent.</p>
               </div>
 
               <Link
                 to="/login"
-                className="inline-flex items-center justify-center w-full py-2.5 px-4 bg-brand-navy text-white font-semibold rounded-lg shadow-sm hover:bg-slate-800 transition-all text-sm mt-4"
+                className="inline-flex items-center justify-center w-full py-3 px-4 bg-slate-900 text-white font-semibold rounded-xl shadow-md hover:bg-slate-800 transition-all text-sm mt-4"
               >
-                Proceed to Login Page
+                Proceed to Sign In
               </Link>
             </div>
           )}
 
-          <div className="mt-6 pt-4 border-t border-slate-100 text-center">
+          <div className="pt-6 border-t border-slate-200 text-center">
             <p className="text-xs text-slate-600">
               Already have an account?{' '}
-              <Link to="/login" className="font-semibold text-brand-denim hover:underline">
+              <Link to="/login" className="font-bold text-brand-denim hover:underline">
                 Sign In
               </Link>
             </p>
           </div>
+        </div>
 
+        {/* Workspace Footer Copyright */}
+        <div className="text-center text-[11px] text-slate-400 pt-6">
+          © {new Date().getFullYear()} Maruti Denim Group. All rights reserved.
         </div>
       </div>
     </div>

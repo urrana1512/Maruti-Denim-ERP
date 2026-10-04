@@ -6,7 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 const Header = ({ setIsOpen }) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, logout, isAdmin } = useAuth();
+  const { user, logout, isAdmin, selectedCompany } = useAuth();
 
   const handleLogout = async () => {
     await logout();
@@ -35,10 +35,15 @@ const Header = ({ setIsOpen }) => {
       <div className="h-6 w-px bg-gray-200 md:hidden" aria-hidden="true" />
 
       <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6 min-w-0">
-        <div className="flex flex-1 items-center min-w-0">
+        <div className="flex flex-1 items-center gap-3 min-w-0">
           <div className="text-sm font-medium text-slate-500 truncate">
             {getBreadcrumbs()}
           </div>
+          {selectedCompany && (
+            <span className="hidden sm:inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-900 text-white tracking-wide">
+              {selectedCompany.name}
+            </span>
+          )}
         </div>
 
         <div className="flex items-center gap-x-4 lg:gap-x-5">

@@ -4,6 +4,8 @@ const helmet = require('helmet');
 const cookieParser = require('cookie-parser');
 const rateLimit = require('express-rate-limit');
 
+const companyRoutes = require('./routes/companyRoutes');
+const superAdminRoutes = require('./routes/superAdminRoutes');
 const authRoutes = require('./routes/authRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const roleRoutes = require('./routes/roleRoutes');
@@ -12,6 +14,8 @@ const materialInwardRoutes = require('./routes/materialInwardRoutes');
 const reportRoutes = require('./routes/reportRoutes');
 const masterDataRoutes = require('./routes/masterDataRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
+
+const tenantMiddleware = require('./middleware/tenantMiddleware');
 
 const app = express();
 
@@ -46,15 +50,19 @@ app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Core API Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/admin', adminRoutes);
-app.use('/api/roles', roleRoutes);
-app.use('/api/dashboard', dashboardRoutes);
-app.use('/api/gate-passes', gatePassRoutes);
-app.use('/api/material-inward', materialInwardRoutes);
-app.use('/api/reports', reportRoutes);
-app.use('/api/master-data', masterDataRoutes);
+// Platform Level Routes (Public & Super Admin)
+app.use('/api/companies', companyRoutes);
+app.use('/api/superadmin', superAdminRoutes);
+
+// Tenant-Scoped Operational API Routes (using tenantMiddleware)
+app.use('/api/auth', tenantMiddleware, authRoutes);
+app.use('/api/admin', tenantMiddleware, adminRoutes);
+app.use('/api/roles', tenantMiddleware, roleRoutes);
+app.use('/api/dashboard', tenantMiddleware, dashboardRoutes);
+app.use('/api/gate-passes', tenantMiddleware, gatePassRoutes);
+app.use('/api/material-inward', tenantMiddleware, materialInwardRoutes);
+app.use('/api/reports', tenantMiddleware, reportRoutes);
+app.use('/api/master-data', tenantMiddleware, masterDataRoutes);
 
 // Base route
 app.get('/', (req, res) => {

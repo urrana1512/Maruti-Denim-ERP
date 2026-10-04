@@ -74,6 +74,41 @@ export const authService = {
     return res.data;
   },
 
+  getPublicCompanies: async () => {
+    const res = await api.get('/companies/public');
+    return res.data;
+  },
+
+  // Super Admin Methods
+  superAdminLogin: async (email, password) => {
+    const res = await api.post('/superadmin/login', { email, password });
+    if (res.data.token) {
+      localStorage.setItem('maruti_superadmin_token', res.data.token);
+      localStorage.setItem('maruti_superadmin_user', JSON.stringify(res.data.user));
+    }
+    return res.data;
+  },
+
+  superAdminLogout: () => {
+    localStorage.removeItem('maruti_superadmin_token');
+    localStorage.removeItem('maruti_superadmin_user');
+  },
+
+  getSuperAdminDashboard: async () => {
+    const res = await api.get('/superadmin/dashboard');
+    return res.data;
+  },
+
+  onboardCompany: async (companyData) => {
+    const res = await api.post('/superadmin/companies', companyData);
+    return res.data;
+  },
+
+  toggleCompanyStatus: async (companyId, isActive) => {
+    const res = await api.patch(`/superadmin/companies/${companyId}/status`, { isActive });
+    return res.data;
+  },
+
   logout: async () => {
     try {
       await api.post('/auth/logout');

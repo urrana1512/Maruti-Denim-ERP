@@ -1,9 +1,6 @@
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
-const User = require('../models/User');
-const Role = require('../models/Role');
-const Otp = require('../models/Otp');
-const AuditLog = require('../models/AuditLog');
+const { resolveModels } = require('../config/connectionManager');
 const { JWT_SECRET } = require('../middleware/authMiddleware');
 const {
   sendVerificationOtpEmail,
@@ -52,8 +49,8 @@ const validatePasswordStrength = (pwd) => {
 /**
  * Generate Main Auth Token
  */
-const generateToken = (id, tokenVersion = 0) => {
-  return jwt.sign({ id, tokenVersion }, JWT_SECRET, { expiresIn: '7d' });
+const generateToken = (id, companyCode = 'maruti_nandan', tokenVersion = 0) => {
+  return jwt.sign({ id, companyCode, tokenVersion }, JWT_SECRET, { expiresIn: '7d' });
 };
 
 /**
@@ -74,8 +71,9 @@ const verifyFlowToken = (token) => {
 /**
  * Send Session Token Response
  */
-const sendTokenResponse = (user, statusCode, res, message = 'Authenticated successfully') => {
-  const token = generateToken(user._id, user.tokenVersion || 0);
+const sendTokenResponse = (user, companyCode, statusCode, res, message = 'Authenticated successfully') => {
+  const code = companyCode || user.companyCode || 'maruti_nandan';
+  const token = generateToken(user._id, code, user.tokenVersion || 0);
 
   const cookieOptions = {
     expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
@@ -100,7 +98,8 @@ const sendTokenResponse = (user, statusCode, res, message = 'Authenticated succe
         designation: user.designation,
         roleName: user.roleName || user.role?.name,
         role: user.role,
-        status: user.status
+        status: user.status,
+        companyCode: code
       }
     });
 };
@@ -501,6 +500,7 @@ exports.registerStep3CreatePassword = async (req, res) => {
 // @access  Public
 exports.login = async (req, res) => {
   try {
+    const { User, AuditLog } = resolveModels(req);
     const { email, password } = req.body;
 
     if (!email || !password) {
@@ -584,7 +584,8 @@ exports.login = async (req, res) => {
       ipAddress: req.ip || req.connection?.remoteAddress
     });
 
-    sendTokenResponse(user, 200, res, 'Logged in successfully');
+    const companyCode = req.companyCode || user.companyCode || 'maruti_nandan';
+    sendTokenResponse(user, companyCode, 200, res, 'Logged in successfully');
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ success: false, message: 'Server error during login.', error: error.message });
@@ -596,6 +597,7 @@ exports.login = async (req, res) => {
 // @access  Public
 exports.adminLogin = async (req, res) => {
   try {
+    const { User, AuditLog } = resolveModels(req);
     const { email, password } = req.body;
 
     if (!email || !password) {
@@ -638,7 +640,8 @@ exports.adminLogin = async (req, res) => {
       ipAddress: req.ip || req.connection?.remoteAddress
     });
 
-    sendTokenResponse(user, 200, res, 'Admin authenticated successfully');
+    const companyCode = req.companyCode || user.companyCode || 'maruti_nandan';
+    sendTokenResponse(user, companyCode, 200, res, 'Admin authenticated successfully');
   } catch (error) {
     console.error('Admin login error:', error);
     res.status(500).json({ success: false, message: 'Server error during Admin login.', error: error.message });

@@ -14,13 +14,31 @@ const api = axios.create({
   },
 });
 
-// Request interceptor to attach Bearer token if present
+// Request interceptor to attach Bearer token and selected x-company-code header
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('maruti_auth_token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    const isSuperAdminReq = config.url && config.url.includes('/superadmin');
+    const superAdminToken = localStorage.getItem('maruti_superadmin_token');
+    const userToken = localStorage.getItem('maruti_auth_token');
+
+    if (isSuperAdminReq && superAdminToken) {
+      config.headers.Authorization = `Bearer ${superAdminToken}`;
+    } else if (userToken) {
+      config.headers.Authorization = `Bearer ${userToken}`;
     }
+
+    const savedCompanyStr = localStorage.getItem('maruti_selected_company');
+    if (savedCompanyStr) {
+      try {
+        const savedCompany = JSON.parse(savedCompanyStr);
+        if (savedCompany?.code) {
+          config.headers['x-company-code'] = savedCompany.code;
+        }
+      } catch (e) {
+        // ignore JSON parse error
+      }
+    }
+
     return config;
   },
   (error) => Promise.reject(error)

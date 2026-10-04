@@ -10,10 +10,15 @@ import Layout from './components/layout/Layout';
 import AdminLayout from './components/admin/AdminLayout';
 
 // Auth Pages
+import SelectCompanyPage from './pages/Auth/SelectCompanyPage';
 import LoginPage from './pages/Auth/LoginPage';
 import AdminLoginPage from './pages/Auth/AdminLoginPage';
 import RegisterPage from './pages/Auth/RegisterPage';
 import ForgotPasswordPage from './pages/Auth/ForgotPasswordPage';
+
+// Super Admin Pages
+import SuperAdminLoginPage from './pages/SuperAdmin/SuperAdminLoginPage';
+import SuperAdminDashboardPage from './pages/SuperAdmin/SuperAdminDashboardPage';
 
 // User Module Pages
 import DashboardPage from './pages/Dashboard/DashboardPage';
@@ -47,10 +52,15 @@ function App() {
         <Toaster position="top-right" richColors />
         <Routes>
           {/* Public Auth Routes */}
+          <Route path="/select-company" element={<SelectCompanyPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/admin/login" element={<AdminLoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+
+          {/* Super Admin Routes */}
+          <Route path="/superadmin/login" element={<SuperAdminLoginPage />} />
+          <Route path="/superadmin/dashboard" element={<SuperAdminDashboardPage />} />
 
           {/* Standard User Operational Routes */}
           <Route
