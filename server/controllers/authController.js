@@ -71,7 +71,7 @@ const verifyFlowToken = (token) => {
 /**
  * Send Session Token Response
  */
-const sendTokenResponse = (user, companyCode, statusCode, res, message = 'Authenticated successfully') => {
+const sendTokenResponse = async (user, companyCode, statusCode, res, message = 'Authenticated successfully') => {
   const code = companyCode || user.companyCode || 'maruti_nandan';
   const token = generateToken(user._id, code, user.tokenVersion || 0);
 
@@ -81,6 +81,54 @@ const sendTokenResponse = (user, companyCode, statusCode, res, message = 'Authen
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax'
   };
+
+  const { Company } = getSuperAdminModels();
+  const cCode = String(code).toLowerCase().trim();
+  let companyObj = null;
+
+  try {
+    let activeCompanies = await Company.find({ status: 'ACTIVE' });
+    if (activeCompanies && activeCompanies.length > 0) {
+      const found = activeCompanies.find(c => {
+        const itemCode = String(c.code).toLowerCase().trim();
+        return itemCode === cCode || itemCode.replace(/_/g, '') === cCode.replace(/_/g, '');
+      });
+      if (found) {
+        companyObj = {
+          code: found.code,
+          name: found.name,
+          shortCode: found.shortCode || found.code,
+          address: found.address,
+          gstNo: found.gstNo,
+          logoUrl: found.logoUrl
+        };
+      }
+    }
+  } catch (e) {}
+
+  if (!companyObj) {
+    const defaultCatalog = {
+      maruti_nandan: {
+        code: 'MARUTI_NANDAN',
+        name: 'MARUTI NANDAN DENIM PVT LTD',
+        shortCode: 'MND',
+        logoUrl: '/Maruti%20denim%20logo.png'
+      },
+      shri_ram: {
+        code: 'SHRI_RAM_COT_FAB',
+        name: 'SHRI RAM COT FAB',
+        shortCode: 'SRCF',
+        logoUrl: '/Shri%20Ram%20logo.png'
+      },
+      balaji_polycot: {
+        code: 'BALAJI_POLYCOT',
+        name: 'BALAJI POLYCOT PVT. LTD.',
+        shortCode: 'BPPL',
+        logoUrl: '/balaji%20polycot%20logo.png'
+      }
+    };
+    companyObj = defaultCatalog[cCode] || defaultCatalog.maruti_nandan;
+  }
 
   res
     .status(statusCode)
@@ -98,8 +146,10 @@ const sendTokenResponse = (user, companyCode, statusCode, res, message = 'Authen
         designation: user.designation,
         roleName: user.roleName || user.role?.name,
         role: user.role,
+        permissions: user.role?.permissions || user.permissions || [],
         status: user.status,
-        companyCode: code
+        companyCode: code,
+        company: companyObj
       }
     });
 };
@@ -113,6 +163,7 @@ const sendTokenResponse = (user, companyCode, statusCode, res, message = 'Authen
 // @access  Public
 exports.registerStep1Initiate = async (req, res) => {
   try {
+    const { User, Otp } = resolveModels(req);
     const { name, email, phone, department, designation } = req.body;
 
     if (!name || !email || !phone || !department || !designation) {
@@ -408,6 +459,7 @@ exports.registerResendOtp = async (req, res) => {
 // @access  Public
 exports.registerStep3CreatePassword = async (req, res) => {
   try {
+    const { User, Role, Otp, AuditLog } = resolveModels(req);
     const { verifiedRegistrationToken, password, confirmPassword } = req.body;
 
     if (!verifiedRegistrationToken || !password || !confirmPassword) {
@@ -585,7 +637,7 @@ exports.login = async (req, res) => {
     });
 
     const companyCode = req.companyCode || user.companyCode || 'maruti_nandan';
-    sendTokenResponse(user, companyCode, 200, res, 'Logged in successfully');
+    await sendTokenResponse(user, companyCode, 200, res, 'Logged in successfully');
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ success: false, message: 'Server error during login.', error: error.message });
@@ -680,7 +732,7 @@ exports.adminLogin = async (req, res) => {
       ipAddress: req.ip || req.connection?.remoteAddress
     });
 
-    sendTokenResponse(foundUser, foundCompanyCode, 200, res, 'Admin authenticated successfully');
+    await sendTokenResponse(foundUser, foundCompanyCode, 200, res, 'Admin authenticated successfully');
   } catch (error) {
     console.error('Admin login error:', error);
     res.status(500).json({ success: false, message: 'Server error during Admin login.', error: error.message });
@@ -696,6 +748,7 @@ exports.adminLogin = async (req, res) => {
 // @access  Public
 exports.forgotPasswordStep1Request = async (req, res) => {
   try {
+    const { User, Otp } = resolveModels(req);
     const { email } = req.body;
 
     if (!email) {
@@ -801,6 +854,7 @@ exports.forgotPasswordStep1Request = async (req, res) => {
 // @access  Public
 exports.forgotPasswordStep2VerifyOtp = async (req, res) => {
   try {
+    const { User, Otp } = resolveModels(req);
     const { resetRequestToken, otp } = req.body;
 
     if (!resetRequestToken || !otp) {
@@ -953,6 +1007,7 @@ exports.forgotPasswordResendOtp = async (req, res) => {
 // @access  Public
 exports.forgotPasswordStep3ResetPassword = async (req, res) => {
   try {
+    const { User, Otp, AuditLog } = resolveModels(req);
     const { verifiedResetToken, newPassword, confirmPassword } = req.body;
 
     if (!verifiedResetToken || !newPassword || !confirmPassword) {
@@ -1023,7 +1078,61 @@ exports.forgotPasswordStep3ResetPassword = async (req, res) => {
 // @access  Private
 exports.getMe = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id).populate('role');
+    const user = req.user;
+    if (!user) {
+      return res.status(401).json({ success: false, message: 'User profile not found.' });
+    }
+
+    const { Company } = getSuperAdminModels();
+    const companyCode = (user.companyCode || 'maruti_nandan').toLowerCase().trim();
+
+    let companyObj = null;
+    try {
+      let activeCompanies = await Company.find({ status: 'ACTIVE' });
+      if (activeCompanies && activeCompanies.length > 0) {
+        const found = activeCompanies.find(c => {
+          const itemCode = String(c.code).toLowerCase().trim();
+          return itemCode === companyCode || itemCode.replace(/_/g, '') === companyCode.replace(/_/g, '');
+        });
+        if (found) {
+          companyObj = {
+            code: found.code,
+            name: found.name,
+            shortCode: found.shortCode || found.code,
+            address: found.address,
+            gstNo: found.gstNo,
+            logoUrl: found.logoUrl
+          };
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to fetch company details for getMe:', e.message);
+    }
+
+    if (!companyObj) {
+      const defaultCatalog = {
+        maruti_nandan: {
+          code: 'MARUTI_NANDAN',
+          name: 'MARUTI NANDAN DENIM PVT LTD',
+          shortCode: 'MND',
+          logoUrl: '/Maruti%20denim%20logo.png'
+        },
+        shri_ram: {
+          code: 'SHRI_RAM_COT_FAB',
+          name: 'SHRI RAM COT FAB',
+          shortCode: 'SRCF',
+          logoUrl: '/Shri%20Ram%20logo.png'
+        },
+        balaji_polycot: {
+          code: 'BALAJI_POLYCOT',
+          name: 'BALAJI POLYCOT PVT. LTD.',
+          shortCode: 'BPPL',
+          logoUrl: '/balaji%20polycot%20logo.png'
+        }
+      };
+      companyObj = defaultCatalog[companyCode] || defaultCatalog.maruti_nandan;
+    }
+
     res.status(200).json({
       success: true,
       user: {
@@ -1035,11 +1144,14 @@ exports.getMe = async (req, res) => {
         designation: user.designation,
         roleName: user.roleName || user.role?.name,
         role: user.role,
-        permissions: user.role?.permissions || [],
-        status: user.status
+        permissions: user.role?.permissions || user.permissions || [],
+        status: user.status,
+        companyCode: user.companyCode,
+        company: companyObj
       }
     });
   } catch (error) {
+    console.error('getMe error:', error);
     res.status(500).json({ success: false, message: 'Server error fetching user profile.' });
   }
 };
