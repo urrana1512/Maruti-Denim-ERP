@@ -63,6 +63,8 @@ const protect = async (req, res, next) => {
       });
     }
 
+    req.companyCode = companyCode;
+    req.tenantModels = tenantModels;
     req.user = user;
     next();
   } catch (error) {

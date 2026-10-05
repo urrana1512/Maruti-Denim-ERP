@@ -140,7 +140,8 @@ function resolveModels(req) {
   if (req && req.tenantModels) {
     return req.tenantModels;
   }
-  const companyCode = req?.companyCode || req?.user?.companyCode || req?.body?.companyCode || 'maruti_nandan';
+  const rawCode = req?.companyCode || req?.user?.companyCode || req?.body?.companyCode || req?.headers?.['x-company-code'] || 'maruti_nandan';
+  const companyCode = String(rawCode).toLowerCase().trim();
   return getTenantModels(companyCode);
 }
 
