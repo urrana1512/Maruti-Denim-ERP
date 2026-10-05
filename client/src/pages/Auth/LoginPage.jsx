@@ -3,8 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { authService } from '../../services/authService';
 import { toast } from 'sonner';
-import { Lock, Mail, Eye, EyeOff, ShieldCheck, ArrowRight, Building2, CheckCircle2, ArrowLeft } from 'lucide-react';
-import BrandPanel from '../../components/auth/BrandPanel';
+import { Lock, Mail, Eye, EyeOff, ShieldCheck, ArrowRight, Building2, CheckCircle2, ArrowLeft, UserPlus, Sparkles } from 'lucide-react';
 
 const LoginPage = () => {
   const { login, selectedCompany, setSelectedCompany } = useAuth();
@@ -85,63 +84,60 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex w-full">
-      {/* Left Side — Brand Experience Panel */}
-      <BrandPanel />
+    <div className="min-h-screen bg-gradient-mesh flex flex-col justify-center items-center p-4 sm:p-6 lg:p-8 relative overflow-hidden select-none">
+      {/* Decorative Floating Ambient Glowing Orbs */}
+      <div className="absolute top-10 left-10 w-72 h-72 rounded-full bg-blue-400/20 blur-3xl pointer-events-none animate-pulse-glow" />
+      <div className="absolute bottom-10 right-10 w-80 h-80 rounded-full bg-indigo-400/20 blur-3xl pointer-events-none animate-pulse-glow" />
 
-      {/* Right Side — Authentication Workspace */}
-      <div className="flex-1 flex flex-col justify-between p-6 sm:p-10 lg:p-12 xl:p-16 overflow-y-auto animate-fade-right">
-        {/* Mobile Compact Branding Header */}
-        <div className="lg:hidden flex items-center justify-between mb-8 pb-4 border-b border-slate-200">
-          <div className="flex items-center gap-3">
+      {/* Single Centered 3D Card Container */}
+      <div className="w-full max-w-md bg-white/95 backdrop-blur-xl rounded-3xl border border-white/40 shadow-3d overflow-hidden relative z-10 transition-all duration-300">
+        
+        {/* Card Header & Brand Branding */}
+        <div className="bg-slate-900 text-white p-6 text-center relative overflow-hidden">
+          <div className="absolute inset-0 bg-textile-pattern opacity-15 pointer-events-none" />
+          
+          <div className="relative z-10 flex justify-center mb-3">
             <img
               src="/Maruti denim logo.png"
               alt="Maruti Denim Logo"
-              className="h-10 w-auto object-contain filter drop-shadow"
+              className="h-12 w-auto object-contain filter drop-shadow brightness-110"
             />
-            <div>
-              <h1 className="text-base font-bold text-slate-900 leading-tight">Maruti Denim</h1>
-              <p className="text-xs text-slate-500">Gate Pass Management System</p>
-            </div>
           </div>
-        </div>
 
-        <div className="max-w-md w-full mx-auto my-auto space-y-6">
-          {/* Active Company Badge Header Banner */}
+          <h1 className="relative z-10 text-xl font-black uppercase tracking-wider text-white">
+            Maruti Denim
+          </h1>
+          <p className="relative z-10 text-xs text-blue-200 mt-0.5">
+            Gate Pass Management System
+          </p>
+
+          {/* Active Company Badge Banner */}
           {selectedCompany && (
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-900 text-white text-xs font-semibold shadow-sm border border-slate-800">
-              <Building2 size={14} className="text-amber-400 shrink-0" />
-              <span className="truncate max-w-[240px] sm:max-w-xs">{selectedCompany.name}</span>
+            <div className="relative z-10 mt-3 inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-white/10 backdrop-blur-md text-amber-300 text-xs font-semibold border border-white/15">
+              <Building2 size={13} className="shrink-0 text-amber-400" />
+              <span className="truncate max-w-[200px]">{selectedCompany.name}</span>
               {step === 2 && (
                 <button
                   type="button"
                   onClick={() => setStep(1)}
-                  className="text-amber-300 hover:underline font-normal text-[11px] ml-1 shrink-0 cursor-pointer"
+                  className="text-white hover:underline text-[11px] font-normal cursor-pointer ml-1"
                 >
                   (Change)
                 </button>
               )}
             </div>
           )}
+        </div>
 
-          {/* Workspace Title & Subtitle */}
-          <div>
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-              {step === 1 ? 'Welcome Back' : 'Sign In to Workspace'}
-            </h2>
-            <p className="mt-1 text-xs sm:text-sm text-slate-600">
-              {step === 1
-                ? 'Select your operating company workspace to continue.'
-                : `Enter your employee credentials for ${selectedCompany?.name || 'your company'}.`}
-            </p>
-          </div>
-
+        {/* Card Body Workspace */}
+        <div className="p-6 sm:p-8 space-y-6">
+          
           {/* STEP 1: Select Operating Company */}
           {step === 1 && (
             <div className="space-y-5">
               <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-                <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-                  Step 1: Select Company
+                <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                  Step 1: Select Operating Company
                 </span>
                 <span className="text-xs font-bold text-brand-denim bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-100">
                   1 of 2
@@ -160,23 +156,23 @@ const LoginPage = () => {
                       <div
                         key={comp.code}
                         onClick={() => handleSelectCompany(comp)}
-                        className={`relative p-4 rounded-xl border-2 transition-all duration-200 cursor-pointer flex items-center justify-between ${
+                        className={`relative p-3.5 rounded-2xl border-2 transition-all duration-200 cursor-pointer flex items-center justify-between shadow-3d-hover ${
                           isSelected
-                            ? 'border-slate-900 bg-slate-900 text-white shadow-md scale-[1.01]'
-                            : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm text-slate-800'
+                            ? 'border-slate-900 bg-slate-900 text-white shadow-md'
+                            : 'border-slate-200 bg-white hover:border-slate-300 text-slate-800'
                         }`}
                       >
-                        <div className="flex items-center gap-3.5">
+                        <div className="flex items-center gap-3">
                           <div
-                            className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 ${
+                            className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 ${
                               isSelected ? 'bg-white/10 text-white' : 'bg-slate-100 text-brand-navy'
                             }`}
                           >
                             {comp.shortCode}
                           </div>
                           <div>
-                            <h4 className="font-bold text-sm leading-snug">{comp.name}</h4>
-                            <p className={`text-xs ${isSelected ? 'text-slate-300' : 'text-slate-500'}`}>
+                            <h4 className="font-bold text-xs leading-snug">{comp.name}</h4>
+                            <p className={`text-[11px] ${isSelected ? 'text-slate-300' : 'text-slate-500'}`}>
                               Code: {comp.code}
                             </p>
                           </div>
@@ -184,7 +180,7 @@ const LoginPage = () => {
 
                         {isSelected && (
                           <div className="text-emerald-400 shrink-0">
-                            <CheckCircle2 size={20} />
+                            <CheckCircle2 size={18} />
                           </div>
                         )}
                       </div>
@@ -197,9 +193,9 @@ const LoginPage = () => {
                 type="button"
                 onClick={handleProceedToCredentials}
                 disabled={!selectedCompany}
-                className="w-full flex justify-center items-center py-3 px-4 rounded-xl shadow-md text-sm font-semibold text-white bg-slate-900 hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2 disabled:opacity-50 active:scale-[0.98] transition-all cursor-pointer"
+                className="w-full flex justify-center items-center py-3.5 px-4 rounded-2xl shadow-md text-sm font-bold text-white bg-slate-900 hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2 disabled:opacity-50 active:scale-[0.98] transition-all cursor-pointer shadow-3d-hover"
               >
-                Continue to Sign In Credentials ({selectedCompany?.shortCode || 'Select'})
+                Continue to Login Credentials ({selectedCompany?.shortCode || 'Select'})
                 <ArrowRight size={16} className="ml-2" />
               </button>
             </div>
@@ -209,7 +205,7 @@ const LoginPage = () => {
           {step === 2 && (
             <form className="space-y-5" onSubmit={handleSubmit}>
               <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-                <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
                   Step 2: Sign In Credentials
                 </span>
                 <span className="text-xs font-bold text-brand-denim bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-100">
@@ -221,7 +217,7 @@ const LoginPage = () => {
                 <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
                   Email Address
                 </label>
-                <div className="relative rounded-xl shadow-sm">
+                <div className="relative rounded-2xl shadow-sm">
                   <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                     <Mail size={18} />
                   </div>
@@ -232,7 +228,7 @@ const LoginPage = () => {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="name@marutidenim.com"
-                    className="block w-full pl-10 pr-3.5 py-2.5 text-sm bg-white border border-slate-300 rounded-xl text-slate-900 focus:ring-2 focus:ring-brand-denim focus:border-brand-denim transition-all"
+                    className="block w-full pl-10 pr-3.5 py-3 text-sm bg-slate-50 border border-slate-300 rounded-2xl text-slate-900 focus:bg-white focus:ring-2 focus:ring-brand-denim focus:border-brand-denim transition-all font-medium"
                   />
                 </div>
               </div>
@@ -246,7 +242,7 @@ const LoginPage = () => {
                     Forgot Password?
                   </Link>
                 </div>
-                <div className="relative rounded-xl shadow-sm">
+                <div className="relative rounded-2xl shadow-sm">
                   <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                     <Lock size={18} />
                   </div>
@@ -257,7 +253,7 @@ const LoginPage = () => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="block w-full pl-10 pr-10 py-2.5 text-sm bg-white border border-slate-300 rounded-xl text-slate-900 focus:ring-2 focus:ring-brand-denim focus:border-brand-denim transition-all"
+                    className="block w-full pl-10 pr-10 py-3 text-sm bg-slate-50 border border-slate-300 rounded-2xl text-slate-900 focus:bg-white focus:ring-2 focus:ring-brand-denim focus:border-brand-denim transition-all font-medium"
                   />
                   <button
                     type="button"
@@ -287,15 +283,15 @@ const LoginPage = () => {
                 <button
                   type="button"
                   onClick={() => setStep(1)}
-                  className="w-1/3 py-3 px-3 border border-slate-300 rounded-xl text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 transition-all inline-flex items-center justify-center cursor-pointer"
+                  className="w-1/3 py-3 px-3 border border-slate-300 rounded-2xl text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 transition-all inline-flex items-center justify-center cursor-pointer"
                 >
-                  <ArrowLeft size={14} className="mr-1.5" /> Change Company
+                  <ArrowLeft size={14} className="mr-1" /> Back
                 </button>
 
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-2/3 flex justify-center items-center py-3 px-4 border border-transparent rounded-xl shadow-md text-sm font-semibold text-white bg-slate-900 hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2 disabled:opacity-50 active:scale-[0.98] transition-all cursor-pointer"
+                  className="w-2/3 flex justify-center items-center py-3.5 px-4 rounded-2xl shadow-md text-sm font-bold text-white bg-slate-900 hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2 disabled:opacity-50 active:scale-[0.98] transition-all cursor-pointer shadow-3d-hover"
                 >
                   {loading ? (
                     <div className="flex items-center gap-2">
@@ -304,7 +300,7 @@ const LoginPage = () => {
                     </div>
                   ) : (
                     <>
-                      Sign In Workspace <ArrowRight size={16} className="ml-2" />
+                      SIGN IN <ArrowRight size={16} className="ml-2" />
                     </>
                   )}
                 </button>
@@ -312,10 +308,10 @@ const LoginPage = () => {
             </form>
           )}
 
-          {/* Footer - No mention of Admin Panel Login */}
-          <div className="pt-6 border-t border-slate-200 text-center">
+          {/* Footer Link — No mention of Admin Panel Login */}
+          <div className="pt-4 border-t border-slate-200 text-center">
             <p className="text-xs text-slate-600">
-              Don't have an account?{' '}
+              New employee?{' '}
               <Link to="/register" className="font-bold text-brand-denim hover:underline">
                 Register for an account
               </Link>
@@ -323,8 +319,8 @@ const LoginPage = () => {
           </div>
         </div>
 
-        {/* Workspace Footer Copyright */}
-        <div className="text-center text-[11px] text-slate-400 pt-6">
+        {/* Card Footer Copyright */}
+        <div className="bg-slate-50 p-3 text-center text-[11px] text-slate-400 border-t border-slate-100">
           © {new Date().getFullYear()} Maruti Denim Group. All rights reserved.
         </div>
       </div>

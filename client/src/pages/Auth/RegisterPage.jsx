@@ -15,11 +15,11 @@ import {
   ShieldCheck,
   RefreshCw,
   ArrowLeft,
-  Check
+  Check,
+  LogIn
 } from 'lucide-react';
 import OtpInput from '../../components/common/OtpInput';
 import PasswordStrengthMeter from '../../components/common/PasswordStrengthMeter';
-import BrandPanel from '../../components/auth/BrandPanel';
 
 const DEPARTMENTS = [
   'Store',
@@ -287,106 +287,105 @@ const RegisterPage = () => {
   const stepsList = [
     { num: 1, label: 'Company' },
     { num: 2, label: 'Details' },
-    { num: 3, label: 'Verify Email' },
+    { num: 3, label: 'Verify' },
     { num: 4, label: 'Password' }
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50 flex w-full">
-      {/* Left Side — Brand Experience Panel */}
-      <BrandPanel />
+    <div className="min-h-screen bg-gradient-mesh flex flex-col justify-center items-center p-4 sm:p-6 lg:p-8 relative overflow-hidden select-none">
+      {/* Decorative Floating Ambient Glowing Orbs */}
+      <div className="absolute top-10 left-10 w-72 h-72 rounded-full bg-blue-400/20 blur-3xl pointer-events-none animate-pulse-glow" />
+      <div className="absolute bottom-10 right-10 w-80 h-80 rounded-full bg-indigo-400/20 blur-3xl pointer-events-none animate-pulse-glow" />
 
-      {/* Right Side — Authentication Workspace */}
-      <div className="flex-1 flex flex-col justify-between p-6 sm:p-10 lg:p-12 xl:p-16 overflow-y-auto animate-fade-right">
-        {/* Mobile Compact Branding Header */}
-        <div className="lg:hidden flex items-center justify-between mb-6 pb-4 border-b border-slate-200">
-          <div className="flex items-center gap-3">
+      {/* Single Centered 3D Card Container */}
+      <div className="w-full max-w-lg bg-white/95 backdrop-blur-xl rounded-3xl border border-white/40 shadow-3d overflow-hidden relative z-10 transition-all duration-300">
+        
+        {/* Card Header & Brand Branding */}
+        <div className="bg-slate-900 text-white p-6 text-center relative overflow-hidden">
+          <div className="absolute inset-0 bg-textile-pattern opacity-15 pointer-events-none" />
+          
+          <div className="relative z-10 flex justify-center mb-3">
             <img
               src="/Maruti denim logo.png"
               alt="Maruti Denim Logo"
-              className="h-10 w-auto object-contain filter drop-shadow"
+              className="h-12 w-auto object-contain filter drop-shadow brightness-110"
             />
-            <div>
-              <h1 className="text-base font-bold text-slate-900 leading-tight">Maruti Denim</h1>
-              <p className="text-xs text-slate-500">Gate Pass Management System</p>
-            </div>
           </div>
-        </div>
 
-        <div className="max-w-md w-full mx-auto my-auto space-y-6">
-          {/* Active Company Badge Header Banner */}
+          <h1 className="relative z-10 text-xl font-black uppercase tracking-wider text-white">
+            Employee Registration
+          </h1>
+          <p className="relative z-10 text-xs text-blue-200 mt-0.5">
+            Maruti Denim Gate Pass Management System
+          </p>
+
+          {/* Active Company Badge Banner */}
           {selectedCompany && (
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-900 text-white text-xs font-semibold shadow-sm border border-slate-800">
-              <Building2 size={14} className="text-amber-400 shrink-0" />
-              <span className="truncate max-w-[240px] sm:max-w-xs">{selectedCompany.name}</span>
+            <div className="relative z-10 mt-3 inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-white/10 backdrop-blur-md text-amber-300 text-xs font-semibold border border-white/15">
+              <Building2 size={13} className="shrink-0 text-amber-400" />
+              <span className="truncate max-w-[200px]">{selectedCompany.name}</span>
               {step > 1 && (
                 <button
                   type="button"
                   onClick={() => setStep(1)}
-                  className="text-amber-300 hover:underline font-normal text-[11px] ml-1 shrink-0 cursor-pointer"
+                  className="text-white hover:underline text-[11px] font-normal cursor-pointer ml-1"
                 >
                   (Change)
                 </button>
               )}
             </div>
           )}
+        </div>
 
-          <div>
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-              Employee Registration
-            </h2>
-            <p className="mt-1 text-xs sm:text-sm text-slate-600">
-              Register for authorized access to the Maruti Denim Gate Pass Portal.
-            </p>
-          </div>
+        {/* 4-Step Connected Progress Line */}
+        {step <= 4 && (
+          <div className="bg-slate-100/80 px-6 py-3 border-b border-slate-200/80">
+            <div className="flex items-center justify-between relative max-w-xs mx-auto">
+              <div className="absolute top-1/2 left-0 right-0 -translate-y-1/2 h-0.5 bg-slate-300 z-0" />
+              <div
+                className="absolute top-1/2 left-0 -translate-y-1/2 h-0.5 bg-slate-900 z-0 transition-all duration-500 ease-out"
+                style={{ width: `${((step - 1) / 3) * 100}%` }}
+              />
 
-          {/* Connected Step Indicator */}
-          {step <= 4 && (
-            <div className="py-2">
-              <div className="flex items-center justify-between relative">
-                {/* Connecting Progress Bar Line */}
-                <div className="absolute top-1/2 left-0 right-0 -translate-y-1/2 h-0.5 bg-slate-200 z-0" />
-                <div
-                  className="absolute top-1/2 left-0 -translate-y-1/2 h-0.5 bg-slate-900 z-0 transition-all duration-500 ease-out"
-                  style={{ width: `${((step - 1) / 3) * 100}%` }}
-                />
-
-                {stepsList.map((s) => {
-                  const isDone = step > s.num;
-                  const isCurrent = step === s.num;
-                  return (
-                    <div key={s.num} className="relative z-10 flex flex-col items-center">
-                      <div
-                        className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs transition-all duration-300 ${
-                          isDone
-                            ? 'bg-slate-900 text-white ring-2 ring-slate-900'
-                            : isCurrent
-                            ? 'bg-brand-denim text-white ring-4 ring-blue-100 shadow-md animate-pulse-glow'
-                            : 'bg-white text-slate-400 border-2 border-slate-300'
-                        }`}
-                      >
-                        {isDone ? <Check size={14} /> : s.num}
-                      </div>
-                      <span
-                        className={`text-[10px] font-semibold mt-1 hidden sm:block ${
-                          isCurrent ? 'text-slate-900 font-bold' : isDone ? 'text-slate-700' : 'text-slate-400'
-                        }`}
-                      >
-                        {s.label}
-                      </span>
+              {stepsList.map((s) => {
+                const isDone = step > s.num;
+                const isCurrent = step === s.num;
+                return (
+                  <div key={s.num} className="relative z-10 flex flex-col items-center">
+                    <div
+                      className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs transition-all duration-300 ${
+                        isDone
+                          ? 'bg-slate-900 text-white ring-2 ring-slate-900'
+                          : isCurrent
+                          ? 'bg-brand-denim text-white ring-4 ring-blue-100 shadow-md animate-pulse-glow'
+                          : 'bg-white text-slate-400 border-2 border-slate-300'
+                      }`}
+                    >
+                      {isDone ? <Check size={13} /> : s.num}
                     </div>
-                  );
-                })}
-              </div>
+                    <span
+                      className={`text-[10px] font-semibold mt-1 ${
+                        isCurrent ? 'text-slate-900 font-bold' : isDone ? 'text-slate-700' : 'text-slate-400'
+                      }`}
+                    >
+                      {s.label}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
-          )}
+          </div>
+        )}
 
+        {/* Card Body Workspace */}
+        <div className="p-6 sm:p-8 space-y-5">
+          
           {/* STEP 1: Select Operating Company */}
           {step === 1 && (
             <div className="space-y-5">
               <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-                <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-                  Step 1: Select Company
+                <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                  Step 1: Select Operating Company
                 </span>
                 <span className="text-xs font-bold text-brand-denim bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-100">
                   1 of 4
@@ -405,23 +404,23 @@ const RegisterPage = () => {
                       <div
                         key={comp.code}
                         onClick={() => handleSelectCompany(comp)}
-                        className={`relative p-4 rounded-xl border-2 transition-all duration-200 cursor-pointer flex items-center justify-between ${
+                        className={`relative p-3.5 rounded-2xl border-2 transition-all duration-200 cursor-pointer flex items-center justify-between shadow-3d-hover ${
                           isSelected
-                            ? 'border-slate-900 bg-slate-900 text-white shadow-md scale-[1.01]'
-                            : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm text-slate-800'
+                            ? 'border-slate-900 bg-slate-900 text-white shadow-md'
+                            : 'border-slate-200 bg-white hover:border-slate-300 text-slate-800'
                         }`}
                       >
-                        <div className="flex items-center gap-3.5">
+                        <div className="flex items-center gap-3">
                           <div
-                            className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 ${
+                            className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 ${
                               isSelected ? 'bg-white/10 text-white' : 'bg-slate-100 text-brand-navy'
                             }`}
                           >
                             {comp.shortCode}
                           </div>
                           <div>
-                            <h4 className="font-bold text-sm leading-snug">{comp.name}</h4>
-                            <p className={`text-xs ${isSelected ? 'text-slate-300' : 'text-slate-500'}`}>
+                            <h4 className="font-bold text-xs leading-snug">{comp.name}</h4>
+                            <p className={`text-[11px] ${isSelected ? 'text-slate-300' : 'text-slate-500'}`}>
                               Code: {comp.code}
                             </p>
                           </div>
@@ -429,7 +428,7 @@ const RegisterPage = () => {
 
                         {isSelected && (
                           <div className="text-emerald-400 shrink-0">
-                            <CheckCircle2 size={20} />
+                            <CheckCircle2 size={18} />
                           </div>
                         )}
                       </div>
@@ -442,7 +441,7 @@ const RegisterPage = () => {
                 type="button"
                 onClick={handleProceedToDetails}
                 disabled={!selectedCompany}
-                className="w-full flex justify-center items-center py-3 px-4 rounded-xl shadow-md text-sm font-semibold text-white bg-slate-900 hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2 disabled:opacity-50 active:scale-[0.98] transition-all cursor-pointer"
+                className="w-full flex justify-center items-center py-3.5 px-4 rounded-2xl shadow-md text-sm font-bold text-white bg-slate-900 hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2 disabled:opacity-50 active:scale-[0.98] transition-all cursor-pointer shadow-3d-hover"
               >
                 Next: Enter Employee Details ({selectedCompany?.shortCode || 'Select'})
                 <ArrowRight size={16} className="ml-2" />
@@ -454,8 +453,8 @@ const RegisterPage = () => {
           {step === 2 && (
             <form className="space-y-4" onSubmit={handleStep2Submit}>
               <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-                <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-                  Step 2: Employee Account Details
+                <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                  Step 2: Account Details
                 </span>
                 <span className="text-xs font-bold text-brand-denim bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-100">
                   2 of 4
@@ -463,7 +462,7 @@ const RegisterPage = () => {
               </div>
 
               {errorMessage && (
-                <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs font-medium text-rose-700">
+                <div className="p-3 bg-rose-50 border border-rose-200 rounded-2xl text-xs font-medium text-rose-700">
                   {errorMessage}
                 </div>
               )}
@@ -472,7 +471,7 @@ const RegisterPage = () => {
                 <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
                   Full Name *
                 </label>
-                <div className="relative rounded-xl shadow-sm">
+                <div className="relative rounded-2xl shadow-sm">
                   <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                     <User size={18} />
                   </div>
@@ -483,17 +482,17 @@ const RegisterPage = () => {
                     value={formData.name}
                     onChange={handleChange}
                     placeholder="e.g. Rajesh Sharma"
-                    className="block w-full pl-10 pr-3.5 py-2.5 text-sm bg-white border border-slate-300 rounded-xl text-slate-900 focus:ring-2 focus:ring-brand-denim"
+                    className="block w-full pl-10 pr-3.5 py-2.5 text-sm bg-slate-50 border border-slate-300 rounded-2xl text-slate-900 focus:bg-white focus:ring-2 focus:ring-brand-denim font-medium"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
                     Gmail / Email *
                   </label>
-                  <div className="relative rounded-xl shadow-sm">
+                  <div className="relative rounded-2xl shadow-sm">
                     <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                       <Mail size={18} />
                     </div>
@@ -505,7 +504,7 @@ const RegisterPage = () => {
                       value={formData.email}
                       onChange={handleChange}
                       placeholder="rajesh@gmail.com"
-                      className="block w-full pl-10 pr-3.5 py-2.5 text-sm bg-white border border-slate-300 rounded-xl text-slate-900 focus:ring-2 focus:ring-brand-denim"
+                      className="block w-full pl-10 pr-3.5 py-2.5 text-sm bg-slate-50 border border-slate-300 rounded-2xl text-slate-900 focus:bg-white focus:ring-2 focus:ring-brand-denim font-medium"
                     />
                   </div>
                 </div>
@@ -514,7 +513,7 @@ const RegisterPage = () => {
                   <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
                     Phone Number *
                   </label>
-                  <div className="relative rounded-xl shadow-sm">
+                  <div className="relative rounded-2xl shadow-sm">
                     <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                       <Phone size={18} />
                     </div>
@@ -525,18 +524,18 @@ const RegisterPage = () => {
                       value={formData.phone}
                       onChange={handleChange}
                       placeholder="9876543210"
-                      className="block w-full pl-10 pr-3.5 py-2.5 text-sm bg-white border border-slate-300 rounded-xl text-slate-900 focus:ring-2 focus:ring-brand-denim"
+                      className="block w-full pl-10 pr-3.5 py-2.5 text-sm bg-slate-50 border border-slate-300 rounded-2xl text-slate-900 focus:bg-white focus:ring-2 focus:ring-brand-denim font-medium"
                     />
                   </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
                     Department *
                   </label>
-                  <div className="relative rounded-xl shadow-sm">
+                  <div className="relative rounded-2xl shadow-sm">
                     <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                       <Building2 size={18} />
                     </div>
@@ -544,7 +543,7 @@ const RegisterPage = () => {
                       name="department"
                       value={formData.department}
                       onChange={handleChange}
-                      className="block w-full pl-10 pr-3.5 py-2.5 text-sm bg-white border border-slate-300 rounded-xl text-slate-900 focus:ring-2 focus:ring-brand-denim"
+                      className="block w-full pl-10 pr-3.5 py-2.5 text-sm bg-slate-50 border border-slate-300 rounded-2xl text-slate-900 focus:bg-white focus:ring-2 focus:ring-brand-denim font-medium"
                     >
                       {DEPARTMENTS.map((dept) => (
                         <option key={dept} value={dept}>
@@ -559,7 +558,7 @@ const RegisterPage = () => {
                   <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
                     Designation *
                   </label>
-                  <div className="relative rounded-xl shadow-sm">
+                  <div className="relative rounded-2xl shadow-sm">
                     <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                       <Briefcase size={18} />
                     </div>
@@ -570,24 +569,24 @@ const RegisterPage = () => {
                       value={formData.designation}
                       onChange={handleChange}
                       placeholder="e.g. Purchase Officer"
-                      className="block w-full pl-10 pr-3.5 py-2.5 text-sm bg-white border border-slate-300 rounded-xl text-slate-900 focus:ring-2 focus:ring-brand-denim"
+                      className="block w-full pl-10 pr-3.5 py-2.5 text-sm bg-slate-50 border border-slate-300 rounded-2xl text-slate-900 focus:bg-white focus:ring-2 focus:ring-brand-denim font-medium"
                     />
                   </div>
                 </div>
               </div>
 
-              <div className="pt-3 flex gap-3">
+              <div className="pt-2 flex gap-3">
                 <button
                   type="button"
                   onClick={() => setStep(1)}
-                  className="w-1/3 py-2.5 px-3 border border-slate-300 rounded-xl text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 transition-all inline-flex items-center justify-center cursor-pointer"
+                  className="w-1/3 py-3 px-3 border border-slate-300 rounded-2xl text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 transition-all inline-flex items-center justify-center cursor-pointer"
                 >
                   <ArrowLeft size={14} className="mr-1" /> Back
                 </button>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-2/3 flex justify-center items-center py-2.5 px-4 border border-transparent rounded-xl shadow-md text-sm font-semibold text-white bg-slate-900 hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900 disabled:opacity-50 active:scale-[0.98] transition-all cursor-pointer"
+                  className="w-2/3 flex justify-center items-center py-3.5 px-4 rounded-2xl shadow-md text-sm font-bold text-white bg-slate-900 hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900 disabled:opacity-50 active:scale-[0.98] transition-all cursor-pointer shadow-3d-hover"
                 >
                   {loading ? (
                     <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -605,8 +604,8 @@ const RegisterPage = () => {
           {step === 3 && (
             <form className="space-y-4 text-center" onSubmit={handleStep3VerifyOtp}>
               <div className="flex items-center justify-between border-b border-slate-200 pb-3 text-left">
-                <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-                  Step 3: Enter Verification Code
+                <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                  Step 3: Verification Code
                 </span>
                 <span className="text-xs font-bold text-brand-denim bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-100">
                   3 of 4
@@ -624,7 +623,7 @@ const RegisterPage = () => {
               </p>
 
               {errorMessage && (
-                <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs font-medium text-rose-700 text-left">
+                <div className="p-3 bg-rose-50 border border-rose-200 rounded-2xl text-xs font-medium text-rose-700 text-left">
                   {errorMessage}
                 </div>
               )}
@@ -650,11 +649,11 @@ const RegisterPage = () => {
                 </button>
               </div>
 
-              <div className="pt-3 flex gap-3">
+              <div className="pt-2 flex gap-3">
                 <button
                   type="button"
                   onClick={() => setStep(2)}
-                  className="w-1/3 py-2.5 px-3 border border-slate-300 rounded-xl text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 transition-all inline-flex items-center justify-center cursor-pointer"
+                  className="w-1/3 py-3 px-3 border border-slate-300 rounded-2xl text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 transition-all inline-flex items-center justify-center cursor-pointer"
                 >
                   <ArrowLeft size={14} className="mr-1" /> Edit Details
                 </button>
@@ -662,7 +661,7 @@ const RegisterPage = () => {
                 <button
                   type="submit"
                   disabled={loading || otpValue.length < 6}
-                  className="w-2/3 py-2.5 px-4 bg-slate-900 text-white text-sm font-semibold rounded-xl shadow-md hover:bg-slate-800 disabled:opacity-50 active:scale-[0.98] transition-all cursor-pointer flex justify-center items-center"
+                  className="w-2/3 py-3.5 px-4 bg-slate-900 text-white text-sm font-bold rounded-2xl shadow-md hover:bg-slate-800 disabled:opacity-50 active:scale-[0.98] transition-all cursor-pointer flex justify-center items-center shadow-3d-hover"
                 >
                   {loading ? (
                     <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -678,8 +677,8 @@ const RegisterPage = () => {
           {step === 4 && (
             <form className="space-y-4" onSubmit={handleStep4CreatePassword}>
               <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-                <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-                  Step 4: Create Password
+                <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                  Step 4: Password Setup
                 </span>
                 <span className="text-xs font-bold text-brand-denim bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-100">
                   4 of 4
@@ -687,7 +686,7 @@ const RegisterPage = () => {
               </div>
 
               {errorMessage && (
-                <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs font-medium text-rose-700">
+                <div className="p-3 bg-rose-50 border border-rose-200 rounded-2xl text-xs font-medium text-rose-700">
                   {errorMessage}
                 </div>
               )}
@@ -696,7 +695,7 @@ const RegisterPage = () => {
                 <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
                   Create Password *
                 </label>
-                <div className="relative rounded-xl shadow-sm">
+                <div className="relative rounded-2xl shadow-sm">
                   <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                     <Lock size={18} />
                   </div>
@@ -708,7 +707,7 @@ const RegisterPage = () => {
                     value={formData.password}
                     onChange={handleChange}
                     placeholder="Min 10 chars, uppercase, number, symbol"
-                    className="block w-full pl-10 pr-3.5 py-2.5 text-sm bg-white border border-slate-300 rounded-xl text-slate-900 focus:ring-2 focus:ring-brand-denim"
+                    className="block w-full pl-10 pr-3.5 py-2.5 text-sm bg-slate-50 border border-slate-300 rounded-2xl text-slate-900 focus:bg-white focus:ring-2 focus:ring-brand-denim font-medium"
                   />
                 </div>
               </div>
@@ -717,7 +716,7 @@ const RegisterPage = () => {
                 <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
                   Confirm Password *
                 </label>
-                <div className="relative rounded-xl shadow-sm">
+                <div className="relative rounded-2xl shadow-sm">
                   <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                     <Lock size={18} />
                   </div>
@@ -729,7 +728,7 @@ const RegisterPage = () => {
                     value={formData.confirmPassword}
                     onChange={handleChange}
                     placeholder="Re-enter created password"
-                    className="block w-full pl-10 pr-3.5 py-2.5 text-sm bg-white border border-slate-300 rounded-xl text-slate-900 focus:ring-2 focus:ring-brand-denim"
+                    className="block w-full pl-10 pr-3.5 py-2.5 text-sm bg-slate-50 border border-slate-300 rounded-2xl text-slate-900 focus:bg-white focus:ring-2 focus:ring-brand-denim font-medium"
                   />
                 </div>
                 {formData.confirmPassword && formData.password !== formData.confirmPassword && (
@@ -748,12 +747,12 @@ const RegisterPage = () => {
                 <button
                   type="submit"
                   disabled={loading || formData.password !== formData.confirmPassword}
-                  className="w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-xl shadow-md text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50 active:scale-[0.98] transition-all cursor-pointer"
+                  className="w-full flex justify-center items-center py-3.5 px-4 rounded-2xl shadow-md text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50 active:scale-[0.98] transition-all cursor-pointer shadow-3d-hover"
                 >
                   {loading ? (
                     <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                   ) : (
-                    'Complete Registration & Submit for Approval'
+                    'Complete Registration & Submit'
                   )}
                 </button>
               </div>
@@ -768,7 +767,7 @@ const RegisterPage = () => {
               </div>
               <h3 className="text-xl font-bold text-slate-900">Registration Submitted!</h3>
               <p className="text-xs sm:text-sm text-slate-600">
-                Your employee account under <strong className="text-slate-900">{selectedCompany?.name}</strong> is now <strong className="text-amber-700">Pending Admin Approval</strong>.
+                Your employee account under <strong className="text-slate-900">{selectedCompany?.name}</strong> is now <strong className="text-amber-700 font-bold">Pending Admin Approval</strong>.
               </p>
 
               <div className="p-4 bg-amber-50/80 rounded-2xl border border-amber-200 text-left text-xs text-amber-900 space-y-1.5 shadow-sm">
@@ -779,14 +778,14 @@ const RegisterPage = () => {
 
               <Link
                 to="/login"
-                className="inline-flex items-center justify-center w-full py-3 px-4 bg-slate-900 text-white font-semibold rounded-xl shadow-md hover:bg-slate-800 transition-all text-sm mt-4"
+                className="inline-flex items-center justify-center w-full py-3.5 px-4 bg-slate-900 text-white font-bold rounded-2xl shadow-md hover:bg-slate-800 transition-all text-sm mt-4 shadow-3d-hover"
               >
                 Proceed to Sign In
               </Link>
             </div>
           )}
 
-          <div className="pt-6 border-t border-slate-200 text-center">
+          <div className="pt-4 border-t border-slate-200 text-center">
             <p className="text-xs text-slate-600">
               Already have an account?{' '}
               <Link to="/login" className="font-bold text-brand-denim hover:underline">
@@ -796,8 +795,8 @@ const RegisterPage = () => {
           </div>
         </div>
 
-        {/* Workspace Footer Copyright */}
-        <div className="text-center text-[11px] text-slate-400 pt-6">
+        {/* Card Footer Copyright */}
+        <div className="bg-slate-50 p-3 text-center text-[11px] text-slate-400 border-t border-slate-100">
           © {new Date().getFullYear()} Maruti Denim Group. All rights reserved.
         </div>
       </div>

@@ -23,6 +23,12 @@
 }
 
 /* Animations & Motion Tokens */
+@keyframes gradientFlow {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
 @keyframes ambientDrift {
   0% { transform: translate(0, 0) scale(1); }
   50% { transform: translate(-10px, 15px) scale(1.03); }
@@ -40,19 +46,16 @@
   100% { stroke-dashoffset: 0; }
 }
 
-@keyframes fadeSlideInLeft {
-  0% { opacity: 0; transform: translateX(-24px); }
-  100% { opacity: 1; transform: translateX(0); }
-}
-
-@keyframes fadeSlideInRight {
-  0% { opacity: 0; transform: translateX(24px); }
-  100% { opacity: 1; transform: translateX(0); }
-}
-
 @keyframes pulseGlow {
   0%, 100% { box-shadow: 0 0 0 0 rgba(30, 64, 175, 0.4); }
   50% { box-shadow: 0 0 0 6px rgba(30, 64, 175, 0.15); }
+}
+
+/* Animated Mesh Background */
+.bg-gradient-mesh {
+  background: linear-gradient(-45deg, #0f172a, #1e3a8a, #0f2b5c, #1e1b4b, #0284c7);
+  background-size: 400% 400%;
+  animation: gradientFlow 18s ease infinite;
 }
 
 .animate-ambient-drift {
@@ -63,16 +66,24 @@
   animation: shake 0.35s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
 }
 
-.animate-fade-left {
-  animation: fadeSlideInLeft 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-.animate-fade-right {
-  animation: fadeSlideInRight 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.1s forwards;
-}
-
 .animate-pulse-glow {
   animation: pulseGlow 2.5s infinite;
+}
+
+/* 3D Depth Card Shadows & Hover Effects */
+.shadow-3d {
+  box-shadow: 0 20px 50px -12px rgba(15, 23, 42, 0.35),
+              0 8px 20px -8px rgba(15, 23, 42, 0.2);
+}
+
+.shadow-3d-hover {
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.shadow-3d-hover:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 26px 60px -14px rgba(15, 23, 42, 0.4),
+              0 12px 24px -10px rgba(15, 23, 42, 0.25);
 }
 
 /* Textile Hatching Pattern */
@@ -84,10 +95,9 @@
 
 /* Reduced Motion Accessibility */
 @media (prefers-reduced-motion: reduce) {
+  .bg-gradient-mesh,
   .animate-ambient-drift,
   .animate-shake,
-  .animate-fade-left,
-  .animate-fade-right,
   .animate-pulse-glow {
     animation: none !important;
     transform: none !important;
