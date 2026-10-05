@@ -304,6 +304,7 @@ exports.registerStep1Initiate = async (req, res) => {
 // @access  Public
 exports.registerStep2VerifyOtp = async (req, res) => {
   try {
+    const { Otp } = resolveModels(req);
     const { registrationToken, otp } = req.body;
 
     if (!registrationToken || !otp) {
@@ -381,6 +382,7 @@ exports.registerStep2VerifyOtp = async (req, res) => {
 // @access  Public
 exports.registerResendOtp = async (req, res) => {
   try {
+    const { Otp } = resolveModels(req);
     const { registrationToken } = req.body;
 
     if (!registrationToken) {
@@ -926,6 +928,7 @@ exports.forgotPasswordStep2VerifyOtp = async (req, res) => {
 // @access  Public
 exports.forgotPasswordResendOtp = async (req, res) => {
   try {
+    const { User, Otp } = resolveModels(req);
     const { resetRequestToken } = req.body;
 
     if (!resetRequestToken) {
