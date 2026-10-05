@@ -1,8 +1,4 @@
-const ItemMaster = require('../models/ItemMaster');
-const VendorMaster = require('../models/VendorMaster');
-const MasterDataAudit = require('../models/MasterDataAudit');
-const GatePass = require('../models/GatePass');
-const MaterialInward = require('../models/MaterialInward');
+const { resolveModels } = require('../config/connectionManager');
 const ExcelJS = require('exceljs');
 const { format } = require('date-fns');
 
@@ -12,7 +8,8 @@ const normalizeString = (str) => {
 };
 
 // Helper: Generate next Code (finding max existing numerical code to avoid collision)
-async function generateNextItemCode() {
+async function generateNextItemCode(req) {
+  const { ItemMaster } = resolveModels(req);
   const items = await ItemMaster.find({}, { itemCode: 1 }).lean();
   let maxNum = 0;
   items.forEach(i => {
@@ -27,7 +24,8 @@ async function generateNextItemCode() {
   return `ITEM-${String(maxNum + 1).padStart(4, '0')}`;
 }
 
-async function generateNextVendorCode() {
+async function generateNextVendorCode(req) {
+  const { VendorMaster } = resolveModels(req);
   const vendors = await VendorMaster.find({}, { vendorCode: 1 }).lean();
   let maxNum = 0;
   vendors.forEach(v => {
@@ -48,6 +46,7 @@ async function generateNextVendorCode() {
 
 exports.getItems = async (req, res) => {
   try {
+    const { ItemMaster } = resolveModels(req);
     const { search = '', status = 'ALL', page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc' } = req.query;
 
     const query = {};
@@ -96,6 +95,7 @@ exports.getItems = async (req, res) => {
 
 exports.getActiveItems = async (req, res) => {
   try {
+    const { ItemMaster } = resolveModels(req);
     const items = await ItemMaster.find({ status: 'ACTIVE' })
       .select('_id itemCode description um')
       .sort({ descriptionNormalized: 1 });
@@ -112,6 +112,7 @@ exports.getActiveItems = async (req, res) => {
 
 exports.getItemById = async (req, res) => {
   try {
+    const { ItemMaster } = resolveModels(req);
     const item = await ItemMaster.findById(req.params.id);
     if (!item) {
       return res.status(404).json({ success: false, message: 'Item master record not found.' });
@@ -124,6 +125,7 @@ exports.getItemById = async (req, res) => {
 
 exports.createItem = async (req, res) => {
   try {
+    const { ItemMaster, MasterDataAudit } = resolveModels(req);
     const { description, um, status = 'ACTIVE' } = req.body;
 
     if (!description || !description.trim()) {
@@ -171,7 +173,7 @@ exports.createItem = async (req, res) => {
       });
     }
 
-    const itemCode = await generateNextItemCode();
+    const itemCode = await generateNextItemCode(req);
 
     const createdBy = req.body.createdBy || (req.user ? (req.user.name || req.user.username) : 'Admin');
     const createdByDesignation = req.body.createdByDesignation || (req.user ? (req.user.designation || req.user.role) : '');
@@ -217,6 +219,7 @@ exports.createItem = async (req, res) => {
 
 exports.updateItem = async (req, res) => {
   try {
+    const { ItemMaster, MasterDataAudit } = resolveModels(req);
     const { id } = req.params;
     const { description, um, status } = req.body;
 
@@ -303,6 +306,7 @@ exports.updateItem = async (req, res) => {
 
 exports.updateItemStatus = async (req, res) => {
   try {
+    const { ItemMaster, MasterDataAudit } = resolveModels(req);
     const { id } = req.params;
     const { status } = req.body;
 
@@ -346,6 +350,7 @@ exports.updateItemStatus = async (req, res) => {
 
 exports.deleteItem = async (req, res) => {
   try {
+    const { ItemMaster, MasterDataAudit, GatePass, MaterialInward } = resolveModels(req);
     const { id } = req.params;
 
     const item = await ItemMaster.findById(id);
@@ -404,6 +409,7 @@ exports.deleteItem = async (req, res) => {
 
 exports.importItems = async (req, res) => {
   try {
+    const { ItemMaster, MasterDataAudit } = resolveModels(req);
     const { items = [] } = req.body;
     if (!Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ success: false, message: 'No items provided for import.' });
@@ -491,6 +497,7 @@ exports.importItems = async (req, res) => {
 
 exports.getVendors = async (req, res) => {
   try {
+    const { VendorMaster } = resolveModels(req);
     const { search = '', status = 'ALL', page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc' } = req.query;
 
     const query = {};
@@ -538,6 +545,7 @@ exports.getVendors = async (req, res) => {
 
 exports.getActiveVendors = async (req, res) => {
   try {
+    const { VendorMaster } = resolveModels(req);
     const vendors = await VendorMaster.find({ status: 'ACTIVE' })
       .select('_id vendorCode vendorName address city pincode gstin panCard')
       .sort({ vendorNameNormalized: 1 });
@@ -554,6 +562,7 @@ exports.getActiveVendors = async (req, res) => {
 
 exports.getVendorById = async (req, res) => {
   try {
+    const { VendorMaster } = resolveModels(req);
     const vendor = await VendorMaster.findById(req.params.id);
     if (!vendor) {
       return res.status(404).json({ success: false, message: 'Vendor master record not found.' });
@@ -566,6 +575,7 @@ exports.getVendorById = async (req, res) => {
 
 exports.createVendor = async (req, res) => {
   try {
+    const { VendorMaster, MasterDataAudit } = resolveModels(req);
     const { 
       vendorName, 
       address = '', 
@@ -622,7 +632,7 @@ exports.createVendor = async (req, res) => {
       });
     }
 
-    const vendorCode = await generateNextVendorCode();
+    const vendorCode = await generateNextVendorCode(req);
 
     const createdBy = req.body.createdBy || (req.user ? (req.user.name || req.user.username) : 'Admin');
     const createdByDesignation = req.body.createdByDesignation || (req.user ? (req.user.designation || req.user.role) : '');
@@ -694,6 +704,7 @@ exports.createVendor = async (req, res) => {
 
 exports.updateVendor = async (req, res) => {
   try {
+    const { VendorMaster, MasterDataAudit } = resolveModels(req);
     const { id } = req.params;
     const { vendorName, address, city, pincode, gstin, panCard, status } = req.body;
 
@@ -772,6 +783,7 @@ exports.updateVendor = async (req, res) => {
 
 exports.updateVendorStatus = async (req, res) => {
   try {
+    const { VendorMaster, MasterDataAudit } = resolveModels(req);
     const { id } = req.params;
     const { status } = req.body;
 
@@ -815,6 +827,7 @@ exports.updateVendorStatus = async (req, res) => {
 
 exports.deleteVendor = async (req, res) => {
   try {
+    const { VendorMaster, MasterDataAudit, GatePass, MaterialInward } = resolveModels(req);
     const { id } = req.params;
 
     const vendor = await VendorMaster.findById(id);
@@ -873,6 +886,7 @@ exports.deleteVendor = async (req, res) => {
 
 exports.getAuditHistory = async (req, res) => {
   try {
+    const { MasterDataAudit } = resolveModels(req);
     const { entityType, entityId } = req.params;
     const history = await MasterDataAudit.find({
       entityType: entityType.toUpperCase(),
@@ -887,6 +901,7 @@ exports.getAuditHistory = async (req, res) => {
 
 exports.exportItemsExcel = async (req, res) => {
   try {
+    const { ItemMaster } = resolveModels(req);
     const { search = '', status = 'ALL' } = req.query;
     const query = {};
     if (status && status.toUpperCase() !== 'ALL') {
@@ -956,6 +971,7 @@ exports.exportItemsExcel = async (req, res) => {
 
 exports.exportVendorsExcel = async (req, res) => {
   try {
+    const { VendorMaster } = resolveModels(req);
     const { search = '', status = 'ALL' } = req.query;
     const query = {};
     if (status && status.toUpperCase() !== 'ALL') {
