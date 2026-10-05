@@ -114,7 +114,8 @@ const COMPANIES_SEED = [
     dbName: 'maruti_nandan_db',
     adminEmail: 'admin@marutidenim.com',
     adminName: 'Maruti Nandan Admin',
-    adminPassword: 'Admin@123'
+    adminPassword: 'Admin@123',
+    logoUrl: '/Maruti%20denim%20logo.png'
   },
   {
     code: 'shri_ram',
@@ -124,7 +125,8 @@ const COMPANIES_SEED = [
     dbName: 'shri_ram_cot_fab_db',
     adminEmail: 'admin@shriramcotfab.com',
     adminName: 'Shri Ram Admin',
-    adminPassword: 'Admin@123'
+    adminPassword: 'Admin@123',
+    logoUrl: '/Shri%20Ram%20logo.png'
   },
   {
     code: 'balaji_polycot',
@@ -134,7 +136,8 @@ const COMPANIES_SEED = [
     dbName: 'balaji_polycot_db',
     adminEmail: 'admin@balajipolycot.com',
     adminName: 'Balaji Polycot Admin',
-    adminPassword: 'Admin@123'
+    adminPassword: 'Admin@123',
+    logoUrl: '/balaji%20polycot%20logo.png'
   }
 ];
 
@@ -189,6 +192,22 @@ async function resetAndSeedMultiCompanySystem() {
         await company.save();
         console.log(`✓ Verified company catalog record: ${company.name} (${company.code})`);
       }
+    }
+
+    // 1.5. Clean Legacy Single-Tenant Database (maruti_denim) if present
+    console.log('\n--- Cleaning Legacy Single-Tenant Database (maruti_denim) ---');
+    try {
+      const legacyUri = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/maruti_denim';
+      const legacyConn = mongoose.createConnection(legacyUri);
+      await new Promise((resolve) => legacyConn.once('open', resolve));
+      const collections = await legacyConn.db.collections();
+      for (const col of collections) {
+        await col.deleteMany({});
+        console.log(`   ✓ Cleared legacy collection: ${col.collectionName}`);
+      }
+      await legacyConn.close();
+    } catch (e) {
+      console.warn('Legacy DB cleanup skipped/warning:', e.message);
     }
 
     // 2. Provision & Reset Each Tenant Database

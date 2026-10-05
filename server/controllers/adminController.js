@@ -1,10 +1,4 @@
-const User = require('../models/User');
-const Role = require('../models/Role');
-const GatePass = require('../models/GatePass');
-const MaterialInward = require('../models/MaterialInward');
-const AuditLog = require('../models/AuditLog');
-const ItemMaster = require('../models/ItemMaster');
-const VendorMaster = require('../models/VendorMaster');
+const { resolveModels } = require('../config/connectionManager');
 const { sendAccountApprovedEmail } = require('../services/emailService');
 
 // @desc    Get Admin Dashboard Stats & Activity Feed
@@ -12,6 +6,7 @@ const { sendAccountApprovedEmail } = require('../services/emailService');
 // @access  Private (Admin)
 exports.getAdminDashboardStats = async (req, res) => {
   try {
+    const { User, Role, GatePass, MaterialInward, AuditLog } = resolveModels(req);
     const totalGatePasses = await GatePass.countDocuments();
     const activeGatePasses = await GatePass.countDocuments({ status: 'active', returnStatus: { $ne: 'FULLY_RETURNED' } });
     const pendingGatePasses = await GatePass.countDocuments({ returnStatus: 'PENDING' });
@@ -63,6 +58,7 @@ exports.getAdminDashboardStats = async (req, res) => {
 // @access  Private (Admin)
 exports.getUsers = async (req, res) => {
   try {
+    const { User } = resolveModels(req);
     const { search, role, department, status, page = 1, limit = 20 } = req.query;
 
     const query = {};
@@ -115,6 +111,7 @@ exports.getUsers = async (req, res) => {
 // @access  Private (Admin)
 exports.approveUser = async (req, res) => {
   try {
+    const { User, Role, AuditLog } = resolveModels(req);
     const { id } = req.params;
     const { roleId } = req.body;
 
@@ -138,7 +135,7 @@ exports.approveUser = async (req, res) => {
     await user.save();
 
     // Notify user via email
-    await sendAccountApprovedEmail(user.email, user.name);
+    await sendAccountApprovedEmail(user.email, user.name, req.companyCode);
 
     await AuditLog.create({
       userId: req.user._id,
@@ -162,6 +159,7 @@ exports.approveUser = async (req, res) => {
 // @access  Private (Admin)
 exports.rejectUser = async (req, res) => {
   try {
+    const { User, AuditLog } = resolveModels(req);
     const { id } = req.params;
     const { rejectionReason = 'Registration request declined by administrator.' } = req.body;
 
@@ -197,6 +195,7 @@ exports.rejectUser = async (req, res) => {
 // @access  Private (Admin)
 exports.toggleUserStatus = async (req, res) => {
   try {
+    const { User, AuditLog } = resolveModels(req);
     const { id } = req.params;
     const { status } = req.body; // 'APPROVED' / 'INACTIVE' / 'ACTIVE'
 
@@ -237,6 +236,7 @@ exports.toggleUserStatus = async (req, res) => {
 // @access  Private (Admin)
 exports.updateUser = async (req, res) => {
   try {
+    const { User, Role, AuditLog } = resolveModels(req);
     const { id } = req.params;
     const { name, email, phone, department, designation, roleId } = req.body;
 
@@ -283,6 +283,7 @@ exports.updateUser = async (req, res) => {
 // @access  Private (Admin)
 exports.deleteUser = async (req, res) => {
   try {
+    const { User, AuditLog } = resolveModels(req);
     const { id } = req.params;
 
     const user = await User.findById(id);
@@ -320,6 +321,7 @@ exports.deleteUser = async (req, res) => {
 // @access  Private (Admin)
 exports.getAuditLogs = async (req, res) => {
   try {
+    const { AuditLog } = resolveModels(req);
     const { module, action, search, page = 1, limit = 30 } = req.query;
 
     const query = {};
@@ -366,6 +368,7 @@ exports.getAuditLogs = async (req, res) => {
 // @access  Private (Admin)
 exports.forceCloseGatePass = async (req, res) => {
   try {
+    const { GatePass, AuditLog } = resolveModels(req);
     const { id } = req.params;
     const { reason = 'Admin manual override closure' } = req.body;
 

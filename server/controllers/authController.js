@@ -1,6 +1,6 @@
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
-const { resolveModels } = require('../config/connectionManager');
+const { resolveModels, getSuperAdminModels, getTenantModels } = require('../config/connectionManager');
 const { JWT_SECRET } = require('../middleware/authMiddleware');
 const {
   sendVerificationOtpEmail,
@@ -592,12 +592,11 @@ exports.login = async (req, res) => {
   }
 };
 
-// @desc    Admin Login
+// @desc    Admin Login (Auto-discovers company tenant from admin email)
 // @route   POST /api/auth/admin-login
 // @access  Public
 exports.adminLogin = async (req, res) => {
   try {
-    const { User, AuditLog } = resolveModels(req);
     const { email, password } = req.body;
 
     if (!email || !password) {
@@ -605,43 +604,83 @@ exports.adminLogin = async (req, res) => {
     }
 
     const cleanEmail = String(email).toLowerCase().trim();
-    const user = await User.findOne({ email: cleanEmail }).select('+password').populate('role');
+    const { Company } = getSuperAdminModels();
+    
+    // Fetch active companies or default tenants
+    let activeCompanies = await Company.find({ status: 'ACTIVE' }).select('code dbName name');
+    if (!activeCompanies || activeCompanies.length === 0) {
+      activeCompanies = [
+        { code: 'maruti_nandan', name: 'MARUTI NANDAN DENIM PVT LTD', dbName: 'maruti_nandan_db' },
+        { code: 'shri_ram', name: 'SHRI RAM COT FAB', dbName: 'shri_ram_cot_fab_db' },
+        { code: 'balaji_polycot', name: 'BALAJI POLYCOT PVT. LTD.', dbName: 'balaji_polycot_db' }
+      ];
+    }
 
-    if (!user) {
+    // Build target search list (explicit request company code first, then all active tenants)
+    const searchCodes = [];
+    if (req.companyCode) searchCodes.push(String(req.companyCode).toLowerCase().trim());
+    if (req.body?.companyCode) searchCodes.push(String(req.body.companyCode).toLowerCase().trim());
+    
+    activeCompanies.forEach((c) => {
+      const cCode = String(c.code).toLowerCase().trim();
+      if (!searchCodes.includes(cCode)) {
+        searchCodes.push(cCode);
+      }
+    });
+
+    let foundUser = null;
+    let foundCompanyCode = null;
+    let foundModels = null;
+
+    for (const code of searchCodes) {
+      try {
+        const models = getTenantModels(code);
+        const user = await models.User.findOne({ email: cleanEmail }).select('+password').populate('role');
+        if (user) {
+          foundUser = user;
+          foundCompanyCode = code;
+          foundModels = models;
+          break;
+        }
+      } catch (err) {
+        console.warn(`[AdminLogin] Search error for tenant ${code}:`, err.message);
+      }
+    }
+
+    if (!foundUser) {
       return res.status(401).json({ success: false, message: 'Invalid Admin credentials.' });
     }
 
-    const isMatch = await user.matchPassword(password);
+    const isMatch = await foundUser.matchPassword(password);
     if (!isMatch) {
       return res.status(401).json({ success: false, message: 'Invalid Admin credentials.' });
     }
 
-    const roleCode = user.role?.code;
-    const roleName = user.roleName || user.role?.name;
+    const roleCode = foundUser.role?.code;
+    const roleName = foundUser.roleName || foundUser.role?.name;
 
     if (roleCode !== 'admin' && roleName !== 'Admin') {
       return res.status(403).json({ success: false, message: 'Access denied. Account does not have Admin privileges.' });
     }
 
-    if (user.status !== 'APPROVED' && user.status !== 'ACTIVE') {
+    if (foundUser.status !== 'APPROVED' && foundUser.status !== 'ACTIVE') {
       return res.status(403).json({ success: false, message: 'Admin account is not active.' });
     }
 
-    user.lastLoginAt = new Date();
-    await user.save();
+    foundUser.lastLoginAt = new Date();
+    await foundUser.save();
 
-    await AuditLog.create({
-      userId: user._id,
-      userName: user.name,
-      userEmail: user.email,
+    await foundModels.AuditLog.create({
+      userId: foundUser._id,
+      userName: foundUser.name,
+      userEmail: foundUser.email,
       userRole: 'Admin',
       action: 'ADMIN_LOGIN',
       module: 'AUTH',
       ipAddress: req.ip || req.connection?.remoteAddress
     });
 
-    const companyCode = req.companyCode || user.companyCode || 'maruti_nandan';
-    sendTokenResponse(user, companyCode, 200, res, 'Admin authenticated successfully');
+    sendTokenResponse(foundUser, foundCompanyCode, 200, res, 'Admin authenticated successfully');
   } catch (error) {
     console.error('Admin login error:', error);
     res.status(500).json({ success: false, message: 'Server error during Admin login.', error: error.message });

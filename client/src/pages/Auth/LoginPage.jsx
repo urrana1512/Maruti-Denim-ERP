@@ -24,11 +24,35 @@ const LoginPage = () => {
     const fetchCompanies = async () => {
       try {
         const res = await authService.getPublicCompanies();
-        if (res.success && res.data) {
-          setCompanies(res.data);
-          if (!selectedCompany && res.data.length > 0) {
-            setSelectedCompany(res.data[0]);
+        let rawList = [];
+        if (Array.isArray(res)) {
+          rawList = res;
+        } else if (Array.isArray(res.companies)) {
+          rawList = res.companies;
+        } else if (Array.isArray(res.data)) {
+          rawList = res.data;
+        }
+
+        if (rawList.length > 0) {
+          const formatted = rawList.map((c) => ({
+            ...c,
+            code: c.code || c.name,
+            name: c.name,
+            shortCode: c.shortCode || (c.code ? String(c.code).toUpperCase().replace(/_/g, '').slice(0, 4) : c.name.substring(0, 3))
+          }));
+          setCompanies(formatted);
+          if (!selectedCompany) {
+            setSelectedCompany(formatted[0]);
+          } else {
+            const match = formatted.find(
+              (fc) =>
+                fc.code?.toLowerCase() === selectedCompany.code?.toLowerCase() ||
+                fc.name?.toLowerCase() === selectedCompany.name?.toLowerCase()
+            );
+            if (match) setSelectedCompany(match);
           }
+        } else {
+          throw new Error('No companies returned');
         }
       } catch (err) {
         setCompanies([
@@ -98,8 +122,8 @@ const LoginPage = () => {
           
           <div className="relative z-10 flex justify-center mb-3">
             <img
-              src="/Maruti denim logo.png"
-              alt="Maruti Denim Logo"
+              src={selectedCompany?.logoUrl || '/Maruti denim logo.png'}
+              alt={selectedCompany?.name || 'Company Logo'}
               className="h-12 w-auto object-contain filter drop-shadow brightness-110"
             />
           </div>
@@ -151,10 +175,15 @@ const LoginPage = () => {
               ) : (
                 <div className="space-y-3">
                   {companies.map((comp) => {
-                    const isSelected = selectedCompany?.code === comp.code;
+                    const isSelected = Boolean(
+                      selectedCompany && (
+                        (selectedCompany.code && comp.code && selectedCompany.code.toLowerCase() === comp.code.toLowerCase()) ||
+                        (selectedCompany.name && comp.name && selectedCompany.name.toLowerCase() === comp.name.toLowerCase())
+                      )
+                    );
                     return (
                       <div
-                        key={comp.code}
+                        key={comp.code || comp.name}
                         onClick={() => handleSelectCompany(comp)}
                         className={`relative p-3.5 rounded-2xl border-2 transition-all duration-200 cursor-pointer flex items-center justify-between shadow-3d-hover ${
                           isSelected
@@ -168,7 +197,7 @@ const LoginPage = () => {
                               isSelected ? 'bg-white/10 text-white' : 'bg-slate-100 text-brand-navy'
                             }`}
                           >
-                            {comp.shortCode}
+                            {comp.shortCode || (comp.code ? comp.code.substring(0, 3).toUpperCase() : 'MND')}
                           </div>
                           <div>
                             <h4 className="font-bold text-xs leading-snug">{comp.name}</h4>

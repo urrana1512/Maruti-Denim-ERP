@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 
 const Sidebar = ({ isOpen, setIsOpen }) => {
-  const { hasPermission, isAdmin } = useAuth();
+  const { hasPermission, isAdmin, selectedCompany } = useAuth();
 
   const navItems = [
     { label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard', perm: null },
@@ -46,9 +46,9 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
         <div className="flex h-20 items-center justify-between px-4 bg-brand-navy border-b border-white/10 shadow-sm">
           <div className="flex items-center justify-center w-full py-1">
             <img
-              src="/Maruti denim logo.png"
-              alt="Maruti Denim Logo"
-              className="h-20 max-h-20 w-auto object-contain filter drop-shadow"
+              src={selectedCompany?.logoUrl || '/Maruti denim logo.png'}
+              alt={selectedCompany?.name || 'Company Logo'}
+              className="h-16 max-h-16 w-auto object-contain filter drop-shadow brightness-110"
             />
           </div>
           <button className="md:hidden text-gray-300 hover:text-white ml-2" onClick={() => setIsOpen(false)}>

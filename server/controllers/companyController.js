@@ -15,25 +15,28 @@ exports.getPublicCompanies = async (req, res) => {
     if (!companies || companies.length === 0) {
       companies = [
         {
-          code: 'maruti_nandan',
+          code: 'MARUTI_NANDAN',
           name: 'MARUTI NANDAN DENIM PVT LTD',
+          shortCode: 'MND',
           address: 'Ahmedabad, Gujarat',
           gstNo: '24AAACM1234F1Z1',
           logoUrl: '/Maruti%20denim%20logo.png'
         },
         {
-          code: 'shri_ram',
+          code: 'SHRI_RAM_COT_FAB',
           name: 'SHRI RAM COT FAB',
+          shortCode: 'SRCF',
           address: '84, Devraj Industrial Park, Piplaj Pirana Road, Ahmedabad - 382405.',
           gstNo: '24ACTFS8487N1ZV',
-          logoUrl: '/Maruti%20denim%20logo.png'
+          logoUrl: '/Shri%20Ram%20logo.png'
         },
         {
-          code: 'balaji_polycot',
+          code: 'BALAJI_POLYCOT',
           name: 'BALAJI POLYCOT PVT. LTD.',
+          shortCode: 'BPPL',
           address: '82, Devraj Industrial Park, Piplaj Pirana Road, Ahmedabad - 382405.',
           gstNo: '24AAECB8723G1ZT',
-          logoUrl: '/Maruti%20denim%20logo.png'
+          logoUrl: '/balaji%20polycot%20logo.png'
         }
       ];
     }
@@ -41,7 +44,8 @@ exports.getPublicCompanies = async (req, res) => {
     res.status(200).json({
       success: true,
       count: companies.length,
-      companies
+      companies,
+      data: companies
     });
   } catch (error) {
     console.error('Error fetching public companies catalog:', error);

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { safeFormatDate } from '../../utils/dateUtils';
+import { useAuth } from '../../context/AuthContext';
 
 const ApprovedStamp = ({ text = "APPROVED" }) => (
   <div
@@ -59,13 +60,36 @@ const ApprovedStamp = ({ text = "APPROVED" }) => (
 
 const GatePassDocument = ({ gatePass: directGatePass, data }) => {
   const gatePass = directGatePass || data;
-  const [logoBase64, setLogoBase64] = useState('/Maruti denim logo.png');
+  const { selectedCompany } = useAuth();
+
+  const resolveCompanyInfo = () => {
+    const code = (gatePass?.companyCode || selectedCompany?.code || 'maruti_nandan').toLowerCase().trim();
+    let name = gatePass?.companyName || selectedCompany?.name;
+    let logoPath = selectedCompany?.logoUrl;
+
+    if (!logoPath) {
+      if (code.includes('shri')) logoPath = '/Shri%20Ram%20logo.png';
+      else if (code.includes('balaji')) logoPath = '/balaji%20polycot%20logo.png';
+      else logoPath = '/Maruti%20denim%20logo.png';
+    }
+
+    if (!name) {
+      if (code.includes('shri')) name = 'SHRI RAM COT FAB';
+      else if (code.includes('balaji')) name = 'BALAJI POLYCOT PVT. LTD.';
+      else name = 'MARUTI NANDAN DENIM PVT LTD';
+    }
+
+    return { name, logoPath };
+  };
+
+  const compInfo = resolveCompanyInfo();
+  const [logoBase64, setLogoBase64] = useState(compInfo.logoPath);
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
     const loadLogoAsBase64 = async () => {
       try {
-        const response = await fetch('/Maruti denim logo.png');
+        const response = await fetch(compInfo.logoPath);
         const blob = await response.blob();
         const reader = new FileReader();
         reader.onloadend = () => {
@@ -81,7 +105,7 @@ const GatePassDocument = ({ gatePass: directGatePass, data }) => {
       }
     };
     loadLogoAsBase64();
-  }, []);
+  }, [compInfo.logoPath]);
 
   if (!gatePass) return null;
 
@@ -126,7 +150,7 @@ const GatePassDocument = ({ gatePass: directGatePass, data }) => {
           <div className="flex-shrink-0 mr-4">
             <img
               src={logoBase64}
-              alt="Maruti Denim Logo"
+              alt={`${compInfo.name} Logo`}
               style={{ height: '75px', width: 'auto', objectFit: 'contain' }}
             />
           </div>
@@ -144,13 +168,10 @@ const GatePassDocument = ({ gatePass: directGatePass, data }) => {
                 whiteSpace: 'nowrap'
               }}
             >
-              MARUTI NANDAN DENIM PVT LTD
+              {compInfo.name}
             </h1>
             <p style={{ fontSize: '12px', fontWeight: 600, color: '#1e293b', marginTop: '3px' }}>
-              Block No. 371, PALDI KANKAJ, DASKROI, AHMEDABAD-382425.
-            </p>
-            <p style={{ fontSize: '12px', fontWeight: 600, color: '#1e293b', marginTop: '2px' }}>
-              E-mail : marutidenim2019@gmail.com | GSTIN: 24AAUCM1319B1ZQ
+              Corporate Gate Pass & Security Authorization System
             </p>
           </div>
         </div>
@@ -309,14 +330,14 @@ const GatePassDocument = ({ gatePass: directGatePass, data }) => {
             <p style={{ fontSize: '11.5px', color: '#64748b', marginTop: '2px' }}>
               {gatePass.approvedBy 
                 ? `${gatePass.approvedBy}${gatePass.approvedByDesignation ? ` (${gatePass.approvedByDesignation})` : ''}` 
-                : 'For Maruti Nandan Denim Pvt Ltd'}
+                : `For ${compInfo.name}`}
             </p>
           </div>
         </div>
 
         <div style={{ borderTop: '1px solid #e2e8f0', marginTop: '14px', paddingTop: '6px', textAlign: 'center' }}>
           <p style={{ fontSize: '11px', fontWeight: 600, color: '#64748b' }}>
-            Maruti Nandan Denim Pvt Ltd | Gate Pass Management System | Computer Generated Voucher
+            {compInfo.name} | Gate Pass Management System | Computer Generated Voucher
           </p>
         </div>
       </div>

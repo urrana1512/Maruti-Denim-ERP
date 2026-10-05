@@ -125,10 +125,10 @@ const SuperAdminLoginPage = () => {
 
           <div className="mt-6 pt-4 border-t border-slate-800 text-center">
             <button
-              onClick={() => navigate('/select-company')}
-              className="text-xs text-slate-400 hover:text-slate-200 transition-colors"
+              onClick={() => navigate('/login')}
+              className="text-xs text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
             >
-              ← Back to Company Directory
+              ← Back to Employee Login
             </button>
           </div>
         </div>

@@ -13,8 +13,7 @@ const maskEmail = (emailStr) => {
 };
 
 /**
- * Log Redactor: strips sensitive keywords (otp, password, token, secret, pass, key)
- * from any log payload to prevent accidental leaks.
+ * Log Redactor: strips sensitive keywords
  */
 const redactSensitive = (obj) => {
   if (!obj) return obj;
@@ -47,18 +46,15 @@ const getTransporter = () => {
   const isSecure = process.env.SMTP_SECURE === 'true' || port === 465;
 
   const rawUser = process.env.SMTP_USER || process.env.GMAIL_USER || (provider === 'sendgrid' ? 'apikey' : null);
-  // Strip quotes and whitespace
   const user = rawUser ? String(rawUser).replace(/["']/g, '').trim() : null;
 
   const rawPass = process.env.SMTP_PASS || process.env.SMTP_PASSWORD || process.env.GMAIL_APP_PASSWORD || process.env.EMAIL_API_KEY;
-  // Automatically strip all quotes and spaces from App Passwords
   const pass = rawPass ? String(rawPass).replace(/["'\s]/g, '') : null;
 
   if (!user || !pass) {
     return null;
   }
 
-  // Use built-in Gmail service configuration when connecting to Gmail SMTP
   if (host.includes('gmail.com') || provider === 'gmail') {
     return nodemailer.createTransport({
       service: 'gmail',
@@ -103,15 +99,39 @@ const validateEmailConfig = () => {
   return true;
 };
 
-// Validate config on module initialization
 validateEmailConfig();
 
+const COMPANY_CONFIGS = {
+  maruti_nandan: {
+    name: 'MARUTI NANDAN DENIM PVT LTD',
+    logoUrl: '/Maruti%20denim%20logo.png'
+  },
+  shri_ram: {
+    name: 'SHRI RAM COT FAB',
+    logoUrl: '/Shri%20Ram%20logo.png'
+  },
+  shri_ram_cot_fab: {
+    name: 'SHRI RAM COT FAB',
+    logoUrl: '/Shri%20Ram%20logo.png'
+  },
+  balaji_polycot: {
+    name: 'BALAJI POLYCOT PVT. LTD.',
+    logoUrl: '/balaji%20polycot%20logo.png'
+  }
+};
+
+const resolveCompanyConfig = (companyCode) => {
+  const code = (companyCode || 'maruti_nandan').toLowerCase().trim();
+  return COMPANY_CONFIGS[code] || COMPANY_CONFIGS['maruti_nandan'];
+};
+
 /**
- * Common HTML Wrapper Layout for Maruti Denim Emails
+ * Common HTML Wrapper Layout for Company-Specific Emails
  */
-const renderEmailLayout = ({ title, content }) => {
+const renderEmailLayout = ({ title, content, companyCode }) => {
   const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
-  const logoUrl = `${clientUrl}/Maruti%20denim%20logo.png`;
+  const company = resolveCompanyConfig(companyCode);
+  const logoUrl = `${clientUrl}${company.logoUrl}`;
 
   return `
     <!DOCTYPE html>
@@ -141,16 +161,16 @@ const renderEmailLayout = ({ title, content }) => {
       <div class="wrapper">
         <div class="header">
           <div class="logo-container">
-            <img src="${logoUrl}" alt="Maruti Denim Logo" class="logo-img" />
+            <img src="${logoUrl}" alt="${company.name} Logo" class="logo-img" />
           </div>
-          <h1>MARUTI NANDAN DENIM PVT LTD</h1>
+          <h1>${company.name}</h1>
           <p>Gate Pass & Material Management ERP</p>
         </div>
         <div class="body">
           ${content}
         </div>
         <div class="footer">
-          <p><strong>Maruti Nandan Denim Pvt. Ltd.</strong> — Corporate Security Portal</p>
+          <p><strong>${company.name}</strong> — Corporate Security Portal</p>
           <p>This is an automated operational system email. Please do not reply directly to this message.</p>
         </div>
       </div>
@@ -214,7 +234,6 @@ const sendMail = async ({ to, subject, html, text }) => {
     }
   }
 
-  // Development fallback if live SMTP fails (e.g. invalid Google App Password)
   if (process.env.NODE_ENV !== 'production') {
     const sanitizedError = redactSensitive(lastError?.message || 'SMTP Authentication Error');
     console.warn(`\n⚠️ [EmailService DEV MODE] Live SMTP dispatch failed (${sanitizedError}).`);
@@ -237,14 +256,15 @@ const sendMail = async ({ to, subject, html, text }) => {
 /**
  * 1. Send Email Verification OTP (Registration)
  */
-const sendVerificationOtpEmail = async (toEmail, otpCode, name = 'Employee') => {
-  const subject = `${otpCode} is your Maruti Denim Email Verification Code`;
-  const text = `Hello ${name},\n\nYour 6-digit email verification code for Maruti Denim Gate Pass System is: ${otpCode}\n\nThis code expires in 10 minutes. If you did not initiate this registration request, please ignore this email.`;
+const sendVerificationOtpEmail = async (toEmail, otpCode, name = 'Employee', companyCode = 'maruti_nandan') => {
+  const company = resolveCompanyConfig(companyCode);
+  const subject = `${otpCode} is your ${company.name} Email Verification Code`;
+  const text = `Hello ${name},\n\nYour 6-digit email verification code for ${company.name} Gate Pass System is: ${otpCode}\n\nThis code expires in 10 minutes. If you did not initiate this registration request, please ignore this email.`;
 
   const content = `
     <h2 style="color: #0f2a47; margin-top: 0; font-size: 18px;">Email Verification Request</h2>
     <p style="font-size: 14px; line-height: 1.5; color: #334155;">Hello <strong>${name}</strong>,</p>
-    <p style="font-size: 14px; line-height: 1.5; color: #334155;">Thank you for registering for an account on the <strong>Maruti Denim Gate Pass Management System</strong>. Please use the verification code below to verify your email address and continue setup:</p>
+    <p style="font-size: 14px; line-height: 1.5; color: #334155;">Thank you for registering for an account on the <strong>${company.name} Gate Pass Management System</strong>. Please use the verification code below to verify your email address and continue setup:</p>
 
     <div class="otp-box">
       <p style="font-size: 12px; text-transform: uppercase; color: #64748b; margin: 0 0 6px 0; font-weight: 600;">Verification Code</p>
@@ -258,19 +278,20 @@ const sendVerificationOtpEmail = async (toEmail, otpCode, name = 'Employee') => 
     <p style="font-size: 13px; color: #64748b; margin-top: 24px;">If you did not initiate this registration request, you can safely ignore this email.</p>
   `;
 
-  return await sendMail({ to: toEmail, subject, html: renderEmailLayout({ title: subject, content }), text });
+  return await sendMail({ to: toEmail, subject, html: renderEmailLayout({ title: subject, content, companyCode }), text });
 };
 
 /**
  * 2. Send Password Reset OTP
  */
-const sendPasswordResetOtpEmail = async (toEmail, otpCode) => {
-  const subject = `${otpCode} is your Maruti Denim Password Reset Code`;
-  const text = `Your 6-digit password reset code for Maruti Denim System is: ${otpCode}\n\nThis code expires in 10 minutes. If you did not request a password reset, please contact your administrator immediately.`;
+const sendPasswordResetOtpEmail = async (toEmail, otpCode, companyCode = 'maruti_nandan') => {
+  const company = resolveCompanyConfig(companyCode);
+  const subject = `${otpCode} is your ${company.name} Password Reset Code`;
+  const text = `Your 6-digit password reset code for ${company.name} System is: ${otpCode}\n\nThis code expires in 10 minutes. If you did not request a password reset, please contact your administrator immediately.`;
 
   const content = `
     <h2 style="color: #0f2a47; margin-top: 0; font-size: 18px;">Password Reset Verification</h2>
-    <p style="font-size: 14px; line-height: 1.5; color: #334155;">A password reset request was initiated for your Maruti Denim account associated with <strong>${toEmail}</strong>.</p>
+    <p style="font-size: 14px; line-height: 1.5; color: #334155;">A password reset request was initiated for your <strong>${company.name}</strong> account associated with <strong>${toEmail}</strong>.</p>
     <p style="font-size: 14px; line-height: 1.5; color: #334155;">Please enter the single-use OTP code below to verify your identity and set a new password:</p>
 
     <div class="otp-box" style="background: #fff1f2; border-color: #fca5a5;">
@@ -283,43 +304,45 @@ const sendPasswordResetOtpEmail = async (toEmail, otpCode) => {
     </div>
   `;
 
-  return await sendMail({ to: toEmail, subject, html: renderEmailLayout({ title: subject, content }), text });
+  return await sendMail({ to: toEmail, subject, html: renderEmailLayout({ title: subject, content, companyCode }), text });
 };
 
 /**
  * 3. Send Registration Pending Admin Approval Email
  */
-const sendRegistrationPendingEmail = async (toEmail, name) => {
-  const subject = `Registration Received — Pending Admin Approval | Maruti Denim System`;
-  const text = `Hello ${name},\n\nYour email address has been verified successfully. Your account is now awaiting Admin approval before login access is enabled.`;
+const sendRegistrationPendingEmail = async (toEmail, name, companyCode = 'maruti_nandan') => {
+  const company = resolveCompanyConfig(companyCode);
+  const subject = `Registration Received — Pending Admin Approval | ${company.name}`;
+  const text = `Hello ${name},\n\nYour email address has been verified successfully for ${company.name}. Your account is now awaiting Admin approval before login access is enabled.`;
 
   const content = `
     <h2 style="color: #0f2a47; margin-top: 0; font-size: 18px;">Registration Received</h2>
     <p style="font-size: 14px; line-height: 1.5; color: #334155;">Hello <strong>${name}</strong>,</p>
-    <p style="font-size: 14px; line-height: 1.5; color: #334155;">Your email address has been verified successfully, and your account password has been created.</p>
+    <p style="font-size: 14px; line-height: 1.5; color: #334155;">Your email address has been verified successfully, and your account password has been created for <strong>${company.name}</strong>.</p>
 
     <div class="alert-box" style="background: #fefce8; border-left-color: #eab308; color: #854d0e;">
       ⏳ <strong>Status: Pending Admin Approval</strong><br>
-      An Administrator has been notified to review and activate your account. You will receive an email notification once your access is approved.
+      An Administrator for ${company.name} has been notified to review and activate your account. You will receive an email notification once your access is approved.
     </div>
   `;
 
-  return await sendMail({ to: toEmail, subject, html: renderEmailLayout({ title: subject, content }), text });
+  return await sendMail({ to: toEmail, subject, html: renderEmailLayout({ title: subject, content, companyCode }), text });
 };
 
 /**
  * 4. Send Account Approved Notification Email
  */
-const sendAccountApprovedEmail = async (toEmail, name) => {
+const sendAccountApprovedEmail = async (toEmail, name, companyCode = 'maruti_nandan') => {
   const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+  const company = resolveCompanyConfig(companyCode);
   const loginUrl = `${clientUrl}/login`;
-  const subject = `🎉 Account Approved — Access Granted | Maruti Denim System`;
-  const text = `Hello ${name},\n\nGreat news! Your account has been approved by the Administrator. You can now log in to the Maruti Denim Gate Pass & Material Management System at: ${loginUrl}`;
+  const subject = `🎉 Account Approved — Access Granted | ${company.name}`;
+  const text = `Hello ${name},\n\nGreat news! Your account has been approved by the Administrator for ${company.name}. You can now log in at: ${loginUrl}`;
 
   const content = `
     <h2 style="color: #059669; margin-top: 0; font-size: 20px; font-weight: 700;">Account Approved & Access Granted!</h2>
     <p style="font-size: 14px; line-height: 1.6; color: #334155;">Hello <strong>${name}</strong>,</p>
-    <p style="font-size: 14px; line-height: 1.6; color: #334155;">Great news! Your registration request for the <strong>Maruti Denim Gate Pass Management System</strong> has been reviewed and official access has been approved by the Administrator.</p>
+    <p style="font-size: 14px; line-height: 1.6; color: #334155;">Great news! Your registration request for <strong>${company.name}</strong> has been reviewed and official access has been approved by the Administrator.</p>
 
     <div class="alert-box" style="background: #ecfdf5; border-left-color: #10b981; color: #065f46; margin: 24px 0; padding: 16px;">
       ✅ <strong>Account Status: Active & Approved</strong><br>
@@ -333,20 +356,21 @@ const sendAccountApprovedEmail = async (toEmail, name) => {
     <p style="font-size: 13px; color: #64748b; margin-top: 24px; border-top: 1px solid #f1f5f9; padding-top: 16px;">If you have any questions or require additional role permissions, please contact system administration.</p>
   `;
 
-  return await sendMail({ to: toEmail, subject, html: renderEmailLayout({ title: subject, content }), text });
+  return await sendMail({ to: toEmail, subject, html: renderEmailLayout({ title: subject, content, companyCode }), text });
 };
 
 /**
  * 5. Send Password Changed Security Alert Email
  */
-const sendPasswordChangedAlertEmail = async (toEmail, name = 'User') => {
-  const subject = `Security Alert: Your Password Was Changed | Maruti Denim`;
-  const text = `Hello ${name},\n\nYour password for Maruti Denim System was changed successfully. If you did not perform this action, contact your administrator immediately.`;
+const sendPasswordChangedAlertEmail = async (toEmail, name = 'User', companyCode = 'maruti_nandan') => {
+  const company = resolveCompanyConfig(companyCode);
+  const subject = `Security Alert: Your Password Was Changed | ${company.name}`;
+  const text = `Hello ${name},\n\nYour password for ${company.name} System was changed successfully. If you did not perform this action, contact your administrator immediately.`;
 
   const content = `
     <h2 style="color: #0f2a47; margin-top: 0; font-size: 18px;">Security Alert: Password Changed</h2>
     <p style="font-size: 14px; line-height: 1.5; color: #334155;">Hello <strong>${name}</strong>,</p>
-    <p style="font-size: 14px; line-height: 1.5; color: #334155;">This is an automated notification confirming that the password for your Maruti Denim account (<strong>${toEmail}</strong>) was changed successfully.</p>
+    <p style="font-size: 14px; line-height: 1.5; color: #334155;">This is an automated notification confirming that the password for your <strong>${company.name}</strong> account (<strong>${toEmail}</strong>) was changed successfully.</p>
 
     <div class="alert-box" style="background: #fef2f2; border-left-color: #ef4444; color: #991b1b;">
       ⚠️ <strong>Didn't change your password?</strong><br>
@@ -354,7 +378,7 @@ const sendPasswordChangedAlertEmail = async (toEmail, name = 'User') => {
     </div>
   `;
 
-  return await sendMail({ to: toEmail, subject, html: renderEmailLayout({ title: subject, content }), text });
+  return await sendMail({ to: toEmail, subject, html: renderEmailLayout({ title: subject, content, companyCode }), text });
 };
 
 module.exports = {

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { safeFormatDate } from '../../utils/dateUtils';
 import { formatINR } from '../../utils/gstCalculator';
+import { useAuth } from '../../context/AuthContext';
 
 const ApprovedStamp = () => (
   <div
@@ -65,16 +66,38 @@ const ApprovedStamp = () => (
 );
 
 const MaterialInwardReceiptDocument = ({ materialInward: directRecord, data }) => {
-  const [logoBase64, setLogoBase64] = useState('/Maruti denim logo.png');
-  const [isReady, setIsReady] = useState(false);
-
+  const { selectedCompany } = useAuth();
   const rawData = directRecord || data;
   const materialInward = rawData?.materialInward || rawData;
+
+  const resolveCompanyInfo = () => {
+    const code = (materialInward?.companyCode || selectedCompany?.code || 'maruti_nandan').toLowerCase().trim();
+    let name = materialInward?.companyName || selectedCompany?.name;
+    let logoPath = selectedCompany?.logoUrl;
+
+    if (!logoPath) {
+      if (code.includes('shri')) logoPath = '/Shri%20Ram%20logo.png';
+      else if (code.includes('balaji')) logoPath = '/balaji%20polycot%20logo.png';
+      else logoPath = '/Maruti%20denim%20logo.png';
+    }
+
+    if (!name) {
+      if (code.includes('shri')) name = 'SHRI RAM COT FAB';
+      else if (code.includes('balaji')) name = 'BALAJI POLYCOT PVT. LTD.';
+      else name = 'MARUTI NANDAN DENIM PVT LTD';
+    }
+
+    return { name, logoPath };
+  };
+
+  const compInfo = resolveCompanyInfo();
+  const [logoBase64, setLogoBase64] = useState(compInfo.logoPath);
+  const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
     const loadLogoAsBase64 = async () => {
       try {
-        const response = await fetch('/Maruti denim logo.png');
+        const response = await fetch(compInfo.logoPath);
         const blob = await response.blob();
         const reader = new FileReader();
         reader.onloadend = () => {
@@ -90,7 +113,7 @@ const MaterialInwardReceiptDocument = ({ materialInward: directRecord, data }) =
       }
     };
     loadLogoAsBase64();
-  }, []);
+  }, [compInfo.logoPath]);
 
   const isConsolidated = Boolean(
     materialInward.isConsolidated ||
@@ -141,20 +164,17 @@ const MaterialInwardReceiptDocument = ({ materialInward: directRecord, data }) =
           <div className="flex-shrink-0 mr-4">
             <img
               src={logoBase64}
-              alt="Maruti Denim Logo"
-              style={{ height: '100px', width: 'auto', objectFit: 'contain' }}
+              alt={`${compInfo.name} Logo`}
+              style={{ height: '75px', width: 'auto', objectFit: 'contain' }}
             />
           </div>
 
           <div className="text-right flex-1">
-            <h1 style={{ fontSize: '24px', fontWeight: 'bold', color: '#0F2A47', margin: 0, letterSpacing: '0.5px' }}>
-              MARUTI NANDAN DENIM PVT LTD
+            <h1 style={{ fontSize: '23px', fontWeight: 900, color: '#DC2626', margin: 0, letterSpacing: '0.5px' }}>
+              {compInfo.name}
             </h1>
             <p style={{ fontSize: '12px', fontWeight: 600, color: '#1e293b', marginTop: '3px' }}>
-              Block No. 371, PALDI KANKAJ, DASKROI, AHMEDABAD-382425.
-            </p>
-            <p style={{ fontSize: '12px', fontWeight: 600, color: '#1e293b', marginTop: '2px' }}>
-              E-mail : marutidenim2019@gmail.com | GSTIN: 24AAUCM1319B1ZQ
+              Corporate Gate Pass & Material Inward Receipt System
             </p>
           </div>
         </div>
@@ -345,14 +365,14 @@ const MaterialInwardReceiptDocument = ({ materialInward: directRecord, data }) =
             <p style={{ fontSize: '11.5px', color: '#64748b', marginTop: '2px' }}>
               {materialInward.approvedBy 
                 ? `${materialInward.approvedBy}${materialInward.approvedByDesignation ? ` (${materialInward.approvedByDesignation})` : ''}` 
-                : 'For Maruti Nandan Denim Pvt Ltd'}
+                : `For ${compInfo.name}`}
             </p>
           </div>
         </div>
 
         <div style={{ borderTop: '1px solid #e2e8f0', marginTop: '14px', paddingTop: '6px', textAlign: 'center' }}>
           <p style={{ fontSize: '11px', fontWeight: 600, color: '#64748b' }}>
-            Maruti Nandan Denim Pvt Ltd | Material Inward System | Computer Generated Voucher
+            {compInfo.name} | Material Inward System | Computer Generated Voucher
           </p>
         </div>
       </div>

@@ -20,7 +20,7 @@ import {
 
 const AdminLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { user, logout } = useAuth();
+  const { user, logout, selectedCompany } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
@@ -57,9 +57,9 @@ const AdminLayout = () => {
           <div className="flex h-20 items-center justify-between px-4 bg-brand-navy border-b border-white/10 shadow-sm">
             <div className="flex items-center justify-center w-full py-1">
               <img
-                src="/Maruti denim logo.png"
-                alt="Maruti Denim Logo"
-                className="h-20 max-h-20 w-auto object-contain filter drop-shadow"
+                src={selectedCompany?.logoUrl || '/Maruti denim logo.png'}
+                alt={selectedCompany?.name || 'Company Logo'}
+                className="h-16 max-h-16 w-auto object-contain filter drop-shadow brightness-110"
               />
             </div>
             <button className="md:hidden text-gray-300 hover:text-white ml-2" onClick={() => setSidebarOpen(false)}>

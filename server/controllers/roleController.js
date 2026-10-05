@@ -1,11 +1,11 @@
-const Role = require('../models/Role');
-const AuditLog = require('../models/AuditLog');
+const { resolveModels } = require('../config/connectionManager');
 
 // @desc    Get all roles
 // @route   GET /api/roles
 // @access  Private
 exports.getRoles = async (req, res) => {
   try {
+    const { Role } = resolveModels(req);
     const roles = await Role.find({}).sort({ createdAt: 1 });
     res.status(200).json({ success: true, roles });
   } catch (error) {
@@ -18,6 +18,7 @@ exports.getRoles = async (req, res) => {
 // @access  Private (Admin)
 exports.createRole = async (req, res) => {
   try {
+    const { Role, AuditLog } = resolveModels(req);
     const { name, description, permissions } = req.body;
 
     if (!name || !permissions || !Array.isArray(permissions)) {
@@ -62,6 +63,7 @@ exports.createRole = async (req, res) => {
 // @access  Private (Admin)
 exports.updateRole = async (req, res) => {
   try {
+    const { Role, AuditLog } = resolveModels(req);
     const { id } = req.params;
     const { name, description, permissions } = req.body;
 
@@ -105,6 +107,7 @@ exports.updateRole = async (req, res) => {
 // @access  Private (Admin)
 exports.deleteRole = async (req, res) => {
   try {
+    const { Role, AuditLog } = resolveModels(req);
     const { id } = req.params;
 
     const role = await Role.findById(id);

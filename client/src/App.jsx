@@ -10,7 +10,6 @@ import Layout from './components/layout/Layout';
 import AdminLayout from './components/admin/AdminLayout';
 
 // Auth Pages
-import SelectCompanyPage from './pages/Auth/SelectCompanyPage';
 import LoginPage from './pages/Auth/LoginPage';
 import AdminLoginPage from './pages/Auth/AdminLoginPage';
 import RegisterPage from './pages/Auth/RegisterPage';
@@ -52,7 +51,7 @@ function App() {
         <Toaster position="top-right" richColors />
         <Routes>
           {/* Public Auth Routes */}
-          <Route path="/select-company" element={<SelectCompanyPage />} />
+          <Route path="/select-company" element={<Navigate to="/login" replace />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/admin/login" element={<AdminLoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
