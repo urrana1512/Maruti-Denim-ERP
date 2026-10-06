@@ -66,10 +66,10 @@ const AdminDashboardPage = () => {
   };
 
   const statusSegments = [
-    { label: 'Pending Approval', count: stats.pendingGatePasses || 15, color: '#7C3AED' },
-    { label: 'Approved & Active', count: stats.approvedGatePasses || 32, color: '#0EA5E9' },
-    { label: 'Returnable Out', count: stats.activeReturnables || 18, color: '#F59E0B' },
-    { label: 'Fully Closed', count: stats.closedGatePasses || 40, color: '#10B981' }
+    { label: 'Pending Approval', count: stats.pendingGatePasses || 0, color: '#7C3AED' },
+    { label: 'Approved & Active', count: stats.approvedGatePasses || 0, color: '#0EA5E9' },
+    { label: 'Returnable Out', count: stats.activeReturnables || 0, color: '#F59E0B' },
+    { label: 'Fully Closed', count: stats.closedGatePasses || 0, color: '#10B981' }
   ];
 
   return (
@@ -127,6 +127,7 @@ const AdminDashboardPage = () => {
       {/* 4. Company Operations Activity Heatmap */}
       <ActivityHeatmapChart
         title={`${selectedCompany?.name || 'Company'} Material Movement Activity`}
+        data={recentActivities}
       />
 
       {/* 5. Company Returnable Status & User Approvals Split Row */}
@@ -135,7 +136,7 @@ const AdminDashboardPage = () => {
         <div className="lg:col-span-6">
           <StatusDonutChart
             title="Company Gate Pass Status Distribution"
-            totalCount={stats.totalGatePasses || 105}
+            totalCount={stats.totalGatePasses || 0}
             segments={statusSegments}
             onViewAll={() => window.location.assign('/admin/gate-passes')}
           />

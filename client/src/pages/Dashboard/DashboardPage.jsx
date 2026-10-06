@@ -91,13 +91,15 @@ const DashboardPage = () => {
     window.print();
   };
 
-  // Format Status Donut segments from real data or fallback
-  const statusSegments = [
-    { label: 'Pending / Open', count: data.summary.pendingGatePasses || 12, color: '#7C3AED' },
-    { label: 'Approved Passes', count: data.summary.approvedGatePasses || 28, color: '#0EA5E9' },
-    { label: 'In Progress / Out', count: Math.round((data.summary.materialCurrentlyOut || 15)), color: '#F59E0B' },
-    { label: 'Closed / Returned', count: data.summary.fullyReturnedClosed || 45, color: '#10B981' }
-  ];
+  // Format Status Donut segments strictly from real database metrics
+  const statusSegments = (data.statusDistribution && data.statusDistribution.length > 0)
+    ? data.statusDistribution.map(s => ({ label: s.name, count: s.value, color: s.color }))
+    : [
+        { label: 'Pending / Open', count: data.summary.pendingGatePasses || 0, color: '#7C3AED' },
+        { label: 'Approved Passes', count: data.summary.approvedGatePasses || 0, color: '#0EA5E9' },
+        { label: 'In Progress / Out', count: Math.round(data.summary.materialCurrentlyOut || 0), color: '#F59E0B' },
+        { label: 'Closed / Returned', count: data.summary.fullyReturnedClosed || 0, color: '#10B981' }
+      ];
 
   return (
     <div className="pb-12 min-w-0 max-w-full space-y-6">
@@ -116,8 +118,7 @@ const DashboardPage = () => {
       <div className="mb-6">
         <ActivityHeatmapChart
           title="Gate Pass Movement Activity"
-          headlineStat="+18%"
-          headlineSubtext="Gate Passes movement this period"
+          data={data.recentGatePasses || []}
         />
       </div>
 
@@ -126,7 +127,7 @@ const DashboardPage = () => {
         <div className="lg:col-span-5">
           <StatusDonutChart
             title="Gate Pass Status Distribution"
-            totalCount={data.summary.totalGatePasses || 100}
+            totalCount={data.summary.totalGatePasses || 0}
             segments={statusSegments}
           />
         </div>

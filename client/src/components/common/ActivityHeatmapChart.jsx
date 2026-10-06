@@ -43,6 +43,21 @@ const ActivityHeatmapChart = ({
     let lastLabelWeek = -6;
     let lastActiveCell = null;
 
+    // Build date lookup map from real database records
+    const dateMap = {};
+    if (Array.isArray(data)) {
+      data.forEach((item) => {
+        const itemDateStr = item.date
+          ? new Date(item.date).toISOString().split('T')[0]
+          : item.createdAt
+          ? new Date(item.createdAt).toISOString().split('T')[0]
+          : null;
+        if (itemDateStr) {
+          dateMap[itemDateStr] = (dateMap[itemDateStr] || 0) + (item.count || 1);
+        }
+      });
+    }
+
     // Build 53 weeks of 7 days
     for (let w = 0; w < 53; w++) {
       const weekDays = [];
@@ -72,14 +87,12 @@ const ActivityHeatmapChart = ({
           year: 'numeric'
         });
 
-        // Determine daily movement count
+        const dateIsoStr = currentDate.toISOString().split('T')[0];
+
+        // Determine daily movement count from database lookup
         let count = 0;
         if (!isFuture && !isOutRange) {
-          const daySeed = (currentDate.getDate() * 17 + (currentDate.getMonth() + 1) * 11 + currentDate.getFullYear()) % 19;
-          if (daySeed > 15) count = 16 + (daySeed % 9);
-          else if (daySeed > 11) count = 9 + (daySeed % 6);
-          else if (daySeed > 6) count = 4 + (daySeed % 4);
-          else if (daySeed > 2) count = 1 + (daySeed % 2);
+          count = dateMap[dateIsoStr] || 0;
         }
 
         totalCount += count;
@@ -125,43 +138,31 @@ const ActivityHeatmapChart = ({
   // Current active date selection
   const activeCell = selectedCell || defaultActiveCell;
 
-  // Generate realistic activity records for the selected date
+  // Filter real activity records for the selected date from database prop
   const selectedDateActivities = useMemo(() => {
-    if (!activeCell || activeCell.count === 0 || activeCell.isFuture || activeCell.isOutRange) {
+    if (!activeCell || !Array.isArray(data) || data.length === 0) {
       return [];
     }
+    const dateIsoStr = activeCell.date.toISOString().split('T')[0];
 
-    const vendors = ['Shri Ram Cot Fab', 'Balaji Polycot', 'Maruti Nandan Denim', 'Apex Dyeing Ltd', 'Gujarat Weaving Works'];
-    const passTypes = ['Returnable Gate Pass', 'Non-Returnable Pass', 'Material Inward Receipt'];
-    const statuses = ['Approved', 'Inward Verified', 'Pending Action', 'Dispatched'];
-    const itemsList = ['500 Mtr Denim Fabric', '250 Yarn Cones', 'Chemical Drums (Empty)', 'Dyeing Sample Fabric', 'Spare Machine Parts'];
-
-    const items = [];
-    const itemCount = Math.min(activeCell.count, 5);
-
-    for (let i = 0; i < itemCount; i++) {
-      const seed = (activeCell.date.getDate() * 7 + (activeCell.date.getMonth() + 1) * 13 + i * 19) % 100;
-      const passNum = `GP-2026-${String(800 + (seed % 150)).padStart(4, '0')}`;
-      const vendor = vendors[i % vendors.length];
-      const passType = passTypes[i % passTypes.length];
-      const status = statuses[i % statuses.length];
-      const itemDesc = itemsList[i % itemsList.length];
-      const hour = 9 + (i * 2) % 9;
-      const minute = (i * 15 + 10) % 60;
-      const timeStr = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')} ${hour >= 12 ? 'PM' : 'AM'}`;
-
-      items.push({
-        id: passNum,
-        vendor,
-        passType,
-        status,
-        timeStr,
-        itemDesc
-      });
-    }
-
-    return items;
-  }, [activeCell]);
+    return data
+      .filter((item) => {
+        const itemDateStr = item.date
+          ? new Date(item.date).toISOString().split('T')[0]
+          : item.createdAt
+          ? new Date(item.createdAt).toISOString().split('T')[0]
+          : null;
+        return itemDateStr === dateIsoStr;
+      })
+      .map((item, i) => ({
+        id: item.gatePassNumber || item.inwardNumber || item.refNumber || `LOG-${i + 1}`,
+        vendor: item.companyName || item.partyName || item.vendorName || item.userName || 'Company Staff',
+        passType: item.passType || item.action || 'Gate Pass',
+        status: item.status || item.returnStatus || 'ACTIVE',
+        timeStr: item.createdAt ? new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-',
+        itemDesc: item.itemDescription || item.details || item.itemsSummary || item.action || 'Material Movement'
+      }));
+  }, [activeCell, data]);
 
   // GitHub Color Scale
   const getCellColor = (level, isFuture, isOutRange) => {

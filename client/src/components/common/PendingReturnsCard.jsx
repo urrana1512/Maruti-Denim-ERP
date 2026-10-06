@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, AlertCircle, ArrowUpRight } from 'lucide-react';
+import { AlertCircle, ArrowUpRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const PendingReturnsCard = ({ items = [], onViewAll }) => {
@@ -9,25 +9,6 @@ const PendingReturnsCard = ({ items = [], onViewAll }) => {
     if (onViewAll) onViewAll();
     else navigate('/reports?tab=pending-returns');
   };
-
-  const displayItems = items.length > 0 ? items : [
-    {
-      id: 'GP-2026-0840',
-      vendor: 'Shri Ram Processors',
-      itemDescription: 'Sample Denim Rolls',
-      dueDate: '2026-01-08',
-      daysLeft: '3 Days Left',
-      status: 'Normal'
-    },
-    {
-      id: 'GP-2026-0812',
-      vendor: 'Balaji Chemicals & Dyes',
-      itemDescription: 'Empty Chemical Drums',
-      dueDate: '2026-01-04',
-      daysLeft: 'OVERDUE (1 Day)',
-      status: 'Overdue'
-    }
-  ];
 
   return (
     <div className="bg-white border border-[#EBEFF2] rounded-xl p-5 shadow-xs flex flex-col justify-between h-full">
@@ -44,38 +25,48 @@ const PendingReturnsCard = ({ items = [], onViewAll }) => {
 
       {/* Item List */}
       <div className="space-y-3 flex-1 overflow-y-auto max-h-[320px] pr-1">
-        {displayItems.map((item) => (
-          <div
-            key={item.id}
-            onClick={handleNavigate}
-            className="p-3 bg-[#F6F8FA] border border-[#EBEFF2] rounded-xl flex items-center justify-between hover:border-[#D1D5DB] transition-all cursor-pointer group"
-          >
-            <div className="space-y-1 truncate pr-2">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-[#111827]">{item.id}</span>
-                <span
-                  className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${
-                    item.status === 'Overdue'
-                      ? 'bg-[#FEE2E2] text-[#EF4444]'
-                      : 'bg-[#DCFCE7] text-[#10B981]'
-                  }`}
-                >
-                  {item.daysLeft}
-                </span>
-              </div>
-              <div className="text-xs font-semibold text-[#111827] truncate">{item.itemDescription}</div>
-              <div className="text-[10px] text-[#6B7280] truncate">Vendor: {item.vendor}</div>
-            </div>
-
-            <div className="flex items-center gap-2 shrink-0">
-              <div className="text-right">
-                <div className="text-[10px] font-semibold text-[#6B7280]">Due Date</div>
-                <div className="text-[10px] font-bold text-[#111827]">{item.dueDate}</div>
-              </div>
-              <ArrowUpRight size={14} className="text-[#9CA3AF] group-hover:text-[#111827] transition-colors" />
-            </div>
+        {items.length === 0 ? (
+          <div className="py-10 text-center text-xs text-[#9CA3AF] space-y-1">
+            <AlertCircle size={28} className="mx-auto text-[#D1D5DB]" />
+            <p className="font-bold text-[#111827]">No Pending / Overdue Returns</p>
+            <p className="text-[11px] text-[#6B7280]">All returnable items have been received in the database.</p>
           </div>
-        ))}
+        ) : (
+          items.map((item, idx) => (
+            <div
+              key={item._id || item.id || idx}
+              onClick={handleNavigate}
+              className="p-3 bg-[#F6F8FA] border border-[#EBEFF2] rounded-xl flex items-center justify-between hover:border-[#D1D5DB] transition-all cursor-pointer group"
+            >
+              <div className="space-y-1 truncate pr-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-[#111827]">{item.gatePassNumber || item.id || 'GP-REF'}</span>
+                  <span
+                    className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${
+                      item.daysOverdue > 14 || item.status === 'Overdue'
+                        ? 'bg-[#FEE2E2] text-[#EF4444]'
+                        : 'bg-[#DCFCE7] text-[#10B981]'
+                    }`}
+                  >
+                    {item.daysOverdue ? `${item.daysOverdue} Days Overdue` : item.daysLeft || 'Pending'}
+                  </span>
+                </div>
+                <div className="text-xs font-semibold text-[#111827] truncate">{item.itemDescription || 'Returnable Material'}</div>
+                <div className="text-[10px] text-[#6B7280] truncate">Vendor: {item.vendorName || item.vendor || '-'}</div>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <div className="text-right">
+                  <div className="text-[10px] font-semibold text-[#6B7280]">Due Date</div>
+                  <div className="text-[10px] font-bold text-[#111827]">
+                    {item.dueDate ? new Date(item.dueDate).toLocaleDateString() : '-'}
+                  </div>
+                </div>
+                <ArrowUpRight size={14} className="text-[#9CA3AF] group-hover:text-[#111827] transition-colors" />
+              </div>
+            </div>
+          ))
+        )}
       </div>
     </div>
   );

@@ -161,7 +161,7 @@ const KPICards = ({ summary = {}, loading = false, role = 'employee' }) => {
     {
       title: 'Total Companies',
       context: 'Active group tenants',
-      value: summary.totalCompanies || 3,
+      value: summary.totalCompanies || 0,
       icon: FileText,
       trend: '+10%',
       isPositive: true,
