@@ -5,9 +5,11 @@ import { Toaster } from 'sonner';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import AdminRoute from './components/auth/AdminRoute';
+import SuperAdminRoute from './components/auth/SuperAdminRoute';
 
 import Layout from './components/layout/Layout';
 import AdminLayout from './components/admin/AdminLayout';
+import SuperAdminLayout from './components/superadmin/SuperAdminLayout';
 
 // Auth Pages
 import LoginPage from './pages/Auth/LoginPage';
@@ -18,6 +20,16 @@ import ForgotPasswordPage from './pages/Auth/ForgotPasswordPage';
 // Super Admin Pages
 import SuperAdminLoginPage from './pages/SuperAdmin/SuperAdminLoginPage';
 import SuperAdminDashboardPage from './pages/SuperAdmin/SuperAdminDashboardPage';
+import SuperAdminCompaniesPage from './pages/SuperAdmin/SuperAdminCompaniesPage';
+import SuperAdminCompanyDetailPage from './pages/SuperAdmin/SuperAdminCompanyDetailPage';
+import SuperAdminGatePassesPage from './pages/SuperAdmin/SuperAdminGatePassesPage';
+import SuperAdminInwardPage from './pages/SuperAdmin/SuperAdminInwardPage';
+import SuperAdminUsersPage from './pages/SuperAdmin/SuperAdminUsersPage';
+import SuperAdminCompanyAdminsPage from './pages/SuperAdmin/SuperAdminCompanyAdminsPage';
+import SuperAdminReportsPage from './pages/SuperAdmin/SuperAdminReportsPage';
+import SuperAdminAuditLogsPage from './pages/SuperAdmin/SuperAdminAuditLogsPage';
+import SuperAdminAlertsPage from './pages/SuperAdmin/SuperAdminAlertsPage';
+import SuperAdminSettingsPage from './pages/SuperAdmin/SuperAdminSettingsPage';
 
 // User Module Pages
 import DashboardPage from './pages/Dashboard/DashboardPage';
@@ -57,9 +69,31 @@ function App() {
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
 
-          {/* Super Admin Routes */}
+          {/* Super Admin Public Login */}
           <Route path="/superadmin/login" element={<SuperAdminLoginPage />} />
-          <Route path="/superadmin/dashboard" element={<SuperAdminDashboardPage />} />
+
+          {/* Super Admin Protected Panel Routes */}
+          <Route
+            path="/superadmin"
+            element={
+              <SuperAdminRoute>
+                <SuperAdminLayout />
+              </SuperAdminRoute>
+            }
+          >
+            <Route index element={<Navigate to="/superadmin/dashboard" replace />} />
+            <Route path="dashboard" element={<SuperAdminDashboardPage />} />
+            <Route path="companies" element={<SuperAdminCompaniesPage />} />
+            <Route path="companies/:code/details" element={<SuperAdminCompanyDetailPage />} />
+            <Route path="gate-passes" element={<SuperAdminGatePassesPage />} />
+            <Route path="inward-returnables" element={<SuperAdminInwardPage />} />
+            <Route path="users" element={<SuperAdminUsersPage />} />
+            <Route path="company-admins" element={<SuperAdminCompanyAdminsPage />} />
+            <Route path="reports" element={<SuperAdminReportsPage />} />
+            <Route path="audit-logs" element={<SuperAdminAuditLogsPage />} />
+            <Route path="alerts" element={<SuperAdminAlertsPage />} />
+            <Route path="settings" element={<SuperAdminSettingsPage />} />
+          </Route>
 
           {/* Standard User Operational Routes */}
           <Route

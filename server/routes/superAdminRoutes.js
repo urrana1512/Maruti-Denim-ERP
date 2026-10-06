@@ -3,23 +3,55 @@ const router = express.Router();
 const {
   superAdminLogin,
   getSuperAdminMe,
+  changeSuperAdminPassword,
+  getSuperAdminSessions,
   getSuperAdminDashboardStats,
   getCompanies,
+  getCompanyDetails,
   createCompany,
   toggleCompanyStatus,
-  getSuperAdminAuditLogs
+  getConsolidatedGatePasses,
+  getConsolidatedInwardReturnables,
+  getConsolidatedUsers,
+  getUserDetails,
+  getCompanyAdmins,
+  reassignCompanyAdmin,
+  getSuperAdminAuditLogs,
+  getSuperAdminAlerts,
+  getSuperAdminAnalytics,
+  exportSuperAdminReport
 } = require('../controllers/superAdminController');
 const { protectSuperAdmin } = require('../middleware/superAdminAuthMiddleware');
 
-// Public Super Admin Login
+// 1. Authentication & Security Profile
 router.post('/login', superAdminLogin);
-
-// Protected Super Admin Routes
 router.get('/me', protectSuperAdmin, getSuperAdminMe);
+router.post('/profile/change-password', protectSuperAdmin, changeSuperAdminPassword);
+router.get('/sessions', protectSuperAdmin, getSuperAdminSessions);
+
+// 2. Dashboard & Telemetry
 router.get('/dashboard-stats', protectSuperAdmin, getSuperAdminDashboardStats);
+
+// 3. Company Management & Read-Only Inspection
 router.get('/companies', protectSuperAdmin, getCompanies);
+router.get('/companies/:code/details', protectSuperAdmin, getCompanyDetails);
 router.post('/companies', protectSuperAdmin, createCompany);
 router.patch('/companies/:code/status', protectSuperAdmin, toggleCompanyStatus);
+
+// 4. Consolidated Operational Monitoring
+router.get('/gate-passes', protectSuperAdmin, getConsolidatedGatePasses);
+router.get('/inward-returnables', protectSuperAdmin, getConsolidatedInwardReturnables);
+
+// 5. Users & Company Admin Monitoring
+router.get('/users', protectSuperAdmin, getConsolidatedUsers);
+router.get('/users/:companyCode/:userId', protectSuperAdmin, getUserDetails);
+router.get('/company-admins', protectSuperAdmin, getCompanyAdmins);
+router.post('/company-admins/reassign', protectSuperAdmin, reassignCompanyAdmin);
+
+// 6. Reports, Audit Logs & Alerts
 router.get('/audit-logs', protectSuperAdmin, getSuperAdminAuditLogs);
+router.get('/alerts', protectSuperAdmin, getSuperAdminAlerts);
+router.get('/reports/analytics', protectSuperAdmin, getSuperAdminAnalytics);
+router.get('/reports/export', protectSuperAdmin, exportSuperAdminReport);
 
 module.exports = router;
