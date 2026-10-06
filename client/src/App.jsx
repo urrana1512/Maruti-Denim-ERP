@@ -56,6 +56,9 @@ import MaterialInwardPrintView from './pages/Documents/MaterialInwardPrintView';
 import CorporateReportPrintView from './pages/Documents/CorporateReportPrintView';
 import MasterDataPrintView from './pages/Documents/MasterDataPrintView';
 
+// Profile Page
+import ProfilePage from './pages/Profile/ProfilePage';
+
 function App() {
   return (
     <BrowserRouter>
@@ -92,6 +95,7 @@ function App() {
             <Route path="reports" element={<SuperAdminReportsPage />} />
             <Route path="audit-logs" element={<SuperAdminAuditLogsPage />} />
             <Route path="alerts" element={<SuperAdminAlertsPage />} />
+            <Route path="profile" element={<ProfilePage isSuperAdmin={true} />} />
             <Route path="settings" element={<SuperAdminSettingsPage />} />
           </Route>
 
@@ -106,6 +110,7 @@ function App() {
           >
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="dashboard" element={<DashboardPage />} />
+            <Route path="profile" element={<ProfilePage />} />
             <Route
               path="gate-pass/add"
               element={
@@ -177,6 +182,7 @@ function App() {
             <Route path="master-data" element={<AdminMasterDataPage />} />
             <Route path="reports" element={<AdminReportsPage />} />
             <Route path="audit-logs" element={<AdminAuditLogsPage />} />
+            <Route path="profile" element={<ProfilePage />} />
           </Route>
 
           {/* Print-Only standalone document routes (no layout chrome) */}

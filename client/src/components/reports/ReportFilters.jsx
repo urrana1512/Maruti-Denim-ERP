@@ -101,10 +101,10 @@ const ReportFilters = ({
               key={p}
               type="button"
               onClick={() => applyPreset(p)}
-              className={`px-2.5 py-1 rounded-full font-medium transition-all ${
+              className={`px-3 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer ${
                 datePreset === p 
-                  ? 'bg-brand-navy text-white font-semibold shadow-sm' 
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  ? 'bg-[#111827] text-white font-bold shadow-xs' 
+                  : 'bg-[#F6F8FA] text-[#6B7280] hover:bg-[#EBEFF2] hover:text-[#111827] border border-[#EBEFF2]'
               }`}
             >
               {p}

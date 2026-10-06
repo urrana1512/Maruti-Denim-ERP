@@ -50,6 +50,12 @@ app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+const path = require('path');
+const profileRoutes = require('./routes/profileRoutes');
+
+// Serve static uploaded avatars safely
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 // Platform Level Routes (Public & Super Admin)
 app.use('/api/companies', companyRoutes);
 app.use('/api/superadmin', superAdminRoutes);
@@ -63,6 +69,7 @@ app.use('/api/gate-passes', tenantMiddleware, gatePassRoutes);
 app.use('/api/material-inward', tenantMiddleware, materialInwardRoutes);
 app.use('/api/reports', tenantMiddleware, reportRoutes);
 app.use('/api/master-data', tenantMiddleware, masterDataRoutes);
+app.use('/api/profile', tenantMiddleware, profileRoutes);
 
 // Base route
 app.get('/', (req, res) => {

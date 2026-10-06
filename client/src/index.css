@@ -1,26 +1,64 @@
 @import "tailwindcss";
 
 @theme {
-  --color-brand-navy: #0F172A;
-  --color-brand-denim: #1E40AF;
-  --color-brand-denim-light: #EFF6FF;
-  --color-surface-bg: #F8FAFC;
+  --color-brand-navy: #111827;
+  --color-brand-denim: #111827;
+  --color-brand-denim-light: #F3F4F6;
+  --color-canvas-bg: #F6F8FA;
   --color-surface-card: #FFFFFF;
-  --color-border-subtle: #E2E8F0;
-  --color-success: #16A34A;
-  --color-warning: #D97706;
-  --color-danger: #DC2626;
+  --color-border-subtle: #EBEFF2;
+  --color-text-main: #111827;
+  --color-text-muted: #6B7280;
+  --color-text-subtle: #9CA3AF;
+  --color-accent-purple: #7C3AED;
+  --color-accent-purple-muted: #ECEAFE;
+  --color-accent-cyan: #0EA5E9;
+  --color-accent-amber: #F59E0B;
+  --color-success-bg: #DCFCE7;
+  --color-success-text: #10B981;
+  --color-danger-bg: #FEE2E2;
+  --color-danger-text: #EF4444;
+}
+
+:root {
+  --bg-canvas: #F6F8FA;
+  --bg-surface: #FFFFFF;
+  --border-default: #EBEFF2;
+  --text-primary: #111827;
+  --button-primary-hover: #1F2937;
+  --text-secondary: #6B7280;
+  --text-tertiary: #9CA3AF;
+  --accent-purple: #7C3AED;
+  --accent-purple-muted: #ECEAFE;
+  --accent-cyan: #0EA5E9;
+  --accent-amber: #F59E0B;
+  --success-bg: #DCFCE7;
+  --success-text: #10B981;
+  --danger-bg: #FEE2E2;
+  --danger-text: #EF4444;
+  --radius-card: 0.625rem;
+  --radius-button: 0.5rem;
+  --radius-pill: 9999px;
 }
 
 @layer base {
   html, body {
     max-width: 100vw;
     overflow-x: hidden;
-    background-color: #F8FAFC;
-    color: #1e293b;
-    font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background-color: var(--bg-canvas);
+    color: var(--text-primary);
+    font-family: "Plus Jakarta Sans", "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   }
 }
+
+.font-display {
+  font-family: "Outfit", "Plus Jakarta Sans", sans-serif;
+}
+
+.font-body {
+  font-family: "Plus Jakarta Sans", sans-serif;
+}
+
 
 /* Animations & Motion Tokens */
 @keyframes gradientFlow {
@@ -41,67 +79,68 @@
   40%, 80% { transform: translateX(6px); }
 }
 
-@keyframes drawCheck {
-  0% { stroke-dashoffset: 36; }
-  100% { stroke-dashoffset: 0; }
+/* Clean Panel Card Utilities */
+.panel-card {
+  background-color: #FFFFFF;
+  border: 1px solid #EBEFF2;
+  border-radius: 0.625rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.02), 0 1px 2px -1px rgba(0, 0, 0, 0.02);
 }
 
-@keyframes pulseGlow {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(30, 64, 175, 0.4); }
-  50% { box-shadow: 0 0 0 6px rgba(30, 64, 175, 0.15); }
+.panel-card-hover {
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* Animated Mesh Background */
-.bg-gradient-mesh {
-  background: linear-gradient(-45deg, #0f172a, #1e3a8a, #0f2b5c, #1e1b4b, #0284c7);
-  background-size: 400% 400%;
-  animation: gradientFlow 18s ease infinite;
+.panel-card-hover:hover {
+  border-color: #D1D5DB;
+  box-shadow: 0 4px 12px -2px rgba(17, 24, 39, 0.06);
 }
 
-.animate-ambient-drift {
-  animation: ambientDrift 28s ease-in-out infinite;
+/* Primary Near-Black Buttons */
+.btn-primary {
+  background-color: #111827;
+  color: #FFFFFF;
+  font-weight: 600;
+  border-radius: 0.5rem;
+  transition: background-color 0.15s ease-in-out;
 }
 
-.animate-shake {
-  animation: shake 0.35s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+.btn-primary:hover {
+  background-color: #1F2937;
 }
 
-.animate-pulse-glow {
-  animation: pulseGlow 2.5s infinite;
+/* Table Selected Row Rule: Purple Accent reserved ONLY for selected table row */
+.table-row-selected {
+  background-color: #ECEAFE !important;
 }
 
-/* 3D Depth Card Shadows & Hover Effects */
-.shadow-3d {
-  box-shadow: 0 20px 50px -12px rgba(15, 23, 42, 0.35),
-              0 8px 20px -8px rgba(15, 23, 42, 0.2);
+/* Table standard header and row styling */
+.table-header {
+  color: #6B7280;
+  font-weight: 500;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background-color: #FFFFFF;
+  border-bottom: 1px solid #EBEFF2;
 }
 
-.shadow-3d-hover {
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+.table-row {
+  transition: background-color 0.15s ease;
 }
 
-.shadow-3d-hover:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 26px 60px -14px rgba(15, 23, 42, 0.4),
-              0 12px 24px -10px rgba(15, 23, 42, 0.25);
-}
-
-/* Textile Hatching Pattern */
-.bg-textile-pattern {
-  background-image: radial-gradient(rgba(255, 255, 255, 0.12) 1px, transparent 1px),
-                    linear-gradient(135deg, rgba(255, 255, 255, 0.04) 25%, transparent 25%, transparent 50%, rgba(255, 255, 255, 0.04) 50%, rgba(255, 255, 255, 0.04) 75%, transparent 75%, transparent);
-  background-size: 24px 24px, 48px 48px;
+.table-row:hover {
+  background-color: #F6F8FA;
 }
 
 /* Reduced Motion Accessibility */
 @media (prefers-reduced-motion: reduce) {
-  .bg-gradient-mesh,
-  .animate-ambient-drift,
-  .animate-shake,
-  .animate-pulse-glow {
-    animation: none !important;
-    transform: none !important;
-    transition: opacity 0.15s ease-in-out !important;
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
+
 

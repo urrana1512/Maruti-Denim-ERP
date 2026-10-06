@@ -21,12 +21,21 @@ const {
   getSuperAdminAnalytics,
   exportSuperAdminReport
 } = require('../controllers/superAdminController');
-const { protectSuperAdmin } = require('../middleware/superAdminAuthMiddleware');
+const {
+  getSuperAdminProfile,
+  updateSuperAdminPersonal,
+  uploadSuperAdminAvatar,
+  changeSuperAdminPassword: changeSuperAdminPass
+} = require('../controllers/superAdminProfileController');
+const { uploadAvatar } = require('../middleware/uploadMiddleware');
 
 // 1. Authentication & Security Profile
 router.post('/login', superAdminLogin);
 router.get('/me', protectSuperAdmin, getSuperAdminMe);
-router.post('/profile/change-password', protectSuperAdmin, changeSuperAdminPassword);
+router.get('/profile', protectSuperAdmin, getSuperAdminProfile);
+router.put('/profile/personal', protectSuperAdmin, updateSuperAdminPersonal);
+router.post('/profile/avatar', protectSuperAdmin, uploadAvatar, uploadSuperAdminAvatar);
+router.post('/profile/change-password', protectSuperAdmin, changeSuperAdminPass);
 router.get('/sessions', protectSuperAdmin, getSuperAdminSessions);
 
 // 2. Dashboard & Telemetry

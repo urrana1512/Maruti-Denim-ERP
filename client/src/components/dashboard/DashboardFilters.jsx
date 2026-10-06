@@ -84,10 +84,10 @@ const DashboardFilters = ({ filters, onFilterChange }) => {
                 key={p.value}
                 type="button"
                 onClick={() => handleRangeChange(p.value)}
-                className={`px-2.5 py-1 text-xs font-medium rounded-lg transition-all duration-150 ${
+                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all duration-150 cursor-pointer ${
                   isActive
-                    ? 'bg-brand-navy text-white shadow-xs font-semibold'
-                    : 'bg-slate-100/80 text-slate-600 hover:bg-slate-200/80 hover:text-slate-800'
+                    ? 'bg-[#111827] text-white shadow-xs font-bold'
+                    : 'bg-[#F6F8FA] text-[#6B7280] hover:bg-[#EBEFF2] hover:text-[#111827] border border-[#EBEFF2]'
                 }`}
               >
                 {p.label}

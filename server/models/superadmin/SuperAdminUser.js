@@ -31,6 +31,58 @@ const superAdminUserSchema = new mongoose.Schema(
     lastLoginAt: {
       type: Date,
       default: null
+    },
+    avatarUrl: {
+      type: String,
+      default: null
+    },
+    phone: {
+      type: String,
+      default: ''
+    },
+    department: {
+      type: String,
+      default: 'Central Administration'
+    },
+    officeLocation: {
+      type: String,
+      default: 'Corporate HQ'
+    },
+    timeZone: {
+      type: String,
+      default: 'Asia/Kolkata'
+    },
+    dateFormat: {
+      type: String,
+      default: 'DD/MM/YYYY'
+    },
+    notificationPreferences: {
+      emailGatePass: { type: Boolean, default: true },
+      emailApprovals: { type: Boolean, default: true },
+      emailSystem: { type: Boolean, default: true }
+    },
+    activeSessions: [
+      {
+        sessionId: { type: String, required: true },
+        deviceLabel: { type: String, default: 'Desktop Web' },
+        browser: { type: String, default: 'Chrome' },
+        ipAddress: { type: String, default: '127.0.0.1' },
+        lastActiveAt: { type: Date, default: Date.now },
+        createdAt: { type: Date, default: Date.now }
+      }
+    ],
+    passwordHistory: [
+      {
+        hash: { type: String, required: true },
+        changedAt: { type: Date, default: Date.now }
+      }
+    ],
+    pendingEmailChange: {
+      newEmail: { type: String, lowercase: true, trim: true, default: null },
+      otpHash: { type: String, default: null },
+      requestedAt: { type: Date, default: null },
+      expiresAt: { type: Date, default: null },
+      attempts: { type: Number, default: 0 }
     }
   },
   { timestamps: true }

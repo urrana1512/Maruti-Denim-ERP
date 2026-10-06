@@ -186,76 +186,156 @@ exports.getSuperAdminSessions = async (req, res) => {
 // =========================================================================
 
 /**
- * @desc Get Platform Aggregated Dashboard Stats with Company Filter & Resilience
+ * @desc Get Platform Aggregated Dashboard Stats with Company Filter, Date Filter & Resilience
  * @route GET /api/superadmin/dashboard-stats
  */
 exports.getSuperAdminDashboardStats = async (req, res) => {
   try {
-    const { companyCode = 'ALL', timeframe = 'all' } = req.query;
-    const { Company } = getSuperAdminModels();
+    const { companyCode = 'ALL', timeframe = '30d', startDate, endDate } = req.query;
+    const { Company, SuperAdminAuditLog } = getSuperAdminModels();
 
+    // 1. Resolve Company Scope Filter
     let companyQuery = {};
     if (companyCode && companyCode.toUpperCase() !== 'ALL') {
       companyQuery.code = companyCode.toLowerCase().trim();
     }
-
     const companies = await Company.find(companyQuery).sort({ createdAt: 1 });
 
+    // 2. Resolve Date Range Filter
+    let start = new Date();
+    let end = new Date();
+    end.setHours(23, 59, 59, 999);
+
+    if (timeframe === 'today') {
+      start.setHours(0, 0, 0, 0);
+    } else if (timeframe === '7d') {
+      start.setDate(start.getDate() - 6);
+      start.setHours(0, 0, 0, 0);
+    } else if (timeframe === '30d') {
+      start.setDate(start.getDate() - 29);
+      start.setHours(0, 0, 0, 0);
+    } else if (timeframe === 'this_month') {
+      start.setDate(1);
+      start.setHours(0, 0, 0, 0);
+    } else if (timeframe === 'prev_month') {
+      start = new Date(start.getFullYear(), start.getMonth() - 1, 1, 0, 0, 0);
+      end = new Date(start.getFullYear(), start.getMonth() + 1, 0, 23, 59, 59);
+    } else if (timeframe === 'custom' && startDate && endDate) {
+      start = new Date(startDate);
+      start.setHours(0, 0, 0, 0);
+      end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+    } else {
+      // Default to past 30 days for trend analysis
+      start.setDate(start.getDate() - 29);
+      start.setHours(0, 0, 0, 0);
+    }
+
+    const dateFilter = { createdAt: { $gte: start, $lte: end } };
+
+    // 3. Consolidated Metric Aggregators
     let totalUsers = 0;
-    let pendingUserApprovals = 0;
-    let totalGatePasses = 0;
+    let totalGatePassesInPeriod = 0;
     let activeGatePasses = 0;
-    let pendingReturnable = 0;
+    let partiallyReturned = 0;
     let closedGatePasses = 0;
-    let gatePassesToday = 0;
-    let gatePassesThisMonth = 0;
-
-    const startOfToday = new Date();
-    startOfToday.setHours(0, 0, 0, 0);
-
-    const startOfMonth = new Date();
-    startOfMonth.setDate(1);
-    startOfMonth.setHours(0, 0, 0, 0);
+    let totalInwardEntries = 0;
+    let pendingReturnableCount = 0;
+    let overdueReturnableCount = 0;
 
     let recentGatePasses = [];
+    let recentInwardEntries = [];
     let recentActivities = [];
+    let pendingReturnableRecords = [];
+    let alerts = [];
 
+    // Daily breakdown bucket map (YYYY-MM-DD)
+    const dailyMap = {};
+    const currDate = new Date(start);
+    while (currDate <= end) {
+      const dateKey = currDate.toISOString().split('T')[0];
+      dailyMap[dateKey] = { date: dateKey, total: 0, maruti: 0, shriRam: 0, balaji: 0 };
+      currDate.setDate(currDate.getDate() + 1);
+    }
+
+    // 4. Fetch telemetry from each tenant database in parallel with error resilience
     const companyStats = await Promise.all(
       companies.map(async (company) => {
         try {
           const tenantModels = getTenantModels(company.code, company.dbName);
 
-          const [uCount, uPending, gpCount, gpActive, gpPendingReturn, gpClosed, gpToday, gpMonth, recentGPs, recentLogs] = await Promise.all([
+          const [
+            uCount,
+            gpInPeriod,
+            gpActive,
+            gpPartial,
+            gpClosed,
+            miInPeriod,
+            gpPendingReturn,
+            gpOverdue,
+            recentGPs,
+            recentInwards,
+            recentLogs,
+            pendingReturnList,
+            passesForTrends
+          ] = await Promise.all([
             tenantModels.User.countDocuments(),
-            tenantModels.User.countDocuments({ status: 'PENDING_APPROVAL' }),
-            tenantModels.GatePass.countDocuments(),
+            tenantModels.GatePass.countDocuments(dateFilter),
             tenantModels.GatePass.countDocuments({ status: 'active', returnStatus: { $ne: 'FULLY_RETURNED' } }),
-            tenantModels.GatePass.countDocuments({ returnStatus: 'PENDING' }),
+            tenantModels.GatePass.countDocuments({ returnStatus: 'PARTIALLY_RETURNED' }),
             tenantModels.GatePass.countDocuments({ $or: [{ status: 'closed' }, { returnStatus: 'FULLY_RETURNED' }] }),
-            tenantModels.GatePass.countDocuments({ createdAt: { $gte: startOfToday } }),
-            tenantModels.GatePass.countDocuments({ createdAt: { $gte: startOfMonth } }),
-            tenantModels.GatePass.find({})
+            tenantModels.MaterialInward.countDocuments(dateFilter),
+            tenantModels.GatePass.countDocuments({ passType: 'RETURNABLE', returnStatus: { $in: ['PENDING', 'PARTIALLY_RETURNED'] } }),
+            tenantModels.GatePass.countDocuments({
+              passType: 'RETURNABLE',
+              returnStatus: { $in: ['PENDING', 'PARTIALLY_RETURNED'] },
+              expectedReturnDate: { $lt: new Date() }
+            }),
+            tenantModels.GatePass.find(dateFilter)
               .sort({ createdAt: -1 })
-              .limit(5)
-              .select('gatePassNumber companyName passType returnStatus status createdAt createdBy vehicleNumber')
+              .limit(10)
+              .select('gatePassNumber companyName passType returnStatus status createdAt createdBy vehicleNumber partyName items')
+              .lean(),
+            tenantModels.MaterialInward.find(dateFilter)
+              .sort({ createdAt: -1 })
+              .limit(10)
+              .select('inwardNumber gatePassNumber companyName supplierName challanNo entryDate status totalQuantityReceived createdBy')
               .lean(),
             tenantModels.AuditLog.find({})
               .sort({ createdAt: -1 })
+              .limit(10)
+              .lean(),
+            tenantModels.GatePass.find({ passType: 'RETURNABLE', returnStatus: { $in: ['PENDING', 'PARTIALLY_RETURNED'] } })
+              .sort({ createdAt: -1 })
               .limit(5)
-              .lean()
+              .select('gatePassNumber companyName returnStatus expectedReturnDate createdAt createdBy items')
+              .lean(),
+            tenantModels.GatePass.find(dateFilter).select('createdAt').lean()
           ]);
 
           totalUsers += uCount;
-          pendingUserApprovals += uPending;
-          totalGatePasses += gpCount;
+          totalGatePassesInPeriod += gpInPeriod;
           activeGatePasses += gpActive;
-          pendingReturnable += gpPendingReturn;
+          partiallyReturned += gpPartial;
           closedGatePasses += gpClosed;
-          gatePassesToday += gpToday;
-          gatePassesThisMonth += gpMonth;
+          totalInwardEntries += miInPeriod;
+          pendingReturnableCount += gpPendingReturn;
+          overdueReturnableCount += gpOverdue;
 
+          // Populate daily trend map
+          passesForTrends.forEach((gp) => {
+            const dateKey = new Date(gp.createdAt).toISOString().split('T')[0];
+            if (dailyMap[dateKey]) {
+              dailyMap[dateKey].total += 1;
+              if (company.code === 'maruti_nandan') dailyMap[dateKey].maruti += 1;
+              else if (company.code === 'shri_ram') dailyMap[dateKey].shriRam += 1;
+              else if (company.code === 'balaji_polycot') dailyMap[dateKey].balaji += 1;
+            }
+          });
+
+          // Collect Recent Gate Passes
           if (recentGPs && recentGPs.length > 0) {
-            recentGPs.forEach(gp => {
+            recentGPs.forEach((gp) => {
               recentGatePasses.push({
                 ...gp,
                 tenantCode: company.code,
@@ -264,8 +344,20 @@ exports.getSuperAdminDashboardStats = async (req, res) => {
             });
           }
 
+          // Collect Recent Inward Entries
+          if (recentInwards && recentInwards.length > 0) {
+            recentInwards.forEach((mi) => {
+              recentInwardEntries.push({
+                ...mi,
+                tenantCode: company.code,
+                tenantName: company.name
+              });
+            });
+          }
+
+          // Collect Recent Audit Logs
           if (recentLogs && recentLogs.length > 0) {
-            recentLogs.forEach(log => {
+            recentLogs.forEach((log) => {
               recentActivities.push({
                 ...log,
                 tenantCode: company.code,
@@ -273,6 +365,45 @@ exports.getSuperAdminDashboardStats = async (req, res) => {
               });
             });
           }
+
+          // Collect Pending Returnable Records
+          if (pendingReturnList && pendingReturnList.length > 0) {
+            pendingReturnList.forEach((pr) => {
+              pendingReturnableRecords.push({
+                ...pr,
+                tenantCode: company.code,
+                tenantName: company.name
+              });
+            });
+          }
+
+          // Overdue Returnables Alert
+          if (gpOverdue > 0) {
+            alerts.push({
+              id: `alert-overdue-${company.code}`,
+              type: 'OVERDUE_RETURNABLES',
+              severity: 'warning',
+              title: `Overdue Returnables: ${company.name}`,
+              message: `${company.name} has ${gpOverdue} returnable gate pass(es) past expected return date.`,
+              companyCode: company.code,
+              timestamp: new Date()
+            });
+          }
+
+          // Inactive Status Alert
+          if (company.status === 'INACTIVE') {
+            alerts.push({
+              id: `alert-inactive-${company.code}`,
+              type: 'COMPANY_INACTIVE',
+              severity: 'warning',
+              title: `Company Inactive: ${company.name}`,
+              message: `Company '${company.name}' is currently deactivated by Super Admin.`,
+              companyCode: company.code,
+              timestamp: company.updatedAt || company.createdAt
+            });
+          }
+
+          const lastActivityTime = recentGPs[0]?.createdAt || recentLogs[0]?.createdAt || company.updatedAt;
 
           return {
             _id: company._id,
@@ -283,17 +414,30 @@ exports.getSuperAdminDashboardStats = async (req, res) => {
             status: company.status,
             adminEmail: company.adminEmail,
             usersCount: uCount,
-            pendingApprovals: uPending,
-            gatePassesCount: gpCount,
+            gatePassesInPeriod: gpInPeriod,
             activeGatePasses: gpActive,
-            pendingReturnable: gpPendingReturn,
+            partiallyReturned: gpPartial,
             closedGatePasses: gpClosed,
-            gatePassesToday: gpToday,
-            gatePassesThisMonth: gpMonth,
-            isAvailable: true
+            inwardInPeriod: miInPeriod,
+            pendingReturnable: gpPendingReturn,
+            overdueReturnables: gpOverdue,
+            lastActivityAt: lastActivityTime,
+            isAvailable: true,
+            dbConnected: true
           };
         } catch (err) {
-          console.warn(`[SuperAdmin Stats Warning] Failed reading tenant ${company.code}: ${err.message}`);
+          console.warn(`[SuperAdmin Stats Warning] Database connection/query failed for tenant ${company.code}: ${err.message}`);
+
+          alerts.push({
+            id: `alert-db-error-${company.code}`,
+            type: 'DATABASE_CONNECTIVITY',
+            severity: 'danger',
+            title: `Database Connection Issue: ${company.name}`,
+            message: `Unable to connect to tenant database '${company.dbName}'.`,
+            companyCode: company.code,
+            timestamp: new Date()
+          });
+
           return {
             _id: company._id,
             name: company.name,
@@ -303,67 +447,82 @@ exports.getSuperAdminDashboardStats = async (req, res) => {
             status: company.status,
             adminEmail: company.adminEmail,
             usersCount: 0,
-            pendingApprovals: 0,
-            gatePassesCount: 0,
+            gatePassesInPeriod: 0,
             activeGatePasses: 0,
-            pendingReturnable: 0,
+            partiallyReturned: 0,
             closedGatePasses: 0,
-            gatePassesToday: 0,
-            gatePassesThisMonth: 0,
+            inwardInPeriod: 0,
+            pendingReturnable: 0,
+            overdueReturnables: 0,
+            lastActivityAt: null,
             isAvailable: false,
+            dbConnected: false,
             errorNotice: `Data for ${company.name} is currently unavailable.`
           };
         }
       })
     );
 
+    // 5. Total registered companies count across platform
     const allCompaniesList = await Company.find({}).select('code name status');
-    const activeCompaniesCount = allCompaniesList.filter((c) => c.status === 'ACTIVE').length;
-    const inactiveCompaniesCount = allCompaniesList.length - activeCompaniesCount;
+    const totalCompaniesCount = allCompaniesList.length;
 
-    // Sort combined recent gate passes and activities
+    // Sort recent combined lists
     recentGatePasses.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-    recentGatePasses = recentGatePasses.slice(0, 8);
+    recentGatePasses = recentGatePasses.slice(0, 10);
+
+    recentInwardEntries.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    recentInwardEntries = recentInwardEntries.slice(0, 10);
 
     recentActivities.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-    recentActivities = recentActivities.slice(0, 10);
+    recentActivities = recentActivities.slice(0, 12);
 
-    // Chart Data Preparation
-    const companyGatePassDistribution = companyStats.map(c => ({
-      name: c.code === 'maruti_nandan' ? 'Maruti Denim' : c.code === 'shri_ram' ? 'Shri Ram' : 'Balaji Polycot',
-      gatePasses: c.gatePassesCount,
-      users: c.usersCount
-    }));
+    pendingReturnableRecords.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    pendingReturnableRecords = pendingReturnableRecords.slice(0, 10);
 
-    const statusBreakdownChart = [
-      { name: 'Active / Open', value: activeGatePasses, color: '#3b82f6' },
-      { name: 'Pending Returnable', value: pendingReturnable, color: '#f59e0b' },
-      { name: 'Closed / Fully Returned', value: closedGatePasses, color: '#10b981' }
+    // 6. Trend Chart Data Array
+    const trendSeries = Object.values(dailyMap);
+
+    // 7. Status Breakdown Distribution for Donut Chart
+    const statusDistribution = [
+      { label: 'Active / Open', count: activeGatePasses, color: '#3B82F6' },
+      { label: 'Partially Returned', count: partiallyReturned, color: '#F59E0B' },
+      { label: 'Closed / Completed', count: closedGatePasses, color: '#10B981' }
     ];
 
     res.status(200).json({
       success: true,
       asOf: new Date().toISOString(),
+      filters: {
+        companyCode: companyCode.toUpperCase(),
+        timeframe,
+        startDate: start.toISOString(),
+        endDate: end.toISOString()
+      },
       stats: {
-        totalCompanies: allCompaniesList.length,
-        activeCompanies: activeCompaniesCount,
-        inactiveCompanies: inactiveCompaniesCount,
+        totalCompanies: totalCompaniesCount,
         totalUsers,
-        pendingUserApprovals,
-        totalGatePasses,
-        gatePassesToday,
-        gatePassesThisMonth,
+        totalGatePassesInPeriod,
         activeGatePasses,
-        pendingReturnable,
-        closedGatePasses
+        partiallyReturned,
+        closedGatePasses,
+        totalInwardEntries,
+        pendingReturnableCount,
+        overdueReturnableCount
       },
       companies: companyStats,
+      trends: trendSeries,
+      statusDistribution,
+      inwardOverview: {
+        totalInwardEntries,
+        pendingReturnableCount,
+        overdueReturnableCount,
+        pendingRecords: pendingReturnableRecords
+      },
       recentGatePasses,
+      recentInwardEntries,
       recentActivities,
-      charts: {
-        companyDistribution: companyGatePassDistribution,
-        statusBreakdown: statusBreakdownChart
-      }
+      alerts
     });
   } catch (error) {
     console.error('Error fetching Super Admin stats:', error);

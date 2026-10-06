@@ -95,6 +95,72 @@ const userSchema = new mongoose.Schema(
     approvedBy: {
       type: String,
       default: null
+    },
+
+    // Profile Management Fields
+    avatarUrl: {
+      type: String,
+      default: null
+    },
+    username: {
+      type: String,
+      lowercase: true,
+      trim: true,
+      default: null
+    },
+    employeeCode: {
+      type: String,
+      trim: true,
+      default: null
+    },
+    officeLocation: {
+      type: String,
+      trim: true,
+      default: 'Main Plant'
+    },
+    timeZone: {
+      type: String,
+      default: 'Asia/Kolkata'
+    },
+    dateFormat: {
+      type: String,
+      default: 'DD/MM/YYYY'
+    },
+    dateOfJoining: {
+      type: Date,
+      default: null
+    },
+    notificationPreferences: {
+      emailGatePass: { type: Boolean, default: true },
+      emailApprovals: { type: Boolean, default: true },
+      emailSystem: { type: Boolean, default: true }
+    },
+    displayPreferences: {
+      pageSize: { type: Number, default: 10 },
+      compactMode: { type: Boolean, default: false }
+    },
+    activeSessions: [
+      {
+        sessionId: { type: String, required: true },
+        deviceLabel: { type: String, default: 'Desktop Web' },
+        browser: { type: String, default: 'Chrome' },
+        ipAddress: { type: String, default: '127.0.0.1' },
+        lastActiveAt: { type: Date, default: Date.now },
+        createdAt: { type: Date, default: Date.now }
+      }
+    ],
+    passwordHistory: [
+      {
+        hash: { type: String, required: true },
+        changedAt: { type: Date, default: Date.now }
+      }
+    ],
+    pendingEmailChange: {
+      newEmail: { type: String, lowercase: true, trim: true, default: null },
+      otpHash: { type: String, default: null },
+      requestedAt: { type: Date, default: null },
+      expiresAt: { type: Date, default: null },
+      attempts: { type: Number, default: 0 }
     }
   },
   { timestamps: true }
