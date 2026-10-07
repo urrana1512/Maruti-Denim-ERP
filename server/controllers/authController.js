@@ -523,16 +523,21 @@ exports.registerStep3CreatePassword = async (req, res) => {
     // Send confirmation email
     await sendRegistrationPendingEmail(email, name);
 
-    await AuditLog.create({
-      userId: user._id,
-      userName: user.name,
-      userEmail: user.email,
-      userRole: user.roleName,
-      action: 'USER_REGISTERED',
-      module: 'AUTH',
-      details: { department, designation, emailVerified: true },
-      ipAddress: req.ip || req.connection?.remoteAddress
-    });
+    try {
+      await AuditLog.create({
+        companyCode: req.companyCode || user.companyCode || 'maruti_nandan',
+        userId: user._id,
+        userName: user.name,
+        userEmail: user.email,
+        userRole: user.roleName,
+        action: 'USER_REGISTERED',
+        module: 'AUTH',
+        details: { department, designation, emailVerified: true },
+        ipAddress: req.ip || req.connection?.remoteAddress
+      });
+    } catch (auditErr) {
+      console.warn('AuditLog creation warning:', auditErr.message);
+    }
 
     res.status(201).json({
       success: true,
@@ -628,17 +633,23 @@ exports.login = async (req, res) => {
     user.lastLoginAt = new Date();
     await user.save();
 
-    await AuditLog.create({
-      userId: user._id,
-      userName: user.name,
-      userEmail: user.email,
-      userRole: user.roleName,
-      action: 'USER_LOGIN',
-      module: 'AUTH',
-      ipAddress: req.ip || req.connection?.remoteAddress
-    });
-
     const companyCode = req.companyCode || user.companyCode || 'maruti_nandan';
+
+    try {
+      await AuditLog.create({
+        companyCode,
+        userId: user._id,
+        userName: user.name,
+        userEmail: user.email,
+        userRole: user.roleName,
+        action: 'USER_LOGIN',
+        module: 'AUTH',
+        ipAddress: req.ip || req.connection?.remoteAddress
+      });
+    } catch (auditErr) {
+      console.warn('AuditLog creation warning:', auditErr.message);
+    }
+
     await sendTokenResponse(user, companyCode, 200, res, 'Logged in successfully');
   } catch (error) {
     console.error('Login error:', error);
@@ -829,14 +840,19 @@ exports.forgotPasswordStep1Request = async (req, res) => {
       });
     }
 
-    await AuditLog.create({
-      userId: user._id,
-      userName: user.name,
-      userEmail: user.email,
-      action: 'FORGOT_PASSWORD_REQUEST',
-      module: 'AUTH',
-      ipAddress: req.ip || req.connection?.remoteAddress
-    });
+    try {
+      await AuditLog.create({
+        companyCode: req.companyCode || user.companyCode || 'maruti_nandan',
+        userId: user._id,
+        userName: user.name,
+        userEmail: user.email,
+        action: 'FORGOT_PASSWORD_REQUEST',
+        module: 'AUTH',
+        ipAddress: req.ip || req.connection?.remoteAddress
+      });
+    } catch (auditErr) {
+      console.warn('AuditLog creation warning:', auditErr.message);
+    }
 
     res.status(200).json({
       success: true,
@@ -1052,15 +1068,20 @@ exports.forgotPasswordStep3ResetPassword = async (req, res) => {
     // Send security alert email
     await sendPasswordChangedAlertEmail(email, user.name);
 
-    await AuditLog.create({
-      userId: user._id,
-      userName: user.name,
-      userEmail: user.email,
-      action: 'PASSWORD_RESET_SUCCESS',
-      module: 'AUTH',
-      details: { sessionsInvalidated: true },
-      ipAddress: req.ip || req.connection?.remoteAddress
-    });
+    try {
+      await AuditLog.create({
+        companyCode: req.companyCode || user.companyCode || 'maruti_nandan',
+        userId: user._id,
+        userName: user.name,
+        userEmail: user.email,
+        action: 'PASSWORD_RESET_SUCCESS',
+        module: 'AUTH',
+        details: { sessionsInvalidated: true },
+        ipAddress: req.ip || req.connection?.remoteAddress
+      });
+    } catch (auditErr) {
+      console.warn('AuditLog creation warning:', auditErr.message);
+    }
 
     res.status(200).json({
       success: true,

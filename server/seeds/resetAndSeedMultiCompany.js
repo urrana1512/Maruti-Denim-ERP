@@ -294,6 +294,7 @@ async function resetAndSeedMultiCompanySystem() {
       }
 
       await tenantModels.AuditLog.create({
+        companyCode: cSeed.code,
         userId: adminUser._id,
         userName: adminUser.name,
         userEmail: adminUser.email,

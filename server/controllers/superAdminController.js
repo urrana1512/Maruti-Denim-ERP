@@ -61,14 +61,18 @@ exports.superAdminLogin = async (req, res) => {
       { expiresIn: '1d' }
     );
 
-    await SuperAdminAuditLog.create({
-      userId: user._id.toString(),
-      userName: user.name,
-      userEmail: user.email,
-      action: 'SUPER_ADMIN_LOGIN',
-      module: 'PLATFORM',
-      ipAddress: req.ip || req.connection?.remoteAddress
-    });
+    try {
+      await SuperAdminAuditLog.create({
+        userId: user._id.toString(),
+        userName: user.name,
+        userEmail: user.email,
+        action: 'SUPER_ADMIN_LOGIN',
+        module: 'PLATFORM',
+        ipAddress: req.ip || req.connection?.remoteAddress
+      });
+    } catch (auditErr) {
+      console.warn('SuperAdmin AuditLog error:', auditErr.message);
+    }
 
     res.status(200).json({
       success: true,
