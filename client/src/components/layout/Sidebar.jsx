@@ -16,7 +16,10 @@ import {
   UserCheck,
   User,
   LogOut,
-  ChevronRight
+  ChevronRight,
+  Bell,
+  History,
+  Users
 } from 'lucide-react';
 
 const Sidebar = ({ isOpen, setIsOpen, isCollapsed, setIsCollapsed }) => {
@@ -33,6 +36,8 @@ const Sidebar = ({ isOpen, setIsOpen, isCollapsed, setIsCollapsed }) => {
     { label: 'Add Gate Pass', icon: PlusSquare, path: '/gate-pass/add', perm: 'gate_pass_create' },
     { label: 'Manage Gate Pass', icon: FileText, path: '/gate-pass/manage', perm: 'gate_pass_read' },
     { label: 'Material Inward', icon: ArrowRightLeft, path: '/material-inward', perm: 'material_inward_read' },
+    { label: 'Notifications', icon: Bell, path: '/notifications', perm: null },
+    { label: isAdmin ? 'Audit Logs' : 'My Activity', icon: History, path: isAdmin ? '/admin/audit-logs' : '/my-activity', perm: null },
     { label: 'Reports & MIS', icon: BarChart3, path: '/reports', perm: 'reports_view' }
   ];
 

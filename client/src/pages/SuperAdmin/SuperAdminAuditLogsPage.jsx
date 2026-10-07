@@ -1,180 +1,378 @@
-import React, { useState, useEffect } from 'react';
-import { useOutletContext } from 'react-router-dom';
-import { toast } from 'sonner';
-import {
-  History,
-  Search,
-  Building2,
-  ChevronLeft,
-  ChevronRight,
-  Shield,
-  Clock
-} from 'lucide-react';
-import { superAdminService } from '../../services/superAdminService';
+import React, { useState, useEffect, useCallback } from 'react';
+import { History, Search, Download, Calendar, Loader2, AlertCircle, Eye, Shield, RefreshCw } from 'lucide-react';
+import { useOutletContext, useSearchParams } from 'react-router-dom';
+import api from '../../services/api';
+import AuditDetailModal from '../../components/common/AuditDetailModal';
 
 const SuperAdminAuditLogsPage = () => {
-  const { currentCompany } = useOutletContext();
+  const outletContext = useOutletContext();
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  const [loading, setLoading] = useState(true);
+  const selectedCompanyCode = searchParams.get('companyCode') || outletContext?.currentCompany || 'ALL';
+
   const [logs, setLogs] = useState([]);
-  const [total, setTotal] = useState(0);
-  const [totalPages, setTotalPages] = useState(1);
-  const [page, setPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
+  const [error, setError] = useState(null);
 
-  const [moduleFilter, setModuleFilter] = useState('ALL');
+  // Filters
+  const [companyFilter, setCompanyFilter] = useState(selectedCompanyCode);
   const [search, setSearch] = useState('');
+  const [moduleFilter, setModuleFilter] = useState('');
+  const [actionFilter, setActionFilter] = useState('');
+  const [userRoleFilter, setUserRoleFilter] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
-  const fetchAuditLogs = async () => {
-    setLoading(true);
+  // Selected for modal
+  const [selectedAudit, setSelectedAudit] = useState(null);
+  const [modalOpen, setModalOpen] = useState(false);
+
+  useEffect(() => {
+    setCompanyFilter(selectedCompanyCode);
+  }, [selectedCompanyCode]);
+
+  const fetchPlatformAuditLogs = useCallback(async () => {
     try {
-      const res = await superAdminService.getAuditLogs({
-        companyCode: currentCompany,
-        module: moduleFilter,
-        search,
-        page,
-        limit: 25
+      setLoading(true);
+      setError(null);
+      const response = await api.get('/superadmin/audit-logs', {
+        params: {
+          page,
+          limit: 15,
+          companyCode: companyFilter !== 'ALL' ? companyFilter : undefined,
+          search: search || undefined,
+          module: moduleFilter || undefined,
+          action: actionFilter || undefined,
+          actorRole: userRoleFilter || undefined,
+          startDate: startDate || undefined,
+          endDate: endDate || undefined
+        }
       });
-      if (res.success) {
-        setLogs(res.logs || []);
-        setTotal(res.total || 0);
-        setTotalPages(res.pages || 1);
+
+      if (response.data?.success) {
+        setLogs(response.data.data || []);
+        setTotalCount(response.data.pagination?.total || 0);
+        setTotalPages(response.data.pagination?.pages || 1);
       }
     } catch (err) {
-      toast.error('Failed to load platform audit logs.');
+      console.error('Error fetching platform audit logs:', err);
+      setError('Failed to load platform audit logs. Please try again.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, companyFilter, search, moduleFilter, actionFilter, userRoleFilter, startDate, endDate]);
 
   useEffect(() => {
-    fetchAuditLogs();
-  }, [currentCompany, moduleFilter, page]);
+    fetchPlatformAuditLogs();
+  }, [fetchPlatformAuditLogs]);
 
-  const handleSearchSubmit = (e) => {
-    e.preventDefault();
+  const handleCompanyChange = (e) => {
+    const code = e.target.value;
+    setCompanyFilter(code);
     setPage(1);
-    fetchAuditLogs();
+    const newParams = new URLSearchParams(searchParams);
+    if (code === 'ALL') {
+      newParams.delete('companyCode');
+    } else {
+      newParams.set('companyCode', code);
+    }
+    setSearchParams(newParams);
+  };
+
+  const handleExportCSV = async () => {
+    try {
+      setExporting(true);
+      const response = await api.get('/superadmin/audit-logs/export', {
+        params: {
+          companyCode: companyFilter !== 'ALL' ? companyFilter : undefined,
+          search: search || undefined,
+          module: moduleFilter || undefined,
+          action: actionFilter || undefined,
+          actorRole: userRoleFilter || undefined,
+          startDate: startDate || undefined,
+          endDate: endDate || undefined
+        },
+        responseType: 'blob'
+      });
+
+      const blob = new Blob([response.data], { type: 'text/csv;charset=utf-8;' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `Platform_Audit_Logs_${new Date().toISOString().slice(0, 10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (err) {
+      console.error('Failed to export platform audit log CSV:', err);
+      alert('Failed to generate platform audit log CSV export.');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleRowClick = (log) => {
+    setSelectedAudit(log);
+    setModalOpen(true);
   };
 
   return (
     <div className="space-y-6">
-      {/* Header Banner */}
-      <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      {/* Header */}
+      <div className="bg-white p-5 rounded-2xl border border-[#EBEFF2] shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Platform Activity & Security Audit Logs</h1>
-          <p className="text-sm text-slate-500 font-medium mt-0.5">
-            Tamper-evident, append-only security logs for platform administrative events and user privacy access.
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-xl font-extrabold text-[#111827]">Platform Audit Logs</h1>
+            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-[#111827] text-white">
+              {totalCount} Monitoring Events
+            </span>
+          </div>
+          <p className="text-xs text-[#6B7280] mt-1">
+            Cross-company monitoring audit trail across Maruti Denim, Shri Ram Cot Fab, and Balaji Polycot. Strictly read-only.
           </p>
         </div>
 
-        <div className="flex items-center gap-2 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700">
-          <Shield size={15} className="text-indigo-600" />
-          <span>Append-Only Immutability Guaranteed</span>
+        <div className="flex items-center gap-2">
+          <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#2563EB] bg-[#EFF6FF] px-3 py-1.5 rounded-xl border border-[#BFDBFE]">
+            <Shield size={15} /> Platform Read-Only
+          </div>
+          <button
+            onClick={handleExportCSV}
+            disabled={exporting}
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#111827] hover:bg-[#1F2937] text-white text-xs font-bold rounded-xl transition-colors cursor-pointer disabled:opacity-50"
+          >
+            {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download size={15} />}
+            Export CSV
+          </button>
+          <button
+            onClick={fetchPlatformAuditLogs}
+            className="p-2 text-[#6B7280] hover:text-[#111827] hover:bg-[#F6F8FA] rounded-xl border border-[#EBEFF2] transition-colors cursor-pointer"
+            title="Refresh"
+          >
+            <RefreshCw size={15} />
+          </button>
         </div>
       </div>
 
-      {/* Filter Bar */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex flex-wrap items-center justify-between gap-4">
-        <form onSubmit={handleSearchSubmit} className="relative w-full sm:w-80">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-          <input
-            type="text"
-            placeholder="Search user, email, action..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          />
-        </form>
+      {/* Filter Toolbar */}
+      <div className="bg-white p-4 rounded-2xl border border-[#EBEFF2] shadow-2xs space-y-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-3">
+          {/* Company Filter */}
+          <select
+            value={companyFilter}
+            onChange={handleCompanyChange}
+            className="bg-[#F6F8FA] border border-[#EBEFF2] text-xs font-bold text-[#111827] rounded-xl px-3 py-2 focus:outline-none cursor-pointer"
+          >
+            <option value="ALL">All Companies</option>
+            <option value="maruti_nandan">Maruti Nandan Denim</option>
+            <option value="shri_ram">Shri Ram Cot Fab</option>
+            <option value="balaji_polycot">Balaji Polycot</option>
+          </select>
 
-        <div className="flex items-center gap-3">
-          <span className="text-xs font-bold text-slate-500">Module:</span>
+          {/* Search */}
+          <div className="relative lg:col-span-2">
+            <Search size={15} className="absolute left-3 top-2.5 text-[#9CA3AF]" />
+            <input
+              type="text"
+              placeholder="Search actor, action, description or reference…"
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+              className="w-full bg-[#F6F8FA] border border-[#EBEFF2] text-xs text-[#111827] placeholder-[#9CA3AF] rounded-xl pl-9 pr-3 py-2 focus:outline-none focus:border-[#111827] transition-all"
+            />
+          </div>
+
+          {/* User Role Filter */}
+          <select
+            value={userRoleFilter}
+            onChange={(e) => { setUserRoleFilter(e.target.value); setPage(1); }}
+            className="bg-[#F6F8FA] border border-[#EBEFF2] text-xs font-semibold text-[#111827] rounded-xl px-3 py-2 focus:outline-none cursor-pointer"
+          >
+            <option value="">All Roles</option>
+            <option value="Employee">Employee</option>
+            <option value="Company Admin">Company Admin</option>
+            <option value="Super Admin">Super Admin</option>
+            <option value="System">System</option>
+          </select>
+
+          {/* Module Filter */}
           <select
             value={moduleFilter}
             onChange={(e) => { setModuleFilter(e.target.value); setPage(1); }}
-            className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none cursor-pointer"
+            className="bg-[#F6F8FA] border border-[#EBEFF2] text-xs font-semibold text-[#111827] rounded-xl px-3 py-2 focus:outline-none cursor-pointer"
           >
-            <option value="ALL">All Modules</option>
-            <option value="PLATFORM">PLATFORM</option>
-            <option value="COMPANY">COMPANY</option>
-            <option value="PRIVACY">PRIVACY (PII Views)</option>
-            <option value="SECURITY">SECURITY</option>
+            <option value="">All Modules</option>
+            <option value="GATE_PASS">Gate Pass</option>
+            <option value="INWARD">Material Inward</option>
+            <option value="RETURNABLE">Returnable</option>
+            <option value="USER_MANAGEMENT">User Management</option>
+            <option value="AUTH">Authentication</option>
+            <option value="SYSTEM">System Platform</option>
           </select>
+
+          {/* Action Filter */}
+          <select
+            value={actionFilter}
+            onChange={(e) => { setActionFilter(e.target.value); setPage(1); }}
+            className="bg-[#F6F8FA] border border-[#EBEFF2] text-xs font-semibold text-[#111827] rounded-xl px-3 py-2 focus:outline-none cursor-pointer"
+          >
+            <option value="">All Actions</option>
+            <option value="CREATE">CREATE</option>
+            <option value="UPDATE">UPDATE</option>
+            <option value="APPROVE">APPROVE</option>
+            <option value="REJECT">REJECT</option>
+            <option value="CANCEL">CANCEL</option>
+            <option value="LOGIN">LOGIN</option>
+          </select>
+
+          {/* Date range input */}
+          <div className="flex items-center gap-1.5 bg-[#F6F8FA] border border-[#EBEFF2] rounded-xl px-2 py-1">
+            <Calendar size={13} className="text-[#9CA3AF] shrink-0" />
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => { setStartDate(e.target.value); setPage(1); }}
+              className="bg-transparent text-[11px] font-semibold text-[#111827] focus:outline-none w-full"
+            />
+          </div>
         </div>
       </div>
 
-      {/* Data Table */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
-        {loading ? (
-          <div className="p-8 space-y-4 animate-pulse">
-            {[1, 2, 3, 4, 5].map((n) => (
-              <div key={n} className="h-12 bg-slate-200 rounded-xl"></div>
-            ))}
+      {/* Table Body */}
+      {loading ? (
+        <div className="bg-white rounded-2xl border border-[#EBEFF2] p-12 text-center space-y-3">
+          <Loader2 className="h-6 w-6 animate-spin text-[#111827] mx-auto" />
+          <p className="text-xs text-[#6B7280]">Loading platform audit logs…</p>
+        </div>
+      ) : error ? (
+        <div className="bg-[#FEF2F2] border border-[#FEE2E2] rounded-2xl p-6 text-center space-y-3">
+          <AlertCircle className="h-6 w-6 text-[#DC2626] mx-auto" />
+          <p className="text-xs font-semibold text-[#DC2626]">{error}</p>
+          <button
+            onClick={fetchPlatformAuditLogs}
+            className="px-4 py-2 bg-[#DC2626] text-white text-xs font-bold rounded-xl cursor-pointer"
+          >
+            Retry
+          </button>
+        </div>
+      ) : logs.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-[#EBEFF2] p-12 text-center space-y-3 shadow-2xs">
+          <div className="w-12 h-12 rounded-2xl bg-[#F6F8FA] text-[#9CA3AF] flex items-center justify-center mx-auto">
+            <History size={24} />
           </div>
-        ) : logs.length > 0 ? (
+          <h3 className="text-sm font-bold text-[#111827]">No platform activity found for the selected filters.</h3>
+          <p className="text-xs text-[#6B7280]">Try adjusting company selection or filter parameters.</p>
+        </div>
+      ) : (
+        <div className="bg-white rounded-2xl border border-[#EBEFF2] shadow-2xs overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                  <th className="py-3.5 px-4">Timestamp</th>
-                  <th className="py-3.5 px-4">User</th>
-                  <th className="py-3.5 px-4">Module</th>
-                  <th className="py-3.5 px-4">Action</th>
-                  <th className="py-3.5 px-4">Target Company</th>
-                  <th className="py-3.5 px-4">IP Address</th>
+                <tr className="bg-[#F8FAFC] border-b border-[#EBEFF2] text-[11px] font-bold text-[#6B7280] uppercase tracking-wider">
+                  <th className="py-3 px-4">Date & Time</th>
+                  <th className="py-3 px-4">Company</th>
+                  <th className="py-3 px-4">User & Role</th>
+                  <th className="py-3 px-4">Action</th>
+                  <th className="py-3 px-4">Module</th>
+                  <th className="py-3 px-4">Description</th>
+                  <th className="py-3 px-4">Reference</th>
+                  <th className="py-3 px-4 text-right">Details</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 text-xs font-medium text-slate-700">
+              <tbody className="divide-y divide-[#EBEFF2] text-xs">
                 {logs.map((log) => (
-                  <tr key={log._id} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="py-3.5 px-4 text-slate-500 font-mono text-[11px]">
-                      {log.createdAt ? new Date(log.createdAt).toLocaleString() : '-'}
+                  <tr
+                    key={log._id}
+                    onClick={() => handleRowClick(log)}
+                    className="hover:bg-[#F9FAFB] transition-colors cursor-pointer"
+                  >
+                    <td className="py-3.5 px-4 font-mono text-[11px] text-[#4B5563] whitespace-nowrap">
+                      {log.timestamp ? new Date(log.timestamp).toLocaleString('en-IN', {
+                        dateStyle: 'short',
+                        timeStyle: 'short'
+                      }) : '-'}
+                    </td>
+                    <td className="py-3.5 px-4 font-bold text-[#111827]">
+                      {log.companyId ? (
+                        <span className="px-2 py-0.5 rounded text-[10px] bg-[#F3F4F6] text-[#374151]">
+                          {typeof log.companyId === 'object' ? log.companyId.name : log.companyId}
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded text-[10px] bg-[#111827] text-white">
+                          Central Platform
+                        </span>
+                      )}
                     </td>
                     <td className="py-3.5 px-4">
-                      <p className="font-bold text-slate-900">{log.userName || 'System'}</p>
-                      <p className="text-[10px] text-slate-400 font-mono">{log.userEmail}</p>
+                      <div className="font-bold text-[#111827]">
+                        {log.actorName || 'System'}
+                      </div>
+                      <div className="text-[10px] text-[#6B7280] capitalize">
+                        {log.actorRole || 'System'}
+                      </div>
                     </td>
-                    <td className="py-3.5 px-4">
-                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700">
-                        {log.module || 'PLATFORM'}
+                    <td className="py-3.5 px-4 font-bold">
+                      <span className="px-2 py-0.5 rounded text-[10px] bg-[#111827] text-white">
+                        {log.action}
                       </span>
                     </td>
-                    <td className="py-3.5 px-4 font-mono font-bold text-slate-800">{log.action}</td>
-                    <td className="py-3.5 px-4 font-mono text-slate-600">{log.companyCode || 'Global'}</td>
-                    <td className="py-3.5 px-4 font-mono text-[11px] text-slate-400">{log.ipAddress || '127.0.0.1'}</td>
+                    <td className="py-3.5 px-4 font-medium text-[#4B5563]">
+                      {log.module}
+                    </td>
+                    <td className="py-3.5 px-4 font-medium text-[#111827] max-w-xs truncate">
+                      {log.description}
+                    </td>
+                    <td className="py-3.5 px-4 font-mono text-[11px] text-[#6B7280]">
+                      {log.entityId || log.entityType || '-'}
+                    </td>
+                    <td className="py-3.5 px-4 text-right">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleRowClick(log); }}
+                        className="p-1.5 text-[#6B7280] hover:text-[#111827] hover:bg-[#EBEFF2] rounded-lg transition-colors cursor-pointer"
+                      >
+                        <Eye size={15} />
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-        ) : (
-          <div className="p-12 text-center text-slate-400 font-medium text-xs">
-            No audit log entries found matching criteria.
-          </div>
-        )}
 
-        {/* Pagination Footer */}
-        {totalPages > 1 && (
-          <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-xs font-medium">
-            <span className="text-slate-500">Showing page {page} of {totalPages} ({total} total logs)</span>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page === 1}
-                className="p-1.5 bg-white border border-slate-200 rounded-lg disabled:opacity-40 cursor-pointer"
-              >
-                <ChevronLeft size={16} />
-              </button>
-              <button
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                disabled={page === totalPages}
-                className="p-1.5 bg-white border border-slate-200 rounded-lg disabled:opacity-40 cursor-pointer"
-              >
-                <ChevronRight size={16} />
-              </button>
+          {/* Pagination Footer */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between px-5 py-3 border-t border-[#EBEFF2] text-xs font-medium text-[#6B7280]">
+              <span>Page {page} of {totalPages}</span>
+              <div className="flex items-center gap-2">
+                <button
+                  disabled={page === 1}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  className="px-3 py-1.5 rounded-lg border border-[#EBEFF2] hover:bg-[#F6F8FA] disabled:opacity-50 cursor-pointer"
+                >
+                  Previous
+                </button>
+                <button
+                  disabled={page === totalPages}
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  className="px-3 py-1.5 rounded-lg border border-[#EBEFF2] hover:bg-[#F6F8FA] disabled:opacity-50 cursor-pointer"
+                >
+                  Next
+                </button>
+              </div>
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
+
+      {/* Detail Modal */}
+      <AuditDetailModal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        auditLog={selectedAudit}
+      />
     </div>
   );
 };

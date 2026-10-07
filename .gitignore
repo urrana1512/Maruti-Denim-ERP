@@ -30,3 +30,7 @@ build/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Uploaded Media
+server/uploads/*
+!server/uploads/.gitkeep

@@ -3,6 +3,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const cookieParser = require('cookie-parser');
 const rateLimit = require('express-rate-limit');
+const path = require('path');
 
 const companyRoutes = require('./routes/companyRoutes');
 const superAdminRoutes = require('./routes/superAdminRoutes');
@@ -50,8 +51,9 @@ app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-const path = require('path');
 const profileRoutes = require('./routes/profileRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
+const auditLogRoutes = require('./routes/auditLogRoutes');
 
 // Serve static uploaded avatars safely
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
@@ -70,6 +72,8 @@ app.use('/api/material-inward', tenantMiddleware, materialInwardRoutes);
 app.use('/api/reports', tenantMiddleware, reportRoutes);
 app.use('/api/master-data', tenantMiddleware, masterDataRoutes);
 app.use('/api/profile', tenantMiddleware, profileRoutes);
+app.use('/api/notifications', tenantMiddleware, notificationRoutes);
+app.use('/api/audit-logs', tenantMiddleware, auditLogRoutes);
 
 // Base route
 app.get('/', (req, res) => {

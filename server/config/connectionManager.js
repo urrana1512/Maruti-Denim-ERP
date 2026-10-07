@@ -7,6 +7,7 @@ const GatePass = require('../models/GatePass');
 const MaterialInward = require('../models/MaterialInward');
 const Otp = require('../models/Otp');
 const AuditLog = require('../models/AuditLog');
+const Notification = require('../models/Notification');
 const ItemMaster = require('../models/ItemMaster');
 const VendorMaster = require('../models/VendorMaster');
 const MasterDataAudit = require('../models/MasterDataAudit');
@@ -16,6 +17,7 @@ const GatePassAudit = require('../models/GatePassAudit');
 const companySchema = require('../models/superadmin/Company');
 const superAdminUserSchema = require('../models/superadmin/SuperAdminUser');
 const superAdminAuditLogSchema = require('../models/superadmin/SuperAdminAuditLog');
+const superAdminNotificationSchema = require('../models/superadmin/SuperAdminNotification');
 
 // Connection & Model Cache Maps
 const tenantConnections = {};
@@ -77,7 +79,8 @@ function getSuperAdminModels() {
   superAdminModels = {
     Company: conn.models.Company || conn.model('Company', companySchema),
     SuperAdminUser: conn.models.SuperAdminUser || conn.model('SuperAdminUser', superAdminUserSchema),
-    SuperAdminAuditLog: conn.models.SuperAdminAuditLog || conn.model('SuperAdminAuditLog', superAdminAuditLogSchema)
+    SuperAdminAuditLog: conn.models.SuperAdminAuditLog || conn.model('SuperAdminAuditLog', superAdminAuditLogSchema),
+    SuperAdminNotification: conn.models.SuperAdminNotification || conn.model('SuperAdminNotification', superAdminNotificationSchema)
   };
   return superAdminModels;
 }
@@ -123,6 +126,7 @@ function getTenantModels(companyCode, customDbName = null) {
     MaterialInward: conn.models.MaterialInward || conn.model('MaterialInward', MaterialInward.schema),
     Otp: conn.models.Otp || conn.model('Otp', Otp.schema),
     AuditLog: conn.models.AuditLog || conn.model('AuditLog', AuditLog.schema),
+    Notification: conn.models.Notification || conn.model('Notification', Notification.schema),
     ItemMaster: conn.models.ItemMaster || conn.model('ItemMaster', ItemMaster.schema),
     VendorMaster: conn.models.VendorMaster || conn.model('VendorMaster', VendorMaster.schema),
     MasterDataAudit: conn.models.MasterDataAudit || conn.model('MasterDataAudit', MasterDataAudit.schema),

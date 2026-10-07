@@ -111,11 +111,11 @@ const AdminDashboardPage = () => {
           </Link>
 
           <Link
-            to="/gate-pass/add"
+            to="/admin/gate-passes"
             className="inline-flex items-center gap-1.5 bg-[#F6F8FA] hover:bg-[#EBEFF2] text-[#111827] text-xs font-bold px-3 py-2 rounded-lg border border-[#EBEFF2] transition-colors"
           >
-            <PlusCircle size={15} />
-            <span>Create New Pass</span>
+            <FileText size={15} />
+            <span>Gate Pass Control</span>
           </Link>
 
           <Link

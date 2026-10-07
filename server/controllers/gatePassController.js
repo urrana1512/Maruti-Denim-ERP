@@ -1,6 +1,8 @@
 const gatePassService = require('../services/gatePassService');
 const { getGatePassLockState, diffAndValidateGatePassUpdate } = require('../services/gatePassLockService');
 const { logGatePassAudit } = require('../services/auditService');
+const notificationService = require('../services/notificationService');
+const auditService = require('../services/auditService');
 
 exports.createGatePass = async (req, res) => {
   try {
@@ -15,12 +17,59 @@ exports.createGatePass = async (req, res) => {
     };
 
     const gatePass = await gatePassService.createGatePass(payload);
+    
     await logGatePassAudit({
       action: 'GATE_PASS_CREATED',
       gatePassId: gatePass._id,
       metadata: { gatePassNumber: gatePass.gatePassNumber, createdByDesignation },
       performedBy: `${createdBy}${createdByDesignation ? ` (${createdByDesignation})` : ''}`
     });
+
+    // Enterprise Audit Event
+    await auditService.logAuditEvent({
+      req,
+      companyCode: req.companyCode,
+      action: 'CREATE',
+      module: 'GATE_PASS',
+      description: `${createdBy} created Gate Pass ${gatePass.gatePassNumber}`,
+      entityType: 'GatePass',
+      entityId: gatePass._id,
+      targetId: gatePass.gatePassNumber,
+      newValue: { gatePassNumber: gatePass.gatePassNumber, passType: gatePass.passType },
+      status: 'SUCCESS'
+    });
+
+    // Enterprise Notifications
+    if (user?._id) {
+      await notificationService.createNotification({
+        recipientUserId: user._id,
+        companyCode: req.companyCode,
+        type: 'GATE_PASS_CREATED',
+        title: 'Gate Pass Created',
+        message: `Gate Pass ${gatePass.gatePassNumber} has been successfully created.`,
+        category: 'Gate Pass',
+        priority: 'Normal',
+        relatedModule: 'GATE_PASS',
+        relatedRecordId: gatePass._id.toString(),
+        actionUrl: '/gate-pass/manage',
+        eventKey: `gatepass:${gatePass._id}:created:employee`
+      });
+    }
+
+    await notificationService.createNotification({
+      toAdmins: true,
+      companyCode: req.companyCode,
+      type: 'GATE_PASS_CREATED',
+      title: 'New Gate Pass Created',
+      message: `New Gate Pass ${gatePass.gatePassNumber} created by ${createdBy}.`,
+      category: 'Gate Pass',
+      priority: 'Normal',
+      relatedModule: 'GATE_PASS',
+      relatedRecordId: gatePass._id.toString(),
+      actionUrl: '/admin/gate-passes',
+      eventKey: `gatepass:${gatePass._id}:created:admin`
+    });
+
     res.status(201).json({ success: true, message: 'Gate pass created successfully', data: gatePass });
   } catch (error) {
     res.status(400).json({ success: false, message: 'Unable to create gate pass', error: error.message });
@@ -153,6 +202,38 @@ exports.approveGatePass = async (req, res) => {
       performedBy: `${approvedBy}${approvedByDesignation ? ` (${approvedByDesignation})` : ''}`
     });
 
+    // Enterprise Audit Event
+    await auditService.logAuditEvent({
+      req,
+      companyCode: req.companyCode,
+      action: 'APPROVE',
+      module: 'GATE_PASS',
+      description: `${approvedBy} approved Gate Pass ${updated.gatePassNumber}`,
+      entityType: 'GatePass',
+      entityId: updated._id,
+      targetId: updated.gatePassNumber,
+      oldValue: { approvalStatus: 'Pending' },
+      newValue: { approvalStatus: 'Approved', approvedBy },
+      status: 'SUCCESS'
+    });
+
+    // Notification to Employee Creator
+    if (updated.createdByUserId || updated.userId) {
+      await notificationService.createNotification({
+        recipientUserId: updated.createdByUserId || updated.userId,
+        companyCode: req.companyCode,
+        type: 'GATE_PASS_APPROVED',
+        title: 'Gate Pass Approved',
+        message: `Your Gate Pass ${updated.gatePassNumber} has been approved.`,
+        category: 'Gate Pass',
+        priority: 'High',
+        relatedModule: 'GATE_PASS',
+        relatedRecordId: updated._id.toString(),
+        actionUrl: '/gate-pass/manage',
+        eventKey: `gatepass:${updated._id}:approved`
+      });
+    }
+
     res.status(200).json({ success: true, message: 'Gate pass approved successfully', data: updated });
   } catch (error) {
     res.status(400).json({ success: false, message: 'Unable to approve gate pass', error: error.message });
@@ -198,6 +279,37 @@ exports.cancelGatePass = async (req, res) => {
       metadata: { cancelReason, cancelledBy, cancelledByDesignation },
       performedBy: `${cancelledBy}${cancelledByDesignation ? ` (${cancelledByDesignation})` : ''}`
     });
+
+    // Enterprise Audit Event
+    await auditService.logAuditEvent({
+      req,
+      companyCode: req.companyCode,
+      action: 'CANCEL',
+      module: 'GATE_PASS',
+      description: `${cancelledBy} cancelled Gate Pass ${updated.gatePassNumber}. Reason: ${cancelReason}`,
+      entityType: 'GatePass',
+      entityId: updated._id,
+      targetId: updated.gatePassNumber,
+      newValue: { status: 'CANCELLED', cancelReason },
+      status: 'SUCCESS'
+    });
+
+    // Notification to Creator
+    if (updated.createdByUserId || updated.userId) {
+      await notificationService.createNotification({
+        recipientUserId: updated.createdByUserId || updated.userId,
+        companyCode: req.companyCode,
+        type: 'GATE_PASS_CANCELLED',
+        title: 'Gate Pass Cancelled',
+        message: `Gate Pass ${updated.gatePassNumber} was cancelled.`,
+        category: 'Gate Pass',
+        priority: 'High',
+        relatedModule: 'GATE_PASS',
+        relatedRecordId: updated._id.toString(),
+        actionUrl: '/gate-pass/manage',
+        eventKey: `gatepass:${updated._id}:cancelled`
+      });
+    }
 
     res.status(200).json({ success: true, message: 'Gate pass cancelled successfully', data: updated });
   } catch (error) {

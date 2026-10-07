@@ -1569,3 +1569,153 @@ exports.exportSuperAdminReport = async (req, res) => {
     res.status(500).json({ success: false, message: 'Failed to export report.', error: error.message });
   }
 };
+
+/**
+ * @desc Get Super Admin Platform Notifications
+ * @route GET /api/superadmin/notifications
+ */
+exports.getSuperAdminNotifications = async (req, res) => {
+  try {
+    const { SuperAdminNotification } = getSuperAdminModels();
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 15));
+    const skip = (page - 1) * limit;
+
+    const { isRead, category, priority, search } = req.query;
+    const query = {};
+
+    if (isRead !== undefined && isRead !== '') {
+      query.isRead = isRead === 'true';
+    }
+    if (category && category !== 'ALL') query.category = category;
+    if (priority && priority !== 'ALL') query.priority = priority;
+
+    if (search && search.trim() !== '') {
+      const searchRegex = new RegExp(search.trim(), 'i');
+      query.$or = [{ title: searchRegex }, { message: searchRegex }];
+    }
+
+    const notifications = await SuperAdminNotification.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean();
+
+    const total = await SuperAdminNotification.countDocuments(query);
+    const unreadCount = await SuperAdminNotification.countDocuments({ isRead: false });
+
+    res.json({
+      success: true,
+      notifications,
+      unreadCount,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit) || 1
+      }
+    });
+  } catch (error) {
+    console.error('Error getting Super Admin notifications:', error);
+    res.status(500).json({ success: false, message: 'Failed to load notifications.' });
+  }
+};
+
+/**
+ * @desc Get Super Admin Unread Alerts Count
+ * @route GET /api/superadmin/notifications/unread-count
+ */
+exports.getSuperAdminUnreadCount = async (req, res) => {
+  try {
+    const { SuperAdminNotification } = getSuperAdminModels();
+    const count = await SuperAdminNotification.countDocuments({ isRead: false });
+    res.json({ success: true, count });
+  } catch (error) {
+    res.status(500).json({ success: false, count: 0 });
+  }
+};
+
+/**
+ * @desc Mark Single Super Admin Notification Read
+ * @route PATCH /api/superadmin/notifications/:id/read
+ */
+exports.markSuperAdminNotificationRead = async (req, res) => {
+  try {
+    const { SuperAdminNotification } = getSuperAdminModels();
+    const notification = await SuperAdminNotification.findById(req.params.id);
+    if (!notification) {
+      return res.status(404).json({ success: false, message: 'Notification not found.' });
+    }
+
+    notification.isRead = true;
+    notification.readAt = new Date();
+    await notification.save();
+
+    res.json({ success: true, message: 'Notification marked as read.', notification });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to update notification.' });
+  }
+};
+
+/**
+ * @desc Mark All Super Admin Notifications Read
+ * @route PATCH /api/superadmin/notifications/read-all
+ */
+exports.markSuperAdminAllRead = async (req, res) => {
+  try {
+    const { SuperAdminNotification } = getSuperAdminModels();
+    await SuperAdminNotification.updateMany({ isRead: false }, { $set: { isRead: true, readAt: new Date() } });
+    res.json({ success: true, message: 'All platform notifications marked as read.' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to mark notifications as read.' });
+  }
+};
+
+/**
+ * @desc Export Super Admin Platform Audit Logs
+ * @route GET /api/superadmin/audit-logs/export
+ */
+exports.exportSuperAdminAuditLogs = async (req, res) => {
+  try {
+    const { companyCode = 'ALL', module = 'ALL', search = '' } = req.query;
+    const { SuperAdminAuditLog } = getSuperAdminModels();
+
+    const query = {};
+    if (companyCode && companyCode.toUpperCase() !== 'ALL') {
+      query.companyCode = companyCode.toLowerCase().trim();
+    }
+    if (module && module.toUpperCase() !== 'ALL') {
+      query.module = module.toUpperCase();
+    }
+    if (search && search.trim()) {
+      const regex = new RegExp(search.trim(), 'i');
+      query.$or = [{ userName: regex }, { userEmail: regex }, { action: regex }];
+    }
+
+    const logs = await SuperAdminAuditLog.find(query).sort({ createdAt: -1 }).limit(1000).lean();
+
+    const headers = ['Date & Time', 'Company', 'User', 'Email', 'Role', 'Action', 'Module', 'Description', 'Reference ID', 'Status', 'IP Address'];
+    const rows = logs.map(log => [
+      new Date(log.createdAt).toLocaleString('en-IN'),
+      `"${log.companyCode || 'PLATFORM'}"`,
+      `"${log.userName || ''}"`,
+      `"${log.userEmail || ''}"`,
+      `"${log.userRole || 'Root Super Admin'}"`,
+      `"${log.action || ''}"`,
+      `"${log.module || ''}"`,
+      `"${(log.description || '').replace(/"/g, '""')}"`,
+      `"${log.entityId || ''}"`,
+      `"${log.status || 'SUCCESS'}"`,
+      `"${log.ipAddress || ''}"`
+    ]);
+
+    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="superadmin_platform_audit_${Date.now()}.csv"`);
+    res.status(200).send(csvContent);
+  } catch (error) {
+    console.error('Error exporting Super Admin audit logs:', error);
+    res.status(500).json({ success: false, message: 'Export failed.' });
+  }
+};

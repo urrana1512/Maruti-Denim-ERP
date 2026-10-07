@@ -50,6 +50,10 @@ import AdminMasterDataPage from './pages/Admin/AdminMasterDataPage';
 import AdminReportsPage from './pages/Admin/AdminReportsPage';
 import AdminAuditLogsPage from './pages/Admin/AdminAuditLogsPage';
 
+// Enterprise Notifications & Audit Pages
+import NotificationsPage from './pages/Notifications/NotificationsPage';
+import EmployeeActivityPage from './pages/AuditLogs/EmployeeActivityPage';
+
 // Document Print Pages
 import GatePassPrintView from './pages/Documents/GatePassPrintView';
 import MaterialInwardPrintView from './pages/Documents/MaterialInwardPrintView';
@@ -92,6 +96,7 @@ function App() {
             <Route path="inward-returnables" element={<SuperAdminInwardPage />} />
             <Route path="users" element={<SuperAdminUsersPage />} />
             <Route path="company-admins" element={<SuperAdminCompanyAdminsPage />} />
+            <Route path="notifications" element={<NotificationsPage />} />
             <Route path="reports" element={<SuperAdminReportsPage />} />
             <Route path="audit-logs" element={<SuperAdminAuditLogsPage />} />
             <Route path="alerts" element={<SuperAdminAlertsPage />} />
@@ -111,6 +116,8 @@ function App() {
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="dashboard" element={<DashboardPage />} />
             <Route path="profile" element={<ProfilePage />} />
+            <Route path="notifications" element={<NotificationsPage />} />
+            <Route path="my-activity" element={<EmployeeActivityPage />} />
             <Route
               path="gate-pass/add"
               element={
@@ -180,6 +187,7 @@ function App() {
             <Route path="gate-passes" element={<AdminGatePassesPage />} />
             <Route path="returnable-materials" element={<AdminReturnablePage />} />
             <Route path="master-data" element={<AdminMasterDataPage />} />
+            <Route path="notifications" element={<NotificationsPage />} />
             <Route path="reports" element={<AdminReportsPage />} />
             <Route path="audit-logs" element={<AdminAuditLogsPage />} />
             <Route path="profile" element={<ProfilePage />} />

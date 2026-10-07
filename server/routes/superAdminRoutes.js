@@ -17,9 +17,14 @@ const {
   getCompanyAdmins,
   reassignCompanyAdmin,
   getSuperAdminAuditLogs,
+  exportSuperAdminAuditLogs,
   getSuperAdminAlerts,
   getSuperAdminAnalytics,
-  exportSuperAdminReport
+  exportSuperAdminReport,
+  getSuperAdminNotifications,
+  getSuperAdminUnreadCount,
+  markSuperAdminNotificationRead,
+  markSuperAdminAllRead
 } = require('../controllers/superAdminController');
 const {
   getSuperAdminProfile,
@@ -40,6 +45,12 @@ router.post('/profile/avatar', protectSuperAdmin, uploadAvatar, uploadSuperAdmin
 router.delete('/profile/avatar', protectSuperAdmin, removeSuperAdminAvatar);
 router.post('/profile/change-password', protectSuperAdmin, changeSuperAdminPass);
 router.get('/sessions', protectSuperAdmin, getSuperAdminSessions);
+
+// Notifications & System Alerts
+router.get('/notifications', protectSuperAdmin, getSuperAdminNotifications);
+router.get('/notifications/unread-count', protectSuperAdmin, getSuperAdminUnreadCount);
+router.patch('/notifications/read-all', protectSuperAdmin, markSuperAdminAllRead);
+router.patch('/notifications/:id/read', protectSuperAdmin, markSuperAdminNotificationRead);
 
 // 2. Dashboard & Telemetry
 router.get('/dashboard-stats', protectSuperAdmin, getSuperAdminDashboardStats);
@@ -62,6 +73,7 @@ router.post('/company-admins/reassign', protectSuperAdmin, reassignCompanyAdmin)
 
 // 6. Reports, Audit Logs & Alerts
 router.get('/audit-logs', protectSuperAdmin, getSuperAdminAuditLogs);
+router.get('/audit-logs/export', protectSuperAdmin, exportSuperAdminAuditLogs);
 router.get('/alerts', protectSuperAdmin, getSuperAdminAlerts);
 router.get('/reports/analytics', protectSuperAdmin, getSuperAdminAnalytics);
 router.get('/reports/export', protectSuperAdmin, exportSuperAdminReport);
