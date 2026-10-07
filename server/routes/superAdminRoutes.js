@@ -28,6 +28,7 @@ const {
   removeSuperAdminAvatar,
   changeSuperAdminPassword: changeSuperAdminPass
 } = require('../controllers/superAdminProfileController');
+const { protectSuperAdmin } = require('../middleware/superAdminAuthMiddleware');
 const { uploadAvatar } = require('../middleware/uploadMiddleware');
 
 // 1. Authentication & Security Profile
