@@ -25,6 +25,7 @@ const {
   getSuperAdminProfile,
   updateSuperAdminPersonal,
   uploadSuperAdminAvatar,
+  removeSuperAdminAvatar,
   changeSuperAdminPassword: changeSuperAdminPass
 } = require('../controllers/superAdminProfileController');
 const { uploadAvatar } = require('../middleware/uploadMiddleware');
@@ -35,6 +36,7 @@ router.get('/me', protectSuperAdmin, getSuperAdminMe);
 router.get('/profile', protectSuperAdmin, getSuperAdminProfile);
 router.put('/profile/personal', protectSuperAdmin, updateSuperAdminPersonal);
 router.post('/profile/avatar', protectSuperAdmin, uploadAvatar, uploadSuperAdminAvatar);
+router.delete('/profile/avatar', protectSuperAdmin, removeSuperAdminAvatar);
 router.post('/profile/change-password', protectSuperAdmin, changeSuperAdminPass);
 router.get('/sessions', protectSuperAdmin, getSuperAdminSessions);
 

@@ -59,18 +59,22 @@ const AdminDashboardPage = () => {
 
   const summaryData = {
     totalGatePasses: stats.totalGatePasses || 0,
-    pendingGatePasses: stats.pendingUserApprovals || stats.pendingGatePasses || 0,
+    pendingUserApprovals: stats.pendingUserApprovals || 0,
     returnablePending: stats.pendingGatePasses || 0,
     fullyReturnedClosed: stats.closedGatePasses || 0,
     totalUsers: stats.totalUsers || 0
   };
 
-  const statusSegments = [
-    { label: 'Pending Approval', count: stats.pendingGatePasses || 0, color: '#7C3AED' },
-    { label: 'Approved & Active', count: stats.approvedGatePasses || 0, color: '#0EA5E9' },
-    { label: 'Returnable Out', count: stats.activeReturnables || 0, color: '#F59E0B' },
-    { label: 'Fully Closed', count: stats.closedGatePasses || 0, color: '#10B981' }
-  ];
+  const statusSegments = (data?.returnableBreakdown && data.returnableBreakdown.length > 0)
+    ? data.returnableBreakdown.map(b => ({ label: b.name, count: b.value || 0, color: b.color }))
+    : [
+        { label: 'Pending Approval', count: stats.pendingGatePasses || 0, color: '#7C3AED' },
+        { label: 'Approved & Active', count: stats.approvedGatePasses || 0, color: '#0EA5E9' },
+        { label: 'Returnable Out', count: stats.activeReturnables || 0, color: '#F59E0B' },
+        { label: 'Fully Closed', count: stats.closedGatePasses || 0, color: '#10B981' }
+      ];
+
+  const pendingUsersList = data?.pendingUsersList || [];
 
   return (
     <div className="pb-12 min-w-0 max-w-full space-y-6">
@@ -126,7 +130,7 @@ const AdminDashboardPage = () => {
 
       {/* 4. Company Operations Activity Heatmap */}
       <ActivityHeatmapChart
-        title={`${selectedCompany?.name || 'Company'} Material Movement Activity`}
+        title={`${selectedCompany?.name || 'Company'} Gate Pass Creation & Material Inward Activity`}
         data={recentActivities}
       />
 
@@ -162,28 +166,30 @@ const AdminDashboardPage = () => {
               </Link>
             </div>
 
-            {stats.pendingUserApprovals > 0 ? (
+            {pendingUsersList.length > 0 ? (
               <div className="space-y-3">
-                <div className="p-3 bg-[#F6F8FA] border border-[#EBEFF2] rounded-xl flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full bg-[#111827] text-white font-bold text-xs flex items-center justify-center">
-                      R
+                {pendingUsersList.slice(0, 3).map((u) => (
+                  <div key={u._id} className="p-3 bg-[#F6F8FA] border border-[#EBEFF2] rounded-xl flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-full bg-[#111827] text-white font-bold text-xs flex items-center justify-center">
+                        {u.name ? u.name.charAt(0).toUpperCase() : 'U'}
+                      </div>
+                      <div>
+                        <div className="text-xs font-bold text-[#111827]">{u.name}</div>
+                        <div className="text-[10px] text-[#6B7280]">{u.department || 'Staff'} • {u.designation || 'Employee'}</div>
+                      </div>
                     </div>
-                    <div>
-                      <div className="text-xs font-bold text-[#111827]">Rajesh Patel</div>
-                      <div className="text-[10px] text-[#6B7280]">Store & Inventory • Store Officer</div>
-                    </div>
-                  </div>
 
-                  <div className="flex items-center gap-2">
-                    <Link
-                      to="/admin/users?status=PENDING_APPROVAL"
-                      className="px-3 py-1.5 bg-[#111827] hover:bg-[#1F2937] text-white text-xs font-semibold rounded-lg transition-colors"
-                    >
-                      Approve Staff
-                    </Link>
+                    <div className="flex items-center gap-2">
+                      <Link
+                        to="/admin/users?status=PENDING_APPROVAL"
+                        className="px-3 py-1.5 bg-[#111827] hover:bg-[#1F2937] text-white text-xs font-semibold rounded-lg transition-colors"
+                      >
+                        Approve Staff
+                      </Link>
+                    </div>
                   </div>
-                </div>
+                ))}
               </div>
             ) : (
               <div className="py-10 text-center text-xs text-[#9CA3AF] space-y-1">

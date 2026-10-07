@@ -11,9 +11,17 @@ exports.getAdminDashboardStats = async (req, res) => {
     const activeGatePasses = await GatePass.countDocuments({ status: 'active', returnStatus: { $ne: 'FULLY_RETURNED' } });
     const pendingGatePasses = await GatePass.countDocuments({ returnStatus: 'PENDING' });
     const closedGatePasses = await GatePass.countDocuments({ $or: [{ status: 'closed' }, { returnStatus: 'FULLY_RETURNED' }] });
+    const activeReturnables = await GatePass.countDocuments({ passType: 'RETURNABLE', returnStatus: { $in: ['PENDING', 'PARTIALLY_RETURNED'] } });
+    const approvedGatePasses = await GatePass.countDocuments({ approvalStatus: 'Approved' });
 
     const totalUsers = await User.countDocuments();
     const pendingUserApprovals = await User.countDocuments({ status: 'PENDING_APPROVAL' });
+
+    // Fetch actual pending users from MongoDB
+    const pendingUsersList = await User.find({ status: 'PENDING_APPROVAL' })
+      .select('name email phone department designation createdAt')
+      .sort({ createdAt: -1 })
+      .lean();
 
     // Recent Gate Passes
     const recentGatePasses = await GatePass.find({})
@@ -28,9 +36,10 @@ exports.getAdminDashboardStats = async (req, res) => {
 
     // Chart Data: Status Breakdown
     const returnableBreakdown = [
-      { name: 'Fully Returned / Closed', value: closedGatePasses, color: '#10b981' },
-      { name: 'Partially Returned', value: await GatePass.countDocuments({ returnStatus: 'PARTIALLY_RETURNED' }), color: '#f59e0b' },
-      { name: 'Pending Returnable', value: pendingGatePasses, color: '#ef4444' }
+      { name: 'Pending Approval', value: await GatePass.countDocuments({ approvalStatus: 'Pending' }), color: '#7C3AED' },
+      { name: 'Approved & Active', value: activeGatePasses, color: '#0EA5E9' },
+      { name: 'Returnable Out', value: activeReturnables, color: '#F59E0B' },
+      { name: 'Fully Closed', value: closedGatePasses, color: '#10B981' }
     ];
 
     res.status(200).json({
@@ -39,10 +48,13 @@ exports.getAdminDashboardStats = async (req, res) => {
         totalGatePasses,
         activeGatePasses,
         pendingGatePasses,
+        approvedGatePasses,
+        activeReturnables,
         closedGatePasses,
         totalUsers,
         pendingUserApprovals
       },
+      pendingUsersList,
       recentGatePasses,
       recentActivities,
       returnableBreakdown

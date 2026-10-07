@@ -117,8 +117,8 @@ const DashboardPage = () => {
       {/* 3. Primary GitHub Contribution Activity with Right-Side Date Inspector */}
       <div className="mb-6">
         <ActivityHeatmapChart
-          title="Gate Pass Movement Activity"
-          data={data.recentGatePasses || []}
+          title="Gate Pass Creation & Material Inward Movement Activity"
+          data={[...(data.recentGatePasses || []), ...(data.recentInwards || [])]}
         />
       </div>
 

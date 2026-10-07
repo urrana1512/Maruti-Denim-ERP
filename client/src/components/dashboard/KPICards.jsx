@@ -125,7 +125,7 @@ const KPICards = ({ summary = {}, loading = false, role = 'employee' }) => {
     {
       title: 'Pending User Approvals',
       context: 'Staff registration requests',
-      value: summary.pendingGatePasses || summary.totalUsers || 0,
+      value: summary.pendingUserApprovals !== undefined ? summary.pendingUserApprovals : (summary.pendingUserApprovalsCount || 0),
       icon: Clock,
       trend: '+8%',
       isPositive: true,
@@ -244,7 +244,7 @@ const KPICards = ({ summary = {}, loading = false, role = 'employee' }) => {
               </div>
             </div>
 
-            {/* Metric Value & Trend Badge */}
+            {/* Metric Value */}
             <div className="flex items-baseline justify-between mt-3 pt-2 border-t border-[#EBEFF2]">
               <div className="flex items-baseline gap-1">
                 <span className={`text-2xl sm:text-3xl font-extrabold tracking-tight ${card.isRisk && card.value > 0 ? 'text-[#EF4444]' : 'text-[#111827]'}`}>
@@ -253,20 +253,6 @@ const KPICards = ({ summary = {}, loading = false, role = 'employee' }) => {
                 {card.suffix && (
                   <span className="text-xs font-semibold text-[#6B7280]">{card.suffix}</span>
                 )}
-              </div>
-
-              {/* Trend Badge */}
-              <div className="flex items-center gap-1.5">
-                <span
-                  className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold ${
-                    card.isPositive
-                      ? 'bg-[#DCFCE7] text-[#10B981]'
-                      : 'bg-[#FEE2E2] text-[#EF4444]'
-                  }`}
-                >
-                  {card.isPositive ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-                  {card.trend}
-                </span>
               </div>
             </div>
           </div>

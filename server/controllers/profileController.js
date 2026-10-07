@@ -31,7 +31,7 @@ const getMyProfile = async (req, res) => {
       profile: {
         id: user._id,
         name: user.name,
-        username: user.username || user.email.split('@')[0],
+        username: user.username || (user.email && user.email.includes('@') ? user.email.split('@')[0] : (user.phone || 'user')),
         email: user.email,
         phone: user.phone,
         department: user.department,

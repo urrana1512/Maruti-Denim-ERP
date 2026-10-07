@@ -3,19 +3,15 @@ import { useNavigate } from 'react-router-dom';
 
 const StatusDonutChart = ({
   title = 'Gate Pass Status',
-  totalCount = 424,
-  segments = [
-    { label: 'Pending / Open', count: 258, color: '#7C3AED', leftText: '456 Left' }, // Purple
-    { label: 'Approved', count: 89, color: '#0EA5E9', leftText: '258 Left' },    // Cyan
-    { label: 'In Progress', count: 43, color: '#F59E0B', leftText: '258 Left' },   // Amber
-    { label: 'Closed / Completed', count: 34, color: '#10B981', leftText: '258 Left' } // Emerald
-  ],
+  totalCount = 0,
+  segments = [],
   onViewAll
 }) => {
   const navigate = useNavigate();
   const [selectedPeriod, setSelectedPeriod] = useState('This Month');
 
-  const total = segments.reduce((acc, s) => acc + s.count, 0) || totalCount || 1;
+  const computedTotal = segments.reduce((acc, s) => acc + (s.count || 0), 0);
+  const total = computedTotal > 0 ? computedTotal : (totalCount || 0);
 
   // Calculate SVG stroke DashOffset values for smooth Donut Chart
   let cumulative = 0;
@@ -60,10 +56,12 @@ const StatusDonutChart = ({
               fill="transparent"
             />
             {/* Segments */}
-            {segments.map((segment, index) => {
-              const strokeDasharray = `${(segment.count / total) * circumference} ${circumference}`;
+            {total > 0 && segments.map((segment, index) => {
+              const segCount = segment.count || 0;
+              if (segCount === 0) return null;
+              const strokeDasharray = `${(segCount / total) * circumference} ${circumference}`;
               const strokeDashoffset = -cumulative;
-              cumulative += (segment.count / total) * circumference;
+              cumulative += (segCount / total) * circumference;
 
               return (
                 <circle
@@ -71,7 +69,7 @@ const StatusDonutChart = ({
                   cx="50"
                   cy="50"
                   r={radius}
-                  stroke={segment.color}
+                  stroke={segment.color || '#64748B'}
                   strokeWidth="12"
                   strokeDasharray={strokeDasharray}
                   strokeDashoffset={strokeDashoffset}
@@ -86,25 +84,31 @@ const StatusDonutChart = ({
           {/* Donut Center Display */}
           <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
             <span className="text-xs font-medium text-[#6B7280]">Total</span>
-            <span className="text-3xl font-extrabold text-[#111827] tracking-tight">{totalCount || total}</span>
+            <span className="text-3xl font-extrabold text-[#111827] tracking-tight">{total}</span>
           </div>
         </div>
       </div>
 
-      {/* Legend & Stats Grid - Mirrored from Screenshot */}
+      {/* Legend & Stats Grid */}
       <div className="grid grid-cols-2 gap-3 my-4 bg-[#F6F8FA] p-3 rounded-lg border border-[#EBEFF2]">
-        {segments.map((seg, idx) => (
-          <div key={idx} className="flex items-center gap-2">
-            <span
-              className="w-2.5 h-2.5 rounded-full shrink-0"
-              style={{ backgroundColor: seg.color }}
-            />
-            <div className="truncate">
-              <div className="text-[11px] font-medium text-[#6B7280] truncate">{seg.label}</div>
-              <div className="text-sm font-bold text-[#111827]">{seg.count}</div>
-            </div>
+        {segments.length === 0 ? (
+          <div className="col-span-2 text-center text-xs text-[#9CA3AF] py-2">
+            No gate pass status metrics recorded.
           </div>
-        ))}
+        ) : (
+          segments.map((seg, idx) => (
+            <div key={idx} className="flex items-center gap-2">
+              <span
+                className="w-2.5 h-2.5 rounded-full shrink-0"
+                style={{ backgroundColor: seg.color || '#64748B' }}
+              />
+              <div className="truncate">
+                <div className="text-[11px] font-medium text-[#6B7280] truncate">{seg.label}</div>
+                <div className="text-sm font-bold text-[#111827]">{seg.count || 0}</div>
+              </div>
+            </div>
+          ))
+        )}
       </div>
 
       {/* Primary Near-Black "View all" Button */}

@@ -1,12 +1,25 @@
-import React from 'react';
-import { Menu, Bell, Search, ChevronDown, LogOut, Shield, User } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Menu, Bell, Search, ChevronDown, LogOut, Shield, User, UserCheck } from 'lucide-react';
 import { useLocation, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import SidebarCollapseIcon from '../common/SidebarCollapseIcon';
 
-const Header = ({ setIsOpen }) => {
+const Header = ({ setIsOpen, isCollapsed, setIsCollapsed }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout, isAdmin, selectedCompany } = useAuth();
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setProfileMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const handleLogout = async () => {
     await logout();
@@ -35,6 +48,18 @@ const Header = ({ setIsOpen }) => {
         >
           <Menu className="h-6 w-6" />
         </button>
+
+        {setIsCollapsed && (
+          <button
+            type="button"
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            className="hidden md:flex p-2 text-[#6B7280] hover:text-[#111827] hover:bg-[#F6F8FA] rounded-lg transition-colors cursor-pointer"
+            title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+          >
+            <SidebarCollapseIcon collapsed={isCollapsed} size={20} />
+          </button>
+        )}
+
         <div>
           <h2 className="text-base sm:text-lg font-bold text-[#111827] leading-tight">
             {getPageTitle()}
@@ -78,9 +103,13 @@ const Header = ({ setIsOpen }) => {
 
         <div className="h-6 w-px bg-[#EBEFF2]" />
 
-        {/* Profile Link */}
-        <div className="flex items-center gap-2.5">
-          <Link to="/profile" className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
+        {/* Profile Dropdown Container */}
+        <div className="relative" ref={dropdownRef}>
+          <button
+            type="button"
+            onClick={() => setProfileMenuOpen(!profileMenuOpen)}
+            className="flex items-center gap-2.5 hover:opacity-80 transition-opacity focus:outline-none cursor-pointer p-1 rounded-lg"
+          >
             {user?.avatarUrl ? (
               <img
                 src={user.avatarUrl}
@@ -96,15 +125,44 @@ const Header = ({ setIsOpen }) => {
               <div className="text-xs font-bold text-[#111827] leading-tight">{user?.name || 'User'}</div>
               <div className="text-[10px] font-medium text-[#6B7280]">{user?.roleName || user?.department || 'Employee'}</div>
             </div>
-          </Link>
-
-          <button
-            onClick={handleLogout}
-            title="Sign Out"
-            className="p-1.5 text-[#6B7280] hover:text-[#EF4444] hover:bg-[#FEE2E2] rounded-lg transition-colors cursor-pointer ml-1"
-          >
-            <LogOut size={16} />
+            <ChevronDown size={14} className={`hidden lg:block text-[#6B7280] transition-transform ${profileMenuOpen ? 'rotate-180' : ''}`} />
           </button>
+
+          {/* Popup Dropdown Menu */}
+          {profileMenuOpen && (
+            <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl border border-[#EBEFF2] shadow-xl py-1.5 z-50 animate-in fade-in duration-150">
+              <div className="px-4 py-2.5 border-b border-[#EBEFF2] bg-[#F6F8FA]">
+                <div className="text-xs font-bold text-[#111827] truncate">{user?.name || 'User'}</div>
+                <div className="text-[11px] font-medium text-[#6B7280] truncate">{user?.email || user?.phone || ''}</div>
+                <div className="inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-bold bg-[#7C3AED]/10 text-[#7C3AED]">
+                  {user?.roleName || user?.department || 'Employee'}
+                </div>
+              </div>
+
+              <div className="py-1">
+                <Link
+                  to="/profile"
+                  onClick={() => setProfileMenuOpen(false)}
+                  className="flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-[#111827] hover:bg-[#F6F8FA] transition-colors"
+                >
+                  <UserCheck size={16} className="text-[#6B7280]" />
+                  <span>My Profile</span>
+                </Link>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setProfileMenuOpen(false);
+                    handleLogout();
+                  }}
+                  className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-[#EF4444] hover:bg-[#FEE2E2]/50 transition-colors cursor-pointer text-left border-t border-[#EBEFF2]"
+                >
+                  <LogOut size={16} className="text-[#EF4444]" />
+                  <span>Sign Out</span>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </header>

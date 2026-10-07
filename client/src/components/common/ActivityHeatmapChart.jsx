@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Info, Calendar, FileText, ArrowRight, CheckCircle2, Clock, Package } from 'lucide-react';
 
 const ActivityHeatmapChart = ({
-  title = 'Gate Pass Movement Activity',
+  title = 'Gate Pass Creation & Material Inward Movement Activity',
   data = []
 }) => {
   const [selectedPeriod, setSelectedPeriod] = useState('Last 12 Months');
@@ -43,10 +43,21 @@ const ActivityHeatmapChart = ({
     let lastLabelWeek = -6;
     let lastActiveCell = null;
 
-    // Build date lookup map from real database records
+    // Build date lookup map considering ONLY Gate Pass creations & Material Inward receipts
     const dateMap = {};
     if (Array.isArray(data)) {
       data.forEach((item) => {
+        const isGatePass = item.gatePassNumber || item.passType || item.type === 'GATE_PASS' || item.type === 'GATE_PASS_CREATED' || item.action === 'CREATE_GATE_PASS' || item.entityType === 'GATE_PASS';
+        const isInward = item.inwardNumber || item.partyName || item.type === 'MATERIAL_INWARD' || item.type === 'MATERIAL_INWARD_RECEIPT' || item.action === 'CREATE_MATERIAL_INWARD' || item.entityType === 'MATERIAL_INWARD';
+
+        // Filter out non-movement logs
+        if (!isGatePass && !isInward && item.action) {
+          const act = String(item.action).toUpperCase();
+          if (!act.includes('GATE_PASS') && !act.includes('INWARD') && !act.includes('MATERIAL')) {
+            return;
+          }
+        }
+
         const itemDateStr = item.date
           ? new Date(item.date).toISOString().split('T')[0]
           : item.createdAt
@@ -138,7 +149,7 @@ const ActivityHeatmapChart = ({
   // Current active date selection
   const activeCell = selectedCell || defaultActiveCell;
 
-  // Filter real activity records for the selected date from database prop
+  // Filter real activity records for the selected date from database prop (exclusively Gate Pass & Inwards)
   const selectedDateActivities = useMemo(() => {
     if (!activeCell || !Array.isArray(data) || data.length === 0) {
       return [];
@@ -147,6 +158,16 @@ const ActivityHeatmapChart = ({
 
     return data
       .filter((item) => {
+        const isGatePass = item.gatePassNumber || item.passType || item.type === 'GATE_PASS' || item.type === 'GATE_PASS_CREATED' || item.action === 'CREATE_GATE_PASS' || item.entityType === 'GATE_PASS';
+        const isInward = item.inwardNumber || item.partyName || item.type === 'MATERIAL_INWARD' || item.type === 'MATERIAL_INWARD_RECEIPT' || item.action === 'CREATE_MATERIAL_INWARD' || item.entityType === 'MATERIAL_INWARD';
+
+        if (!isGatePass && !isInward && item.action) {
+          const act = String(item.action).toUpperCase();
+          if (!act.includes('GATE_PASS') && !act.includes('INWARD') && !act.includes('MATERIAL')) {
+            return false;
+          }
+        }
+
         const itemDateStr = item.date
           ? new Date(item.date).toISOString().split('T')[0]
           : item.createdAt
@@ -155,12 +176,12 @@ const ActivityHeatmapChart = ({
         return itemDateStr === dateIsoStr;
       })
       .map((item, i) => ({
-        id: item.gatePassNumber || item.inwardNumber || item.refNumber || `LOG-${i + 1}`,
+        id: item.gatePassNumber || item.inwardNumber || item.refNumber || `MOV-${i + 1}`,
         vendor: item.companyName || item.partyName || item.vendorName || item.userName || 'Company Staff',
-        passType: item.passType || item.action || 'Gate Pass',
-        status: item.status || item.returnStatus || 'ACTIVE',
+        passType: item.inwardNumber ? 'Material Inward Receipt' : (item.passType || 'Gate Pass Created'),
+        status: item.status || item.returnStatus || 'COMPLETED',
         timeStr: item.createdAt ? new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-',
-        itemDesc: item.itemDescription || item.details || item.itemsSummary || item.action || 'Material Movement'
+        itemDesc: item.itemDescription || item.itemsSummary || item.details || (item.inwardNumber ? 'Material Inward Receipt' : 'Gate Pass Creation')
       }));
   }, [activeCell, data]);
 

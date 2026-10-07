@@ -75,6 +75,11 @@ export const profileService = {
     return res.data;
   },
 
+  removeSuperAdminAvatar: async () => {
+    const res = await api.delete('/superadmin/profile/avatar');
+    return res.data;
+  },
+
   changeSuperAdminPassword: async (currentPassword, newPassword) => {
     const res = await api.post('/superadmin/profile/change-password', { currentPassword, newPassword });
     return res.data;

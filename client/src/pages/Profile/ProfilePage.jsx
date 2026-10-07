@@ -80,17 +80,34 @@ const ProfilePage = ({ isSuperAdmin = false }) => {
     displayPreferences: { pageSize: 10, compactMode: false }
   });
 
+  const effectiveIsSuperAdmin = isSuperAdmin || Boolean(superAdmin) || window.location.pathname.startsWith('/superadmin');
+
   // Fetch Profile Data
   const loadProfile = async () => {
     setLoading(true);
+    const fallbackUser = effectiveIsSuperAdmin ? superAdmin : user;
+
+    // Immediately seed with fallback context user so UI is never blank
+    if (fallbackUser) {
+      setProfile(fallbackUser);
+      setPersonalForm({
+        name: fallbackUser.name || '',
+        username: fallbackUser.username || (fallbackUser.email && fallbackUser.email.includes('@') ? fallbackUser.email.split('@')[0] : (fallbackUser.phone || 'user')),
+        phone: fallbackUser.phone || '',
+        officeLocation: fallbackUser.officeLocation || (effectiveIsSuperAdmin ? 'Corporate HQ' : 'Main Plant'),
+        timeZone: fallbackUser.timeZone || 'Asia/Kolkata',
+        dateFormat: fallbackUser.dateFormat || 'DD/MM/YYYY'
+      });
+    }
+
     try {
-      if (isSuperAdmin) {
+      if (effectiveIsSuperAdmin) {
         const res = await profileService.getSuperAdminProfile();
-        if (res.success && res.profile) {
+        if (res?.success && res?.profile) {
           setProfile(res.profile);
           setPersonalForm({
             name: res.profile.name || '',
-            username: res.profile.email.split('@')[0],
+            username: (res.profile.email && res.profile.email.includes('@') ? res.profile.email.split('@')[0] : 'admin'),
             phone: res.profile.phone || '',
             officeLocation: res.profile.officeLocation || 'Corporate HQ',
             timeZone: res.profile.timeZone || 'Asia/Kolkata',
@@ -99,24 +116,30 @@ const ProfilePage = ({ isSuperAdmin = false }) => {
         }
       } else {
         const res = await profileService.getProfile();
-        if (res.success && res.profile) {
+        if (res?.success && res?.profile) {
           setProfile(res.profile);
           setPersonalForm({
             name: res.profile.name || '',
-            username: res.profile.username || res.profile.email.split('@')[0],
+            username: res.profile.username || (res.profile.email && res.profile.email.includes('@') ? res.profile.email.split('@')[0] : (res.profile.phone || 'user')),
             phone: res.profile.phone || '',
             officeLocation: res.profile.officeLocation || 'Main Plant',
             timeZone: res.profile.timeZone || 'Asia/Kolkata',
             dateFormat: res.profile.dateFormat || 'DD/MM/YYYY'
           });
-          setPreferences({
-            notificationPreferences: res.profile.notificationPreferences,
-            displayPreferences: res.profile.displayPreferences
-          });
+          if (res.profile.notificationPreferences || res.profile.displayPreferences) {
+            setPreferences({
+              notificationPreferences: res.profile.notificationPreferences || { emailGatePass: true, emailApprovals: true, emailSystem: true },
+              displayPreferences: res.profile.displayPreferences || { pageSize: 10, compactMode: false }
+            });
+          }
         }
       }
     } catch (err) {
-      toast.error('Failed to load user profile information.');
+      console.warn('Profile API call failed, using session context:', err);
+      // If fallback user was not available, warn user
+      if (!fallbackUser) {
+        toast.error('Failed to load user profile information.');
+      }
     } finally {
       setLoading(false);
     }
@@ -124,7 +147,7 @@ const ProfilePage = ({ isSuperAdmin = false }) => {
 
   useEffect(() => {
     loadProfile();
-  }, [isSuperAdmin]);
+  }, [effectiveIsSuperAdmin]);
 
   // Handle Unsaved Changes Warning
   useEffect(() => {
@@ -147,7 +170,7 @@ const ProfilePage = ({ isSuperAdmin = false }) => {
     e.preventDefault();
     setSaving(true);
     try {
-      const apiCall = isSuperAdmin
+      const apiCall = effectiveIsSuperAdmin
         ? profileService.updateSuperAdminPersonal(personalForm)
         : profileService.updatePersonalInfo(personalForm);
       const res = await apiCall;
@@ -193,7 +216,7 @@ const ProfilePage = ({ isSuperAdmin = false }) => {
     if (!avatarFile) return;
     setSaving(true);
     try {
-      const apiCall = isSuperAdmin
+      const apiCall = effectiveIsSuperAdmin
         ? profileService.uploadSuperAdminAvatar(avatarFile)
         : profileService.uploadAvatar(avatarFile);
       const res = await apiCall;
@@ -216,13 +239,19 @@ const ProfilePage = ({ isSuperAdmin = false }) => {
     if (!window.confirm('Remove profile picture and restore default initials avatar?')) return;
     setSaving(true);
     try {
-      const res = await profileService.removeAvatar();
-      if (res.success) {
+      const res = effectiveIsSuperAdmin
+        ? await profileService.removeSuperAdminAvatar()
+        : await profileService.removeAvatar();
+      if (res?.success) {
         toast.success('Profile picture removed.');
+        setAvatarPreview(null);
+        setAvatarFile(null);
         loadProfile();
+      } else {
+        toast.error(res?.message || 'Failed to remove profile picture.');
       }
     } catch (err) {
-      toast.error('Failed to remove profile picture.');
+      toast.error(err.response?.data?.message || 'Failed to remove profile picture.');
     } finally {
       setSaving(false);
     }
@@ -291,7 +320,7 @@ const ProfilePage = ({ isSuperAdmin = false }) => {
     }
     setChangingPass(true);
     try {
-      const apiCall = isSuperAdmin
+      const apiCall = effectiveIsSuperAdmin
         ? profileService.changeSuperAdminPassword(passwordForm.currentPassword, passwordForm.newPassword)
         : profileService.changePassword(passwordForm.currentPassword, passwordForm.newPassword);
       const res = await apiCall;
@@ -352,7 +381,7 @@ const ProfilePage = ({ isSuperAdmin = false }) => {
                 )}
               </div>
 
-              {/* Upload Overlay Button */}
+              {/* Upload & Remove Overlay Buttons */}
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
@@ -361,6 +390,17 @@ const ProfilePage = ({ isSuperAdmin = false }) => {
               >
                 <Camera size={14} />
               </button>
+              {currentUser?.avatarUrl && !avatarPreview && (
+                <button
+                  type="button"
+                  onClick={handleRemoveAvatar}
+                  disabled={saving}
+                  className="absolute bottom-0 -left-1 p-1.5 bg-[#EF4444] text-white rounded-full hover:bg-[#DC2626] transition-all cursor-pointer shadow-xs"
+                  title="Remove Profile Picture"
+                >
+                  <Trash2 size={12} />
+                </button>
+              )}
               <input
                 ref={fileInputRef}
                 type="file"
@@ -386,7 +426,7 @@ const ProfilePage = ({ isSuperAdmin = false }) => {
               </div>
 
               <div className="text-xs text-[#6B7280] font-medium flex items-center justify-center sm:justify-start gap-3 flex-wrap">
-                <span>@{currentUser?.username || currentUser?.email?.split('@')[0]}</span>
+                <span>@{currentUser?.username || (currentUser?.email && currentUser.email.includes('@') ? currentUser.email.split('@')[0] : (currentUser?.phone || 'user'))}</span>
                 <span>•</span>
                 <span>{currentUser?.roleName || currentUser?.designation || 'Enterprise Account'}</span>
                 <span>•</span>
@@ -395,8 +435,8 @@ const ProfilePage = ({ isSuperAdmin = false }) => {
             </div>
           </div>
 
-          {/* Confirm Avatar Upload Action if File Selected */}
-          {avatarPreview && (
+          {/* Confirm Avatar Upload or Remove Picture Action */}
+          {avatarPreview ? (
             <div className="flex items-center gap-2 bg-[#F6F8FA] p-2.5 rounded-xl border border-[#EBEFF2]">
               <span className="text-xs font-semibold text-[#111827]">New Avatar Selected</span>
               <button
@@ -416,6 +456,17 @@ const ProfilePage = ({ isSuperAdmin = false }) => {
                 <X size={16} />
               </button>
             </div>
+          ) : (
+            currentUser?.avatarUrl && (
+              <button
+                type="button"
+                onClick={handleRemoveAvatar}
+                disabled={saving}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#FEE2E2]/60 hover:bg-[#FEE2E2] text-[#EF4444] text-xs font-bold rounded-lg transition-colors cursor-pointer border border-[#FEE2E2]"
+              >
+                <Trash2 size={14} /> Remove Picture
+              </button>
+            )
           )}
         </div>
       </div>

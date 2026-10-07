@@ -67,6 +67,17 @@ const uploadSuperAdminAvatar = async (req, res) => {
   }
 };
 
+const removeSuperAdminAvatar = async (req, res) => {
+  try {
+    const admin = req.superAdmin;
+    admin.avatarUrl = null;
+    await admin.save();
+    res.json({ success: true, message: 'Super Admin profile picture removed.' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to remove avatar.' });
+  }
+};
+
 const changeSuperAdminPassword = async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
@@ -95,5 +106,6 @@ module.exports = {
   getSuperAdminProfile,
   updateSuperAdminPersonal,
   uploadSuperAdminAvatar,
+  removeSuperAdminAvatar,
   changeSuperAdminPassword
 };
