@@ -735,15 +735,20 @@ exports.adminLogin = async (req, res) => {
     foundUser.lastLoginAt = new Date();
     await foundUser.save();
 
-    await foundModels.AuditLog.create({
-      userId: foundUser._id,
-      userName: foundUser.name,
-      userEmail: foundUser.email,
-      userRole: 'Admin',
-      action: 'ADMIN_LOGIN',
-      module: 'AUTH',
-      ipAddress: req.ip || req.connection?.remoteAddress
-    });
+    try {
+      await foundModels.AuditLog.create({
+        companyCode: foundCompanyCode || 'maruti_nandan',
+        userId: foundUser._id,
+        userName: foundUser.name,
+        userEmail: foundUser.email,
+        userRole: 'Admin',
+        action: 'ADMIN_LOGIN',
+        module: 'AUTH',
+        ipAddress: req.ip || req.connection?.remoteAddress
+      });
+    } catch (auditErr) {
+      console.warn('Admin Login AuditLog creation warning:', auditErr.message);
+    }
 
     await sendTokenResponse(foundUser, foundCompanyCode, 200, res, 'Admin authenticated successfully');
   } catch (error) {

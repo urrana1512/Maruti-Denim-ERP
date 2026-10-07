@@ -41,16 +41,21 @@ exports.createRole = async (req, res) => {
       status: 'ACTIVE'
     });
 
-    await AuditLog.create({
-      userId: req.user._id,
-      userName: req.user.name,
-      userEmail: req.user.email,
-      userRole: req.user.roleName,
-      action: 'ROLE_CREATED',
-      module: 'ROLE',
-      targetId: role._id.toString(),
-      details: { roleName: role.name, permissionsCount: permissions.length }
-    });
+    try {
+      await AuditLog.create({
+        companyCode: req.companyCode || req.user?.companyCode || 'maruti_nandan',
+        userId: req.user._id,
+        userName: req.user.name,
+        userEmail: req.user.email,
+        userRole: req.user.roleName,
+        action: 'ROLE_CREATED',
+        module: 'ROLE',
+        targetId: role._id.toString(),
+        details: { roleName: role.name, permissionsCount: permissions.length }
+      });
+    } catch (auditErr) {
+      console.warn('AuditLog creation warning:', auditErr.message);
+    }
 
     res.status(201).json({ success: true, message: `Role '${role.name}' created successfully.`, role });
   } catch (error) {
@@ -85,16 +90,21 @@ exports.updateRole = async (req, res) => {
 
     await role.save();
 
-    await AuditLog.create({
-      userId: req.user._id,
-      userName: req.user.name,
-      userEmail: req.user.email,
-      userRole: req.user.roleName,
-      action: 'ROLE_UPDATED',
-      module: 'ROLE',
-      targetId: role._id.toString(),
-      details: { roleName: role.name, permissionsCount: role.permissions.length }
-    });
+    try {
+      await AuditLog.create({
+        companyCode: req.companyCode || req.user?.companyCode || 'maruti_nandan',
+        userId: req.user._id,
+        userName: req.user.name,
+        userEmail: req.user.email,
+        userRole: req.user.roleName,
+        action: 'ROLE_UPDATED',
+        module: 'ROLE',
+        targetId: role._id.toString(),
+        details: { roleName: role.name, permissionsCount: role.permissions.length }
+      });
+    } catch (auditErr) {
+      console.warn('AuditLog creation warning:', auditErr.message);
+    }
 
     res.status(200).json({ success: true, message: `Role '${role.name}' updated successfully.`, role });
   } catch (error) {
@@ -121,16 +131,21 @@ exports.deleteRole = async (req, res) => {
 
     await Role.findByIdAndDelete(id);
 
-    await AuditLog.create({
-      userId: req.user._id,
-      userName: req.user.name,
-      userEmail: req.user.email,
-      userRole: req.user.roleName,
-      action: 'ROLE_DELETED',
-      module: 'ROLE',
-      targetId: id,
-      details: { roleName: role.name }
-    });
+    try {
+      await AuditLog.create({
+        companyCode: req.companyCode || req.user?.companyCode || 'maruti_nandan',
+        userId: req.user._id,
+        userName: req.user.name,
+        userEmail: req.user.email,
+        userRole: req.user.roleName,
+        action: 'ROLE_DELETED',
+        module: 'ROLE',
+        targetId: id,
+        details: { roleName: role.name }
+      });
+    } catch (auditErr) {
+      console.warn('AuditLog creation warning:', auditErr.message);
+    }
 
     res.status(200).json({ success: true, message: `Role '${role.name}' deleted successfully.` });
   } catch (error) {

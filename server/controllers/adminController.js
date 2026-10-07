@@ -149,16 +149,21 @@ exports.approveUser = async (req, res) => {
     // Notify user via email
     await sendAccountApprovedEmail(user.email, user.name, req.companyCode);
 
-    await AuditLog.create({
-      userId: req.user._id,
-      userName: req.user.name,
-      userEmail: req.user.email,
-      userRole: req.user.roleName,
-      action: 'USER_APPROVED',
-      module: 'USER',
-      targetId: user._id.toString(),
-      details: { targetName: user.name, targetEmail: user.email, assignedRole: user.roleName }
-    });
+    try {
+      await AuditLog.create({
+        companyCode: req.companyCode || req.user?.companyCode || 'maruti_nandan',
+        userId: req.user._id,
+        userName: req.user.name,
+        userEmail: req.user.email,
+        userRole: req.user.roleName,
+        action: 'USER_APPROVED',
+        module: 'USER',
+        targetId: user._id.toString(),
+        details: { targetName: user.name, targetEmail: user.email, assignedRole: user.roleName }
+      });
+    } catch (auditErr) {
+      console.warn('AuditLog creation warning:', auditErr.message);
+    }
 
     res.status(200).json({ success: true, message: `User ${user.name} has been approved successfully. Email notification sent.`, user });
   } catch (error) {
@@ -185,16 +190,21 @@ exports.rejectUser = async (req, res) => {
     user.tokenVersion = (user.tokenVersion || 0) + 1; // Kill active sessions
     await user.save();
 
-    await AuditLog.create({
-      userId: req.user._id,
-      userName: req.user.name,
-      userEmail: req.user.email,
-      userRole: req.user.roleName,
-      action: 'USER_REJECTED',
-      module: 'USER',
-      targetId: user._id.toString(),
-      details: { targetName: user.name, targetEmail: user.email, rejectionReason }
-    });
+    try {
+      await AuditLog.create({
+        companyCode: req.companyCode || req.user?.companyCode || 'maruti_nandan',
+        userId: req.user._id,
+        userName: req.user.name,
+        userEmail: req.user.email,
+        userRole: req.user.roleName,
+        action: 'USER_REJECTED',
+        module: 'USER',
+        targetId: user._id.toString(),
+        details: { targetName: user.name, targetEmail: user.email, rejectionReason }
+      });
+    } catch (auditErr) {
+      console.warn('AuditLog creation warning:', auditErr.message);
+    }
 
     res.status(200).json({ success: true, message: `User registration for ${user.name} has been rejected.`, user });
   } catch (error) {
@@ -222,16 +232,21 @@ exports.toggleUserStatus = async (req, res) => {
     user.tokenVersion = (user.tokenVersion || 0) + 1; // Kill active sessions immediately on status change
     await user.save();
 
-    await AuditLog.create({
-      userId: req.user._id,
-      userName: req.user.name,
-      userEmail: req.user.email,
-      userRole: req.user.roleName,
-      action: targetStatus === 'APPROVED' ? 'USER_ACTIVATED' : 'USER_DEACTIVATED',
-      module: 'USER',
-      targetId: user._id.toString(),
-      details: { targetName: user.name, targetEmail: user.email, newStatus: targetStatus }
-    });
+    try {
+      await AuditLog.create({
+        companyCode: req.companyCode || req.user?.companyCode || 'maruti_nandan',
+        userId: req.user._id,
+        userName: req.user.name,
+        userEmail: req.user.email,
+        userRole: req.user.roleName,
+        action: targetStatus === 'APPROVED' ? 'USER_ACTIVATED' : 'USER_DEACTIVATED',
+        module: 'USER',
+        targetId: user._id.toString(),
+        details: { targetName: user.name, targetEmail: user.email, newStatus: targetStatus }
+      });
+    } catch (auditErr) {
+      console.warn('AuditLog creation warning:', auditErr.message);
+    }
 
     res.status(200).json({
       success: true,
@@ -273,16 +288,21 @@ exports.updateUser = async (req, res) => {
 
     await user.save();
 
-    await AuditLog.create({
-      userId: req.user._id,
-      userName: req.user.name,
-      userEmail: req.user.email,
-      userRole: req.user.roleName,
-      action: 'USER_UPDATED',
-      module: 'USER',
-      targetId: user._id.toString(),
-      details: { updatedUser: user.email, department: user.department }
-    });
+    try {
+      await AuditLog.create({
+        companyCode: req.companyCode || req.user?.companyCode || 'maruti_nandan',
+        userId: req.user._id,
+        userName: req.user.name,
+        userEmail: req.user.email,
+        userRole: req.user.roleName,
+        action: 'USER_UPDATED',
+        module: 'USER',
+        targetId: user._id.toString(),
+        details: { updatedUser: user.email, department: user.department }
+      });
+    } catch (auditErr) {
+      console.warn('AuditLog creation warning:', auditErr.message);
+    }
 
     res.status(200).json({ success: true, message: 'User profile updated successfully.', user });
   } catch (error) {
@@ -311,16 +331,21 @@ exports.deleteUser = async (req, res) => {
     const deletedInfo = { name: user.name, email: user.email, role: user.roleName };
     await User.findByIdAndDelete(id);
 
-    await AuditLog.create({
-      userId: req.user._id,
-      userName: req.user.name,
-      userEmail: req.user.email,
-      userRole: req.user.roleName,
-      action: 'USER_DELETED',
-      module: 'USER',
-      targetId: id,
-      details: deletedInfo
-    });
+    try {
+      await AuditLog.create({
+        companyCode: req.companyCode || req.user?.companyCode || 'maruti_nandan',
+        userId: req.user._id,
+        userName: req.user.name,
+        userEmail: req.user.email,
+        userRole: req.user.roleName,
+        action: 'USER_DELETED',
+        module: 'USER',
+        targetId: id,
+        details: deletedInfo
+      });
+    } catch (auditErr) {
+      console.warn('AuditLog creation warning:', auditErr.message);
+    }
 
     res.status(200).json({ success: true, message: `User account for ${deletedInfo.name} deleted successfully.` });
   } catch (error) {
@@ -394,16 +419,21 @@ exports.forceCloseGatePass = async (req, res) => {
     gatePass.returnStatus = 'FULLY_RETURNED';
     await gatePass.save();
 
-    await AuditLog.create({
-      userId: req.user._id,
-      userName: req.user.name,
-      userEmail: req.user.email,
-      userRole: req.user.roleName,
-      action: 'GATE_PASS_FORCE_CLOSED',
-      module: 'GATE_PASS',
-      targetId: gatePass._id.toString(),
-      details: { gatePassNumber: gatePass.gatePassNumber, companyName: gatePass.companyName, reason }
-    });
+    try {
+      await AuditLog.create({
+        companyCode: req.companyCode || req.user?.companyCode || 'maruti_nandan',
+        userId: req.user._id,
+        userName: req.user.name,
+        userEmail: req.user.email,
+        userRole: req.user.roleName,
+        action: 'GATE_PASS_FORCE_CLOSED',
+        module: 'GATE_PASS',
+        targetId: gatePass._id.toString(),
+        details: { gatePassNumber: gatePass.gatePassNumber, companyName: gatePass.companyName, reason }
+      });
+    } catch (auditErr) {
+      console.warn('AuditLog creation warning:', auditErr.message);
+    }
 
     res.status(200).json({
       success: true,
