@@ -185,6 +185,10 @@ exports.rejectUser = async (req, res) => {
       return res.status(404).json({ success: false, message: 'User account not found.' });
     }
 
+    if (user._id.toString() === req.user._id.toString() || user.email.toLowerCase() === req.user.email.toLowerCase()) {
+      return res.status(400).json({ success: false, message: 'You cannot reject your own logged-in Admin account.' });
+    }
+
     user.status = 'REJECTED';
     user.rejectionReason = rejectionReason;
     user.tokenVersion = (user.tokenVersion || 0) + 1; // Kill active sessions
@@ -226,6 +230,10 @@ exports.toggleUserStatus = async (req, res) => {
     const user = await User.findById(id);
     if (!user) {
       return res.status(404).json({ success: false, message: 'User account not found.' });
+    }
+
+    if (user._id.toString() === req.user._id.toString() || user.email.toLowerCase() === req.user.email.toLowerCase()) {
+      return res.status(400).json({ success: false, message: 'You cannot deactivate or modify your own logged-in Admin account status.' });
     }
 
     user.status = targetStatus;
@@ -324,7 +332,7 @@ exports.deleteUser = async (req, res) => {
     }
 
     // Prevent self-deletion of current logged-in Admin
-    if (user._id.toString() === req.user._id.toString()) {
+    if (user._id.toString() === req.user._id.toString() || user.email.toLowerCase() === req.user.email.toLowerCase()) {
       return res.status(400).json({ success: false, message: 'You cannot delete your own logged-in Admin account.' });
     }
 

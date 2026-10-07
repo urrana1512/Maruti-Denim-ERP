@@ -257,93 +257,110 @@ const AdminUsersPage = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-border-subtle text-sm text-slate-700">
-                {users.map((u) => (
-                  <tr key={u._id} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="font-bold text-brand-navy text-sm sm:text-base">{u.name}</div>
-                      <div className="text-xs text-slate-500">{u.designation}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-1.5 text-slate-800">
-                        <Mail size={14} className="text-slate-400" /> {u.email}
-                      </div>
-                      <div className="flex items-center gap-1.5 text-slate-500 mt-0.5 text-xs">
-                        <Phone size={14} className="text-slate-400" /> {u.phone}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-1 font-semibold text-slate-800">
-                        <Building2 size={14} className="text-slate-400" /> {u.department}
-                      </div>
-                      <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded bg-blue-50 text-blue-700 text-xs font-bold mt-1 border border-blue-100">
-                        <Shield size={12} /> {u.roleName || u.role?.name || 'Department Staff'}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">{getStatusBadge(u.status)}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-slate-600 text-xs sm:text-sm">
-                      {new Date(u.createdAt).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <div className="flex items-center justify-end gap-2">
-                        {u.status === 'PENDING_APPROVAL' && (
-                          <>
+                {users.map((u) => {
+                  const currentAdmin = (() => {
+                    try { return JSON.parse(localStorage.getItem('maruti_user') || '{}'); } catch (e) { return {}; }
+                  })();
+                  const isSelf = (u._id && currentAdmin._id && u._id === currentAdmin._id) ||
+                                 (u.email && currentAdmin.email && u.email.toLowerCase() === currentAdmin.email.toLowerCase());
+
+                  return (
+                    <tr key={u._id} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center gap-2">
+                          <div className="font-bold text-brand-navy text-sm sm:text-base">{u.name}</div>
+                          {isSelf && (
+                            <span className="text-[10px] uppercase font-extrabold bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full border border-indigo-200">
+                              You
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-xs text-slate-500">{u.designation}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center gap-1.5 text-slate-800">
+                          <Mail size={14} className="text-slate-400" /> {u.email}
+                        </div>
+                        <div className="flex items-center gap-1.5 text-slate-500 mt-0.5 text-xs">
+                          <Phone size={14} className="text-slate-400" /> {u.phone}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center gap-1 font-semibold text-slate-800">
+                          <Building2 size={14} className="text-slate-400" /> {u.department}
+                        </div>
+                        <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded bg-blue-50 text-blue-700 text-xs font-bold mt-1 border border-blue-100">
+                          <Shield size={12} /> {u.roleName || u.role?.name || 'Department Staff'}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">{getStatusBadge(u.status)}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-slate-600 text-xs sm:text-sm">
+                        {new Date(u.createdAt).toLocaleDateString()}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <div className="flex items-center justify-end gap-2">
+                          {u.status === 'PENDING_APPROVAL' && (
+                            <>
+                              <button
+                                onClick={() => {
+                                  setApproveModalUser(u);
+                                  setSelectedRoleId(u.role?._id || roles[0]?._id || '');
+                                }}
+                                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-md text-xs shadow-sm cursor-pointer"
+                              >
+                                Approve
+                              </button>
+                              <button
+                                onClick={() => setRejectModalUser(u)}
+                                className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-md text-xs shadow-sm cursor-pointer"
+                              >
+                                Reject
+                              </button>
+                            </>
+                          )}
+
+                          {(u.status === 'APPROVED' || u.status === 'ACTIVE') && !isSelf && (
                             <button
-                              onClick={() => {
-                                setApproveModalUser(u);
-                                setSelectedRoleId(u.role?._id || roles[0]?._id || '');
-                              }}
-                              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-md text-xs shadow-sm cursor-pointer"
+                              onClick={() => handleToggleStatus(u, 'INACTIVE')}
+                              title="Deactivate Account"
+                              className="p-1.5 text-amber-600 hover:bg-amber-50 rounded-md border border-amber-200 transition-colors cursor-pointer"
                             >
-                              Approve
+                              <UserX size={16} />
                             </button>
+                          )}
+
+                          {u.status === 'INACTIVE' && !isSelf && (
                             <button
-                              onClick={() => setRejectModalUser(u)}
-                              className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-md text-xs shadow-sm cursor-pointer"
+                              onClick={() => handleToggleStatus(u, 'APPROVED')}
+                              title="Activate Account"
+                              className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-md border border-emerald-200 transition-colors cursor-pointer"
                             >
-                              Reject
+                              <UserCheck size={16} />
                             </button>
-                          </>
-                        )}
+                          )}
 
-                        {(u.status === 'APPROVED' || u.status === 'ACTIVE') && (
                           <button
-                            onClick={() => handleToggleStatus(u, 'INACTIVE')}
-                            title="Deactivate Account"
-                            className="p-1.5 text-amber-600 hover:bg-amber-50 rounded-md border border-amber-200 transition-colors cursor-pointer"
+                            onClick={() => openEditModal(u)}
+                            title="Edit User Details"
+                            className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md border border-blue-200 transition-colors cursor-pointer"
                           >
-                            <UserX size={16} />
+                            <Edit size={16} />
                           </button>
-                        )}
 
-                        {u.status === 'INACTIVE' && (
-                          <button
-                            onClick={() => handleToggleStatus(u, 'APPROVED')}
-                            title="Activate Account"
-                            className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-md border border-emerald-200 transition-colors cursor-pointer"
-                          >
-                            <UserCheck size={16} />
-                          </button>
-                        )}
-
-                        <button
-                          onClick={() => openEditModal(u)}
-                          title="Edit User Details"
-                          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md border border-blue-200 transition-colors cursor-pointer"
-                        >
-                          <Edit size={16} />
-                        </button>
-
-                        <button
-                          onClick={() => setDeleteModalUser(u)}
-                          title="Delete User"
-                          className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-md border border-rose-200 transition-colors cursor-pointer"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                          {!isSelf && (
+                            <button
+                              onClick={() => setDeleteModalUser(u)}
+                              title="Delete User"
+                              className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-md border border-rose-200 transition-colors cursor-pointer"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
